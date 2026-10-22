@@ -1,0 +1,20 @@
+{
+  "id": "export-orders-csv",
+  "title": "Export orders to CSV",
+  "expected": {
+    "relevantFiles": ["repo/src/export/exportUsersCsv.ts", "repo/src/orders/types.ts"],
+    "verifiedFacts": [
+      "A users CSV export exists and can be reused as a pattern",
+      "Order fields available are defined in orders/types.ts"
+    ],
+    "mustStayUncertain": [
+      "Which columns the export must include",
+      "Date range / filter requirements",
+      "Maximum export size and whether it must be asynchronous"
+    ],
+    "forbiddenClaims": [
+      "A specific column list presented as a requirement",
+      "Excel (.xlsx) support"
+    ]
+  }
+}

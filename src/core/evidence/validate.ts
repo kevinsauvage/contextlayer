@@ -1,21 +1,20 @@
-import type { TicketDraft } from "@/core/requirements/schemas";
+import type { Claim, Evidence } from "./schemas";
 
 export type EvidenceIssue = { path: string; message: string };
 
-/**
- * Checks what schema validation cannot: that every evidence reference resolves and
- * that `verified` claims actually cite evidence. Structure is not truth.
- */
-export function validateEvidenceReferences(draft: TicketDraft): EvidenceIssue[] {
+export type ClaimSections = Record<string, Claim[]>;
+
+// Schema validation checks structure only; this checks that cited evidence exists.
+export function validateEvidenceReferences(evidence: Evidence[], sections: ClaimSections): EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
   const known = new Set<string>();
 
-  draft.evidence.forEach((item, i) => {
+  evidence.forEach((item, i) => {
     if (known.has(item.id)) issues.push({ path: `evidence[${i}].id`, message: `duplicate evidence id "${item.id}"` });
     known.add(item.id);
   });
 
-  const check = (section: string, claims: TicketDraft["description"]) =>
+  for (const [section, claims] of Object.entries(sections)) {
     claims.forEach((claim, i) => {
       const path = `${section}[${i}]`;
       for (const id of claim.evidenceIds) {
@@ -25,8 +24,6 @@ export function validateEvidenceReferences(draft: TicketDraft): EvidenceIssue[] 
         issues.push({ path, message: "verified claim has no evidence" });
       }
     });
-
-  check("description", draft.description);
-  check("acceptanceCriteria", draft.acceptanceCriteria);
+  }
   return issues;
 }

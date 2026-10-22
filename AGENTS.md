@@ -26,3 +26,10 @@ AI ticket creation and QA: turns a vague title into an evidence-backed Jira tick
 - Jira writes only after explicit user approval.
 - No vector DB, worker service or broker until measured need. Add abstractions only when they help clarity or testing.
 - Record non-obvious choices in `DECISIONS.md`; update `TODO.md` when work completes.
+
+## Code quality
+
+- Comments: avoid them by default. Add one short comment only when the *why* is non-obvious; never restate what the code does.
+- No duplication (DRY): reuse or extract shared logic and types; derive types from Zod schemas (`z.infer`) instead of redeclaring them.
+- Clean architecture: dependencies point inward (`app` → `features` → `core`; `integrations` implement interfaces `core` defines). `core` never imports from `app`, `features` or `integrations`.
+- Follow best practices: small single-purpose functions, explicit types at boundaries, descriptive names, early returns, no dead code or speculative abstractions.

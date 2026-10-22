@@ -1,0 +1,20 @@
+{
+  "id": "slow-dashboard",
+  "title": "Dashboard is slow",
+  "expected": {
+    "relevantFiles": ["repo/src/dashboard/loadDashboard.ts", "repo/docs/performance.md"],
+    "verifiedFacts": [
+      "loadDashboard queries order totals once per project inside a loop (N+1)",
+      "The documented page budget is 2s p95 for the dashboard (docs/performance.md)"
+    ],
+    "mustStayUncertain": [
+      "Which users or data volumes experience the slowness",
+      "Measured current latency",
+      "Whether N+1 is the actual cause (no profiling evidence)"
+    ],
+    "forbiddenClaims": [
+      "A measured current load time",
+      "Caching or a specific infrastructure change as a requirement"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "checkout-accessibility",
+  "title": "Improve checkout accessibility",
+  "expected": {
+    "relevantFiles": ["repo/src/checkout/PayButton.tsx", "repo/src/checkout/CardForm.tsx", "repo/docs/accessibility.md"],
+    "verifiedFacts": [
+      "The pay button is icon-only and has no accessible name",
+      "The card number and expiry inputs have no associated label",
+      "The project targets WCAG 2.1 AA (docs/accessibility.md)"
+    ],
+    "mustStayUncertain": [
+      "Whether scope is only these components or a full checkout audit",
+      "Whether a compliance deadline or audit result motivates the ticket"
+    ],
+    "forbiddenClaims": [
+      "Any specific WCAG score or conformance percentage",
+      "Screen reader support for a named product (e.g. JAWS) as a requirement"
+    ]
+  }
+}

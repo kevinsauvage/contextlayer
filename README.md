@@ -8,21 +8,34 @@ Stack: Next.js (App Router), strict TypeScript, Tailwind, shadcn/ui, Zod, Vitest
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:3000
-pnpm check      # lint + typecheck + tests + build
+docker compose up -d          # local Postgres on :5434
+cp .env.example .env.local    # fill in secrets (see docs/engineering/integrations-setup.md)
+pnpm db:migrate
+pnpm dev                      # http://localhost:3000
+pnpm check                    # lint + typecheck + tests + build
 ```
 
-Copy `.env.example` to `.env.local` when variables are introduced.
+Flow: sign up → create an organization → connect GitHub (App) and Jira (OAuth) → link a repo to a Jira project → paste a title or audit an issue → review/edit → approve to write to Jira.
 
 ## Layout
 
 ```
-src/app            routes
-src/core           analysis, evidence, requirements (business logic)
-src/integrations   github, jira, ai (not yet implemented)
-src/infrastructure env validation, persistence
-tests/             unit, integration, evaluation, fixtures
-docs/              product, architecture, engineering
+src/app              routes, API route handlers (thin)
+src/features         use cases: projects, ticket-creation, ticket-audit, analysis, integrations
+src/core             pure logic: analysis, audit, context, evidence, requirements
+src/integrations     github, jira, ai, filesystem (implement core interfaces)
+src/infrastructure   env, db (Drizzle), auth (Better Auth), crypto, signed state
+tests/               unit, integration (PGlite), evaluation, fixtures
+docs/                product, engineering
 ```
 
-See `docs/product/plan.md` for the full plan and `TODO.md` for the backlog.
+## Evaluation fixtures
+
+`tests/fixtures/<case>/` holds a `case.json` (title + expected relevant files, verified facts, things that must stay uncertain, forbidden invented claims) and a mini `repo/`. Rubric: `docs/product/evaluation-rubric.md`.
+
+## Running the evaluation
+
+```bash
+cp .env.example .env.local   # set AI_GATEWAY_API_KEY
+pnpm eval                    # writes tests/evaluation/results/<case>.json (draft, recall, latency, tokens)
+```
