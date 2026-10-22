@@ -10,3 +10,6 @@ Format: date · decision · why.
 ## Open
 
 - AI provider (compare quality/cost on fixtures), ORM, auth library, hosting, background job mechanism.
+
+## Dependency pins
+- 2026-10-22 · TypeScript stays on 5.x (7.x not supported by typescript-eslint yet), ESLint on 9.x (follows eslint-config-next), `@types/node` on 24 (matches Node 24 runtime). Revisit when the tooling catches up.
