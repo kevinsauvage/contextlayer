@@ -1,0 +1,3 @@
+# Competitor research
+
+TODO
