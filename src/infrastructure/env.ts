@@ -10,6 +10,7 @@ const envSchema = z.object({
   AI_MODEL: z.string().min(1).default("anthropic/claude-sonnet-5.5"),
   AI_BASE_URL: z.url().optional(),
   AI_API_KEY: z.string().optional(),
+  AI_STRUCTURED_OUTPUTS: z.stringbool().default(true),
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   GITHUB_APP_SLUG: z.string().optional(),

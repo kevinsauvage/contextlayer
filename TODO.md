@@ -13,7 +13,7 @@
 - [x] Title-first analysis pipeline (`src/core/analysis`) with fake-generator tests; real-model eval 4/4 green on Gemini 3.8 Flash (free tier via `AI_BASE_URL`/`AI_API_KEY`, `pnpm eval`)
 - [x] Keyword retrieval v1 (9/10 expected fixture files; misses `mail/send.ts` for "Add password reset"). Next: LLM query expansion, line-window excerpts
 - [x] Structured draft generation (AI SDK `Output.object`, evidence ids resolved against retrieved candidates)
-- [ ] Baseline comparison (original ticket vs generic AI); measure quality, latency, cost
+- [x] Baseline comparison (`tests/evaluation/baseline.eval.ts`): on DeepSeek, ContextLayer 11–12/12 vs generic AI 3–8 vs original 0–2; latency and tokens comparable. Same-model LLM judge, so spot-check by a human and use a separate judge model are still pending
 - [ ] Document GitHub / Jira permission requirements and feasibility
 
 ## P2 — Connect and deliver

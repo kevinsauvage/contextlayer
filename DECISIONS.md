@@ -16,6 +16,8 @@ Format: date · decision · why.
 
 - 2026-10-22 · AI via AI SDK 7 + Vercel AI Gateway (`AI_MODEL` provider/model string, default `anthropic/claude-sonnet-5.5`) · swappable models for the cost/quality comparison; no provider package.
 - 2026-10-22 · `AI_BASE_URL` + `AI_API_KEY` route the same code to any OpenAI-compatible endpoint (Gemini free tier, Groq, OpenRouter, Ollama); gateway stays the default when `AI_BASE_URL` is unset.
+- 2026-10-23 · `AI_STRUCTURED_OUTPUTS=false` falls back to JSON mode with the schema in the system prompt · endpoints like DeepSeek reject `json_schema`; Zod still validates the output.
+- 2026-10-23 · Baseline eval scores original / generic AI / ContextLayer with an LLM judge against fixture ground truth · cheap and repeatable; biased when the judge is the generating model, so treat scores as directional.
 - 2026-10-22 · The model cites candidate evidence ids and never writes evidence itself; the pipeline attaches the real excerpts · prevents fabricated sources.
 - 2026-10-22 · Retrieval v1 is keyword scoring (path ×3 + content) over a `ContextSource`; no embeddings until recall measurements justify them.
 
