@@ -1,5 +1,5 @@
-import { ProviderIcon } from "@/components/provider-icon";
-import { DisconnectButton } from "@/components/disconnect-button";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
+import { DisconnectButton } from "@/components/integrations/disconnect-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import type { ProviderOverview } from "@/features/integrations/overview";
 
 type Props = { provider: ProviderOverview; isAdmin: boolean };
 
-function StatusBadge({ provider }: { provider: ProviderOverview }) {
+function ConnectionStatusBadge({ provider }: { provider: ProviderOverview }) {
   if (!provider.configured) return <Badge variant="outline">Not configured</Badge>;
   if (provider.connections.some((c) => c.status === "needs_reconnect"))
     return <Badge variant="destructive">Needs attention</Badge>;
@@ -29,7 +29,7 @@ export function ProviderCard({ provider, isAdmin }: Props) {
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <CardTitle className="flex items-center gap-2">
-              {provider.name} <StatusBadge provider={provider} />
+              {provider.name} <ConnectionStatusBadge provider={provider} />
             </CardTitle>
             <CardDescription>{provider.description}</CardDescription>
           </div>

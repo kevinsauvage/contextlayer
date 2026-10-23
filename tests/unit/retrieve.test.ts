@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extractTerms, retrieveFileEvidence } from "@/core/context/retrieve";
+import { retrieveFileEvidence } from "@/core/context/retrieve";
+import { extractTerms } from "@/core/context/terms";
 import { DirectorySource } from "@/integrations/filesystem/directory-source";
 import { first } from "@/lib/first";
 import { loadEvaluationCases } from "../evaluation/fixtures";

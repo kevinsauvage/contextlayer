@@ -2,8 +2,8 @@
 
 import { CircleCheck, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import { DraftEditor } from "@/components/draft-editor";
-import { TicketPreview } from "@/components/ticket-preview";
+import { DraftEditor } from "@/components/analysis/draft-editor";
+import { TicketPreview } from "@/components/analysis/ticket-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

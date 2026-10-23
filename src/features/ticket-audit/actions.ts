@@ -1,19 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { auditIssue } from "@/core/analysis/analyze";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
+import { readAnalysisInput } from "@/features/analysis/input";
 import { buildProjectContext } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
-import { runAnalysis } from "@/features/analysis/run";
+import { startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
 import { resolveTracker } from "@/features/integrations/resolve";
 import type { ActionState } from "@/lib/action-state";
 import { formString } from "@/lib/form";
-
-const auditInputSchema = z.object({ issueKey: z.string() });
 
 export async function createAuditAnalysis(projectId: string, _: ActionState, formData: FormData): Promise<ActionState> {
   return withActionErrors(async () => {
@@ -25,7 +23,7 @@ export async function createAuditAnalysis(projectId: string, _: ActionState, for
     const issueKey = provider.parseIssueKey(project.trackerResourceId, formString(formData, "issueKey"));
     if (!issueKey) return { error: `Enter an issue key like ${provider.issueKeyExample(project.trackerResourceId)}` };
 
-    const analysisId = await runAnalysis({
+    const analysisId = await startAnalysis({
       db,
       project,
       userId,
@@ -55,9 +53,9 @@ export async function applyAuditToTracker(analysisId: string, draftInput: unknow
   });
   if ("error" in loaded) return loaded;
 
-  const input = auditInputSchema.safeParse(loaded.analysis.input);
-  if (!input.success) return { error: "Analysis input is invalid" };
+  const input = readAnalysisInput(loaded.analysis);
+  if (input?.kind !== "audit") return { error: "Analysis input is invalid" };
   return publishApproved(loaded.db, analysisId, approved.draft, async () =>
-    (await buildProjectContext(loaded.db, loaded.project)).tracker.updateIssue(input.data.issueKey, approved.draft),
+    (await buildProjectContext(loaded.db, loaded.project)).tracker.updateIssue(input.issueKey, approved.draft),
   );
 }

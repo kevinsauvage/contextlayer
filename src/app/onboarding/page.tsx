@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CenteredShell } from "@/components/centered-shell";
-import { OnboardingForm } from "@/components/onboarding-form";
+import { CenteredShell } from "@/components/layout/centered-shell";
+import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { buttonVariants } from "@/components/ui/button";
 import { listInvitationsForEmail } from "@/features/organizations/queries";
 import { getSession } from "@/infrastructure/auth/session";

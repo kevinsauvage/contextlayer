@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
-import { runAnalysis } from "@/features/analysis/run";
+import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
@@ -17,22 +17,27 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
-const run = (request: string, execute: () => Promise<{ result: unknown; issues: [] }>, rerunId?: string) =>
-  runAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute, rerunId });
+type Execute = () => Promise<{ result: unknown; issues: [] }>;
+
+const start = (request: string, execute: Execute) =>
+  startAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute });
+
+const restart = (request: string, execute: Execute, rerunId: string) =>
+  restartAnalysis({ db, userId: "u1", input: { request }, execute, rerunId });
 
 describe("running an analysis", () => {
   it("records a failure with its message", async () => {
-    const id = await run("vague", async () => {
+    const id = await start("vague", async () => {
       throw new Error("model timed out");
     });
     expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({ status: "failed", error: "model timed out" });
   });
 
   it("re-runs in place with the refined title and clears the previous outcome", async () => {
-    const id = await run("vague", async () => {
+    const id = await start("vague", async () => {
       throw new Error("model timed out");
     });
-    const rerun = await run("Change the hero heading", async () => ({ result: { title: "Hero" }, issues: [] }), id);
+    const rerun = await restart("Change the hero heading", async () => ({ result: { title: "Hero" }, issues: [] }), id);
 
     expect(rerun).toBe(id);
     expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
@@ -44,7 +49,7 @@ describe("running an analysis", () => {
   });
 
   it("refuses to re-run an analysis that is already running", async () => {
-    const id = await run("vague", async () => {
+    const id = await start("vague", async () => {
       throw new Error("model timed out");
     });
     await db
@@ -54,7 +59,7 @@ describe("running an analysis", () => {
     let executed = false;
 
     await expect(
-      run(
+      restart(
         "refined",
         async () => {
           executed = true;
@@ -71,7 +76,7 @@ describe("running an analysis", () => {
   });
 
   it("starts only one of two simultaneous re-runs", async () => {
-    const id = await run("vague", async () => {
+    const id = await start("vague", async () => {
       throw new Error("model timed out");
     });
     const slow = () =>
@@ -79,7 +84,7 @@ describe("running an analysis", () => {
         setTimeout(() => resolve({ result: {}, issues: [] }), 10),
       );
 
-    const results = await Promise.allSettled([run("first", slow, id), run("second", slow, id)]);
+    const results = await Promise.allSettled([restart("first", slow, id), restart("second", slow, id)]);
 
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((result): result is PromiseRejectedResult => result.status === "rejected");

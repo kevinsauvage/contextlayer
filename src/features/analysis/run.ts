@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, ne } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
+import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { Project } from "@/features/projects/queries";
@@ -11,63 +12,13 @@ import { first } from "@/lib/first";
 
 type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage };
 
-type RunArgs = {
-  db: Database;
-  project: Project;
-  userId: string;
-  kind: "create" | "audit";
-  input: Record<string, unknown>;
-  execute: () => Promise<Outcome>;
-  // Re-running replaces the row's draft in place; createdAt moves to the new run.
-  rerunId?: string;
-};
+type Execute = () => Promise<Outcome>;
 
-async function startRow(args: RunArgs): Promise<string> {
-  const { db } = args;
-  if (args.rerunId) {
-    const [row] = await db
-      .update(analysis)
-      .set({
-        status: "running",
-        input: args.input,
-        createdByUserId: args.userId,
-        model: getEnv().AI_MODEL,
-        result: null,
-        editedResult: null,
-        evidenceIssues: null,
-        inputTokens: null,
-        outputTokens: null,
-        latencyMs: null,
-        error: null,
-        createdAt: new Date(),
-      })
-      .where(and(eq(analysis.id, args.rerunId), ne(analysis.status, "running")))
-      .returning({ id: analysis.id });
-    if (!row) throw new AnalysisAlreadyRunningError();
-    return row.id;
-  }
-  const row = first(
-    await db
-      .insert(analysis)
-      .values({
-        projectId: args.project.id,
-        createdByUserId: args.userId,
-        kind: args.kind,
-        input: args.input,
-        model: getEnv().AI_MODEL,
-      })
-      .returning({ id: analysis.id }),
-  );
-  return row.id;
-}
-
-export async function runAnalysis(args: RunArgs): Promise<string> {
-  const { db } = args;
-  const id = await startRow(args);
-
+// Runs the model call and records its outcome; a failure lands on the row instead of escaping as an error page.
+async function recordOutcome(db: Database, id: string, execute: Execute): Promise<void> {
   const startedAt = Date.now();
   try {
-    const { result, issues, usage } = await args.execute();
+    const { result, issues, usage } = await execute();
     await db
       .update(analysis)
       .set({
@@ -89,5 +40,63 @@ export async function runAnalysis(args: RunArgs): Promise<string> {
       })
       .where(eq(analysis.id, id));
   }
-  return id;
+}
+
+type StartArgs = {
+  db: Database;
+  project: Project;
+  userId: string;
+  kind: "create" | "audit";
+  input: StoredAnalysisInput;
+  execute: Execute;
+};
+
+export async function startAnalysis(args: StartArgs): Promise<string> {
+  const row = first(
+    await args.db
+      .insert(analysis)
+      .values({
+        projectId: args.project.id,
+        createdByUserId: args.userId,
+        kind: args.kind,
+        input: args.input,
+        model: getEnv().AI_MODEL,
+      })
+      .returning({ id: analysis.id }),
+  );
+  await recordOutcome(args.db, row.id, args.execute);
+  return row.id;
+}
+
+type RestartArgs = {
+  db: Database;
+  userId: string;
+  input: StoredAnalysisInput;
+  rerunId: string;
+  execute: Execute;
+};
+
+// A re-run replaces the row's draft in place; the conditional update keeps two tabs from both spending tokens.
+export async function restartAnalysis(args: RestartArgs): Promise<string> {
+  const [row] = await args.db
+    .update(analysis)
+    .set({
+      status: "running",
+      input: args.input,
+      createdByUserId: args.userId,
+      model: getEnv().AI_MODEL,
+      result: null,
+      editedResult: null,
+      evidenceIssues: null,
+      inputTokens: null,
+      outputTokens: null,
+      latencyMs: null,
+      error: null,
+      createdAt: new Date(),
+    })
+    .where(and(eq(analysis.id, args.rerunId), ne(analysis.status, "running")))
+    .returning({ id: analysis.id });
+  if (!row) throw new AnalysisAlreadyRunningError();
+  await recordOutcome(args.db, row.id, args.execute);
+  return row.id;
 }

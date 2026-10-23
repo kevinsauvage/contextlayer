@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analysisAnswers, analysisRequest, mergeAnswers } from "@/features/analysis/input";
+import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { buildCreatePrompt } from "@/integrations/ai/prompt";
 
 describe("merging answers across rounds", () => {
@@ -21,9 +21,17 @@ describe("merging answers across rounds", () => {
 
 describe("analysis input", () => {
   it("reads requests stored before the rename as title", () => {
-    expect(analysisRequest({ title: "Old" })).toBe("Old");
-    expect(analysisRequest({ request: "New", answers: [] })).toBe("New");
-    expect(analysisAnswers({ request: "x" })).toEqual([]);
+    expect(requestOf(readAnalysisInput({ kind: "create", input: { title: "Old" } }))).toBe("Old");
+    expect(requestOf(readAnalysisInput({ kind: "create", input: { request: "New", answers: [] } }))).toBe("New");
+    expect(answersOf(readAnalysisInput({ kind: "create", input: { request: "x" } }))).toEqual([]);
+  });
+
+  it("tags an audit input with its kind and rejects a create payload", () => {
+    expect(readAnalysisInput({ kind: "audit", input: { issueKey: "KAN-4" } })).toEqual({
+      kind: "audit",
+      issueKey: "KAN-4",
+    });
+    expect(readAnalysisInput({ kind: "audit", input: { title: "Old" } })).toBeNull();
   });
 });
 

@@ -6,14 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation } from "@/components/use-mutation";
+import { createOrganization } from "@/features/organizations/actions";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
-
-const slugify = (name: string) =>
-  `${name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}-${Math.random().toString(36).slice(2, 6)}`;
 
 export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: string }) {
   const router = useRouter();
@@ -26,9 +21,10 @@ export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: str
       return;
     }
     run(async () => {
-      const created = await authClient.organization.create({ name, slug: slugify(name) });
-      if (created.error) return { error: created.error.message ?? "Could not create the organization" };
-      await authClient.organization.setActive({ organizationId: created.data.id });
+      const created = await createOrganization(name);
+      if (created.error) return created;
+      if (!created.organizationId) return { error: "Could not create the organization" };
+      await authClient.organization.setActive({ organizationId: created.organizationId });
       router.push("/projects");
       router.refresh();
       return {};

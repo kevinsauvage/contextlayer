@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { NavLink } from "@/components/nav-link";
-import { OrgSwitcher } from "@/components/org-switcher";
-import { UserMenu } from "@/components/user-menu";
+import { NavLink } from "@/components/layout/nav-link";
+import { OrgSwitcher } from "@/components/organization/org-switcher";
+import { UserMenu } from "@/components/layout/user-menu";
 import { listUserOrganizations } from "@/features/organizations/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";

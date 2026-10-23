@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CenteredShell } from "@/components/centered-shell";
+import { CenteredShell } from "@/components/layout/centered-shell";
 
 export default function NotFound() {
   return (

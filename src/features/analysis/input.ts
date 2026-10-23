@@ -1,20 +1,26 @@
-import { z } from "zod";
-import { clarificationSchema, type Clarification } from "@/core/requirements/schemas";
+import { storedAnalysisInputSchema } from "@/core/analysis/schemas";
+import type { Clarification } from "@/core/requirements/schemas";
+import type { Analysis } from "@/features/projects/queries";
 
-const inputSchema = z.object({
-  request: z.string().optional(),
-  title: z.string().optional(),
-  issueKey: z.string().optional(),
-  answers: z.array(clarificationSchema).optional(),
-});
+// The stored input tagged with the row's kind, so callers narrow instead of guessing which fields exist.
+export type AnalysisInput =
+  { kind: "create"; request: string; answers: Clarification[] } | { kind: "audit"; issueKey: string };
 
-// What the user asked for: the request text, or the audited issue key. Rows from before 2026-10-23 store it as `title`.
-export function analysisRequest(input: unknown): string {
-  const parsed = inputSchema.safeParse(input);
-  return parsed.success ? (parsed.data.request ?? parsed.data.title ?? parsed.data.issueKey ?? "") : "";
+export function readAnalysisInput(analysis: Pick<Analysis, "kind" | "input">): AnalysisInput | null {
+  const parsed = storedAnalysisInputSchema.safeParse(analysis.input);
+  if (!parsed.success) return null;
+  const stored = parsed.data;
+  if (analysis.kind === "audit") return "issueKey" in stored ? { kind: "audit", issueKey: stored.issueKey } : null;
+  if ("request" in stored) return { kind: "create", request: stored.request, answers: stored.answers ?? [] };
+  return "title" in stored ? { kind: "create", request: stored.title, answers: [] } : null;
 }
 
-export const analysisAnswers = (input: unknown): Clarification[] => inputSchema.safeParse(input).data?.answers ?? [];
+// What the user asked for, whether that is a request or an audited issue key.
+export const requestOf = (input: AnalysisInput | null) =>
+  !input ? "" : input.kind === "create" ? input.request : input.issueKey;
+
+export const answersOf = (input: AnalysisInput | null): Clarification[] =>
+  input?.kind === "create" ? input.answers : [];
 
 // Earlier answers are kept; this round's questions replace the earlier unanswered ones, and a re-answered question
 // takes its latest answer.

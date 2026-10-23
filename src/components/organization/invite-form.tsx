@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useMutation } from "@/components/use-mutation";
-import { authClient } from "@/infrastructure/auth/client";
+import { inviteMember } from "@/features/organizations/actions";
 import { formString } from "@/lib/form";
 
 const ROLES = ["member", "admin"] as const;
@@ -24,13 +24,9 @@ export function InviteForm() {
     const email = formString(formData, "email").trim();
     const role = formString(formData, "role");
     run(async () => {
-      const { data, error } = await authClient.organization.inviteMember({
-        email,
-        role: isRole(role) ? role : "member",
-      });
-      if (error) return { error: error.message ?? "Could not create the invitation" };
-      setInvitation({ id: data.id, email });
-      return {};
+      const result = await inviteMember(email, isRole(role) ? role : "member");
+      if (result.invitationId) setInvitation({ id: result.invitationId, email: result.email ?? email });
+      return result;
     });
   }
 

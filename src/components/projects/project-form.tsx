@@ -3,8 +3,8 @@
 import { Plus } from "lucide-react";
 import { useActionState, useState } from "react";
 import { FormError } from "@/components/form-error";
-import { ProviderIcon } from "@/components/provider-icon";
-import { ResourcePicker } from "@/components/resource-picker";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
+import { ResourcePicker } from "@/components/integrations/resource-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

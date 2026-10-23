@@ -1,5 +1,6 @@
 import type { Evidence } from "@/core/evidence/schemas";
-import { extractTerms, retrieveFileEvidence, type EvidenceCandidate } from "./retrieve";
+import { extractTerms } from "./terms";
+import { retrieveFileEvidence, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
 
 const RELATED_ISSUE_LIMIT = 5;

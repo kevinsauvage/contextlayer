@@ -2,7 +2,7 @@ import { LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Analysis } from "@/features/projects/queries";
 
-export function AnalysisStatus({ analysis }: { analysis: Pick<Analysis, "status" | "publishedIssueKey"> }) {
+export function AnalysisStatusBadge({ analysis }: { analysis: Pick<Analysis, "status" | "publishedIssueKey"> }) {
   if (analysis.publishedIssueKey) return <Badge>{analysis.publishedIssueKey}</Badge>;
   switch (analysis.status) {
     case "running":

@@ -7,10 +7,10 @@ import { draftTicket } from "@/core/analysis/analyze";
 import { clarificationSchema, type Clarification } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
-import { analysisAnswers, analysisRequest, mergeAnswers } from "@/features/analysis/input";
+import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { buildProjectContext } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
-import { runAnalysis } from "@/features/analysis/run";
+import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -45,7 +45,7 @@ export async function createTicketAnalysis(
   if ("error" in loaded) return loaded;
   const { db, userId, project } = loaded;
 
-  const analysisId = await runAnalysis({
+  const analysisId = await startAnalysis({
     db,
     project,
     userId,
@@ -72,16 +72,12 @@ async function redraft(
     });
     if ("error" in loaded) return loaded;
     const { db, userId, project, analysis } = loaded;
-    const next = change({
-      request: analysisRequest(analysis.input),
-      answers: analysisAnswers(analysis.input),
-    });
+    const input = readAnalysisInput(analysis);
+    const next = change({ request: requestOf(input), answers: answersOf(input) });
 
-    await runAnalysis({
+    await restartAnalysis({
       db,
-      project,
       userId,
-      kind: "create",
       input: next.answers.length ? next : { request: next.request },
       execute: () => draftFromRequest(db, project, next.request, next.answers),
       rerunId: analysisId,

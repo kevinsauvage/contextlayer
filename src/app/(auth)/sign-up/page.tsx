@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AuthForm } from "@/components/auth-form";
-import { CenteredShell } from "@/components/centered-shell";
+import { AuthForm } from "@/components/auth/auth-form";
+import { CenteredShell } from "@/components/layout/centered-shell";
 
 export const metadata: Metadata = { title: "Create your account" };
 

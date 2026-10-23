@@ -7,7 +7,7 @@ import { isUuid } from "@/lib/uuid";
 export type Project = typeof project.$inferSelect;
 export type Analysis = typeof analysis.$inferSelect;
 
-// A killed or timed-out request never reaches runAnalysis's catch, so old "running" rows are failed on read.
+// A killed or timed-out request never reaches the execute-and-record step, so old "running" rows are failed on read.
 const STALE_ANALYSIS_MS = 10 * 60 * 1000;
 
 const sourceConnection = alias(integrationConnection, "source_connection");

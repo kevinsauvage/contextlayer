@@ -42,14 +42,14 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
 
 - [ ] **Cost per analysis** (H7, C5)
   - Context: the `analysis` row stores input and output tokens and the model, but no price, so H7 (a few cents per analysis) cannot be tested.
-  - Fix: add a per-model price table (input and output per million tokens) in `src/core` or the env, compute cost in `runAnalysis`, store it in a new `cost_usd` column, and show it next to the token counts on the analysis page.
+  - Fix: add a per-model price table (input and output per million tokens) in `src/core` or the env, compute cost in `startAnalysis` / `restartAnalysis`, store it in a new `cost_usd` column, and show it next to the token counts on the analysis page.
 
 - [ ] **Retrieval: query expansion with the model** (E6)
   - Context: `extractTerms` relies on keywords plus a hand-written synonym map, and still misses `mail/send.ts` for "Add password reset". Embeddings are deferred until measured.
   - Fix: before retrieval, ask a small model for 5–10 code-search terms (identifiers, file names) from the request and merge them with `extractTerms`. Measure recall on the fixtures and on two real repositories (E6), and consider embeddings only if recall stays under 90%.
 
 - [ ] **Import following beyond JS/TS aliases**
-  - Context: `resolveImports` in `src/core/context/retrieve.ts` only resolves relative, `@/` and `~/` imports, assuming `@/` means `src/`.
+  - Context: `resolveImports` in `src/core/context/imports.ts` only resolves relative, `@/` and `~/` imports, assuming `@/` means `src/`.
   - Fix: read `compilerOptions.paths` from the repository's `tsconfig.json` when it exists, and add resolvers for Python (`from x import y`) and Go packages before relying on it in those stacks.
 
 - [ ] **Large repositories**
@@ -81,7 +81,7 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Fix: autosave `editedResult` with a debounced server action. When `editedResult` exists, ask for confirmation before "Run again" or "Update ticket" replaces it.
 - [ ] **Draft versions**
   - Context: re-runs overwrite `result` in place, so a worse redraft cannot be undone.
-  - Fix: add an `analysis_version` table (analysis id, input, result, created at) written by `runAnalysis` on re-run, and a version list with "Restore" on the analysis page.
+  - Fix: add an `analysis_version` table (analysis id, input, result, created at) written by `restartAnalysis` on re-run, and a version list with "Restore" on the analysis page.
 - [ ] **Clarification loop for audits**
   - Context: audits show the proposed ticket's open questions read-only, and cannot be re-run in place.
   - Fix: generalise `answerQuestions` and `redraft` in `src/features/ticket-creation/actions.ts` to accept the audit kind (pass the answers to `auditIssue`), and show `ClarifyQuestions` in `AuditView`.

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OnboardingForm } from "@/components/onboarding-form";
+import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "New organization" };

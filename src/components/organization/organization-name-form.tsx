@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation } from "@/components/use-mutation";
-import { authClient } from "@/infrastructure/auth/client";
+import { renameOrganization } from "@/features/organizations/actions";
 import { formString } from "@/lib/form";
 
 export function OrganizationNameForm({ name, canEdit }: { name: string; canEdit: boolean }) {
@@ -20,10 +20,7 @@ export function OrganizationNameForm({ name, canEdit }: { name: string; canEdit:
       setError("Enter a name of at least 2 characters");
       return;
     }
-    run(async () => {
-      const { error } = await authClient.organization.update({ data: { name: next } });
-      return error ? { error: error.message ?? "Could not rename the organization" } : {};
-    });
+    run(() => renameOrganization(next));
   }
 
   return (

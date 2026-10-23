@@ -1,7 +1,7 @@
 "use client";
 
-import { EditableList } from "@/components/editable-list";
-import { EvidenceList } from "@/components/evidence-list";
+import { EditableList } from "@/components/analysis/editable-list";
+import { EvidenceList } from "@/components/analysis/evidence-list";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";

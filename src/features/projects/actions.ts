@@ -63,12 +63,11 @@ export async function createProject(_: ActionState, formData: FormData): Promise
   });
 }
 
-export async function deleteProject(projectId: string): Promise<ActionState> {
-  return withActionErrors(async () => {
-    const { organizationId } = await requireOrgAdmin();
-    await getDb()
-      .delete(project)
-      .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
-    redirect("/projects");
-  });
+// Delete redirects on success; nothing is returned to the caller on that path.
+export async function deleteProject(projectId: string): Promise<never> {
+  const { organizationId } = await requireOrgAdmin();
+  await getDb()
+    .delete(project)
+    .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
+  redirect("/projects");
 }

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AcceptInvitation } from "@/components/accept-invitation";
-import { CenteredShell } from "@/components/centered-shell";
-import { SwitchAccountButton } from "@/components/switch-account-button";
+import { AcceptInvitation } from "@/components/organization/accept-invitation";
+import { CenteredShell } from "@/components/layout/centered-shell";
+import { SwitchAccountButton } from "@/components/auth/switch-account-button";
 import { getPendingInvitation } from "@/features/organizations/queries";
 import { getSession } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";

@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { AnalysisStatus } from "@/components/analysis-status";
-import { DeleteProjectButton } from "@/components/delete-project-button";
+import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge";
+import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { PageHeader } from "@/components/page-header";
-import { ProviderIcon } from "@/components/provider-icon";
+import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { analysisRequest, firstLine } from "@/features/analysis/input";
+import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { failStaleAnalyses, getProject, listAnalyses } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
 import { createAuditAnalysis } from "@/features/ticket-audit/actions";
@@ -106,8 +106,8 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
                   <Badge variant="outline" className="w-14">
                     {a.kind === "create" ? "Draft" : "Audit"}
                   </Badge>
-                  <span className="flex-1 truncate">{firstLine(analysisRequest(a.input)) || "Untitled"}</span>
-                  <AnalysisStatus analysis={a} />
+                  <span className="flex-1 truncate">{firstLine(requestOf(readAnalysisInput(a))) || "Untitled"}</span>
+                  <AnalysisStatusBadge analysis={a} />
                   <time className="hidden text-muted-foreground sm:inline" dateTime={a.createdAt.toISOString()}>
                     {a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
                   </time>

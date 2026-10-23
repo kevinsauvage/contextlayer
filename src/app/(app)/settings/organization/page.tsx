@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { CopyLinkButton } from "@/components/copy-button";
-import { InviteForm } from "@/components/invite-form";
-import { CancelInvitationButton, RemoveMemberButton } from "@/components/member-actions";
-import { OrganizationNameForm } from "@/components/organization-name-form";
+import { InviteForm } from "@/components/organization/invite-form";
+import { CancelInvitationButton, RemoveMemberButton } from "@/components/organization/member-actions";
+import { OrganizationNameForm } from "@/components/organization/organization-name-form";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

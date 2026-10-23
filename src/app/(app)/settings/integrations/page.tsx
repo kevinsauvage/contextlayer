@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ConnectNotice } from "@/components/connect-notice";
+import { ConnectNotice } from "@/components/integrations/connect-notice";
 import { PageHeader } from "@/components/page-header";
-import { ProviderCard } from "@/components/provider-card";
+import { ProviderCard } from "@/components/integrations/provider-card";
 import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";

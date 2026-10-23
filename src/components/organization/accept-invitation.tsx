@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@/components/use-mutation";
+import { acceptInvitation, rejectInvitation } from "@/features/organizations/actions";
 import { authClient } from "@/infrastructure/auth/client";
 
 export function AcceptInvitation({ invitationId }: { invitationId: string }) {
@@ -13,14 +14,15 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
   const respond = (accept: boolean) =>
     run(async () => {
       if (!accept) {
-        const { error } = await authClient.organization.rejectInvitation({ invitationId });
-        if (error) return { error: error.message ?? "Could not decline the invitation" };
+        const result = await rejectInvitation(invitationId);
+        if (result.error) return result;
         router.push("/projects");
         return {};
       }
-      const { data, error } = await authClient.organization.acceptInvitation({ invitationId });
-      if (error) return { error: error.message ?? "Could not accept the invitation" };
-      await authClient.organization.setActive({ organizationId: data.invitation.organizationId });
+      const result = await acceptInvitation(invitationId);
+      if (result.error) return result;
+      if (!result.organizationId) return { error: "Could not accept the invitation" };
+      await authClient.organization.setActive({ organizationId: result.organizationId });
       router.push("/projects");
       router.refresh();
       return {};

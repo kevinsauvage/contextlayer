@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ConnectNotice } from "@/components/connect-notice";
+import { ConnectNotice } from "@/components/integrations/connect-notice";
 import { PageHeader } from "@/components/page-header";
-import { ProjectForm } from "@/components/project-form";
+import { ProjectForm } from "@/components/projects/project-form";
 import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
