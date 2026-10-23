@@ -52,18 +52,11 @@ export async function listConnections(db: Database, organizationId: string): Pro
     .orderBy(integrationConnection.createdAt);
 }
 
-async function takenElsewhere(db: Database, organizationId: string, provider: string, externalIds: string[]) {
-  const rows = await db
-    .select({ externalId: integrationConnection.externalId })
-    .from(integrationConnection)
-    .where(
-      and(
-        eq(integrationConnection.provider, provider),
-        inArray(integrationConnection.externalId, externalIds),
-        ne(integrationConnection.organizationId, organizationId),
-      ),
-    );
-  return new Set(rows.map((row) => row.externalId));
+// Drizzle wraps driver errors, so walk the cause chain to find the Postgres code.
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if ("code" in error && error.code === "23505") return true;
+  return "cause" in error && isUniqueViolation(error.cause);
 }
 
 // Reconnecting an account refreshes its label, metadata and tokens and clears needs_reconnect.
@@ -72,43 +65,65 @@ export async function saveAccounts(
   input: { organizationId: string; userId: string; provider: ProviderDescriptor; accounts: ConnectedAccount[] },
 ): Promise<SaveOutcome> {
   const { organizationId, provider } = input;
-  const taken = provider.exclusive
-    ? await takenElsewhere(
-        db,
-        organizationId,
-        provider.id,
-        input.accounts.map((account) => account.externalId),
-      )
-    : new Set<string>();
-  const accounts = input.accounts.filter((account) => !taken.has(account.externalId));
-  if (!accounts.length) return "taken";
+  const accounts = input.accounts.map((account) => ({
+    account,
+    exclusiveKey: provider.exclusive ? `${provider.id}:${account.externalId}` : null,
+  }));
 
-  const grantId = randomUUID();
-  for (const account of accounts) {
-    const fields = {
-      label: account.label,
-      metadata: account.metadata,
-      status: "active" as const,
-      accessTokenEnc: account.tokens && encrypt(account.tokens.accessToken),
-      refreshTokenEnc: account.tokens && encrypt(account.tokens.refreshToken),
-      tokenExpiresAt: account.tokens?.expiresAt ?? null,
-      grantId: account.tokens ? grantId : null,
-      connectedByUserId: input.userId,
-      updatedAt: new Date(),
-    };
-    await db
-      .insert(integrationConnection)
-      .values({ organizationId, provider: provider.id, externalId: account.externalId, ...fields })
-      .onConflictDoUpdate({
-        target: [
-          integrationConnection.organizationId,
-          integrationConnection.provider,
-          integrationConnection.externalId,
-        ],
-        set: fields,
-      });
+  try {
+    return await db.transaction(async (tx) => {
+      const keys = accounts.flatMap(({ exclusiveKey }) => (exclusiveKey ? [exclusiveKey] : []));
+      const taken = new Set(
+        keys.length
+          ? (
+              await tx
+                .select({ exclusiveKey: integrationConnection.exclusiveKey })
+                .from(integrationConnection)
+                .where(
+                  and(
+                    inArray(integrationConnection.exclusiveKey, keys),
+                    ne(integrationConnection.organizationId, organizationId),
+                  ),
+                )
+            ).flatMap((row) => (row.exclusiveKey ? [row.exclusiveKey] : []))
+          : [],
+      );
+      const keep = accounts.filter(({ exclusiveKey }) => !exclusiveKey || !taken.has(exclusiveKey));
+      if (!keep.length) return "taken";
+
+      const grantId = randomUUID();
+      for (const { account, exclusiveKey } of keep) {
+        const fields = {
+          label: account.label,
+          metadata: account.metadata,
+          status: "active" as const,
+          accessTokenEnc: account.tokens && encrypt(account.tokens.accessToken),
+          refreshTokenEnc: account.tokens && encrypt(account.tokens.refreshToken),
+          tokenExpiresAt: account.tokens?.expiresAt ?? null,
+          grantId: account.tokens ? grantId : null,
+          connectedByUserId: input.userId,
+          updatedAt: new Date(),
+          exclusiveKey,
+        };
+        await tx
+          .insert(integrationConnection)
+          .values({ organizationId, provider: provider.id, externalId: account.externalId, ...fields })
+          .onConflictDoUpdate({
+            target: [
+              integrationConnection.organizationId,
+              integrationConnection.provider,
+              integrationConnection.externalId,
+            ],
+            set: fields,
+          });
+      }
+      return "connected";
+    });
+  } catch (error) {
+    // The exclusive key is the only unique constraint these writes do not upsert on: another organization won the race.
+    if (isUniqueViolation(error)) return "taken";
+    throw error;
   }
-  return "connected";
 }
 
 export async function projectsUsingConnection(db: Database, organizationId: string, connectionId: string) {

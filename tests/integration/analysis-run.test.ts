@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
+import { AnalysisAlreadyRunningError } from "@/core/errors";
 import { runAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -61,5 +63,48 @@ describe("running an analysis", () => {
       result: { title: "Hero" },
       error: null,
     });
+  });
+
+  it("refuses to re-run an analysis that is already running", async () => {
+    const id = await run("vague", async () => {
+      throw new Error("model timed out");
+    });
+    await db
+      .update(schema.analysis)
+      .set({ status: "running", input: { request: "in flight" } })
+      .where(eq(schema.analysis.id, id));
+    let executed = false;
+
+    await expect(
+      run(
+        "refined",
+        async () => {
+          executed = true;
+          return { result: {}, issues: [] };
+        },
+        id,
+      ),
+    ).rejects.toBeInstanceOf(AnalysisAlreadyRunningError);
+    expect(executed).toBe(false);
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "running",
+      input: { request: "in flight" },
+    });
+  });
+
+  it("starts only one of two simultaneous re-runs", async () => {
+    const id = await run("vague", async () => {
+      throw new Error("model timed out");
+    });
+    const slow = () =>
+      new Promise<{ result: unknown; issues: [] }>((resolve) =>
+        setTimeout(() => resolve({ result: {}, issues: [] }), 10),
+      );
+
+    const results = await Promise.allSettled([run("first", slow, id), run("second", slow, id)]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    expect(rejected?.reason).toBeInstanceOf(AnalysisAlreadyRunningError);
   });
 });

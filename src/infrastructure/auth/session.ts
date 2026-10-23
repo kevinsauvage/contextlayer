@@ -2,6 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { ForbiddenError } from "@/core/errors";
 import { getAuth } from "./auth";
 
 export type OrgContext = {
@@ -37,6 +38,6 @@ export const requireOrgContext = cache(async (): Promise<OrgContext> => {
 
 export async function requireOrgAdmin(): Promise<OrgContext> {
   const context = await requireOrgContext();
-  if (!context.isAdmin) throw new Error("Only organization owners and admins can do this");
+  if (!context.isAdmin) throw new ForbiddenError();
   return context;
 }

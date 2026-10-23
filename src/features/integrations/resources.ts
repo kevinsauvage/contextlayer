@@ -1,5 +1,6 @@
 import "server-only";
-import { ReconnectRequiredError, type Resource } from "@/core/integrations/provider";
+import type { Resource } from "@/core/integrations/provider";
+import { toActionError } from "@/features/errors";
 import type { Database } from "@/infrastructure/db/client";
 import { resolveConnection } from "./resolve";
 
@@ -15,7 +16,8 @@ export async function listConnectionResources(
   try {
     return { resources: await resolved.provider.listResources(resolved.context) };
   } catch (error) {
-    if (error instanceof ReconnectRequiredError) return { error: error.message, status: 409 };
+    const known = toActionError(error);
+    if (known) return { ...known, status: 409 };
     console.error(`[integrations] listing ${resolved.provider.id} resources failed`, error);
     return {
       error: `Could not load ${resolved.provider.resourceNoun} list from ${resolved.provider.name}`,

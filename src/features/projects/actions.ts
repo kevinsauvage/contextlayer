@@ -3,8 +3,9 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { ReconnectRequiredError, type Resource } from "@/core/integrations/provider";
-import { ConnectionMissingError, resolveSource, resolveTracker } from "@/features/integrations/resolve";
+import type { Resource } from "@/core/integrations/provider";
+import { withActionErrors } from "@/features/errors";
+import { resolveSource, resolveTracker } from "@/features/integrations/resolve";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 import { project } from "@/infrastructure/db/schema";
@@ -23,13 +24,12 @@ const projectInputSchema = z.object({
 const findResource = (resources: Resource[], id: string) => resources.find((resource) => resource.id === id);
 
 export async function createProject(_: ActionState, formData: FormData): Promise<ActionState> {
-  const input = projectInputSchema.safeParse(Object.fromEntries(formData));
-  if (!input.success) return { error: firstIssueMessage(input.error) };
+  return withActionErrors(async () => {
+    const input = projectInputSchema.safeParse(Object.fromEntries(formData));
+    if (!input.success) return { error: firstIssueMessage(input.error) };
 
-  const { organizationId } = await requireOrgAdmin();
-  const db = getDb();
-  let created: { id: string };
-  try {
+    const { organizationId } = await requireOrgAdmin();
+    const db = getDb();
     const [source, tracker] = await Promise.all([
       resolveSource(db, organizationId, input.data.sourceConnectionId),
       resolveTracker(db, organizationId, input.data.trackerConnectionId),
@@ -44,7 +44,7 @@ export async function createProject(_: ActionState, formData: FormData): Promise
       return { error: `That ${source.provider.resourceNoun} is not accessible to ${source.provider.name}` };
     if (!board) return { error: `That ${tracker.provider.resourceNoun} was not found in ${tracker.provider.name}` };
 
-    created = first(
+    const created = first(
       await db
         .insert(project)
         .values({
@@ -59,18 +59,16 @@ export async function createProject(_: ActionState, formData: FormData): Promise
         })
         .returning({ id: project.id }),
     );
-  } catch (error) {
-    if (error instanceof ReconnectRequiredError || error instanceof ConnectionMissingError)
-      return { error: error.message };
-    throw error;
-  }
-  redirect(`/projects/${created.id}`);
+    redirect(`/projects/${created.id}`);
+  });
 }
 
 export async function deleteProject(projectId: string): Promise<ActionState> {
-  const { organizationId } = await requireOrgAdmin();
-  await getDb()
-    .delete(project)
-    .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
-  redirect("/projects");
+  return withActionErrors(async () => {
+    const { organizationId } = await requireOrgAdmin();
+    await getDb()
+      .delete(project)
+      .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
+    redirect("/projects");
+  });
 }

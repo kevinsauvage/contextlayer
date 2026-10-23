@@ -1,8 +1,8 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import type { PublishedIssue } from "@/core/context/source";
-import { ReconnectRequiredError } from "@/core/integrations/provider";
 import type { TicketDraft } from "@/core/requirements/schemas";
+import { toActionError } from "@/features/errors";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis } from "@/infrastructure/db/schema";
 
@@ -23,7 +23,8 @@ export async function publishApproved(
       .where(eq(analysis.id, analysisId));
     return { issueKey: published.key, issueUrl: published.url };
   } catch (error) {
-    if (error instanceof ReconnectRequiredError) return { error: error.message };
+    const known = toActionError(error);
+    if (known) return known;
     console.error("[analysis] publishing failed", error);
     return { error: "The issue tracker rejected the change. Check the project still exists and try again." };
   }

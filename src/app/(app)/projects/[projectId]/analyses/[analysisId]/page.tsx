@@ -42,6 +42,16 @@ type ViewProps = { analysis: Analysis; trackerName: string; trackerKey: string }
 
 const publishedOf = (analysis: Analysis) => ({ key: analysis.publishedIssueKey, url: analysis.publishedIssueUrl });
 
+// Stored JSON is untrusted: a row written by an older schema must not crash the whole page.
+function OutdatedResult({ subject, action }: { subject: string; action: string }) {
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>This {subject} was created by an older version</AlertTitle>
+      <AlertDescription>{action}</AlertDescription>
+    </Alert>
+  );
+}
+
 function RequestPanel({ analysis, trackerName, editable }: Omit<ViewProps, "trackerKey"> & { editable: boolean }) {
   const request = analysisRequest(analysis.input);
   const answered = analysisAnswers(analysis.input).filter((pair) => pair.answer);
@@ -88,8 +98,10 @@ function RequestPanel({ analysis, trackerName, editable }: Omit<ViewProps, "trac
 }
 
 function CreationView({ analysis, trackerName, trackerKey }: ViewProps) {
-  const draft = ticketDraftSchema.parse(analysis.editedResult ?? analysis.result);
+  const parsed = ticketDraftSchema.safeParse(analysis.editedResult ?? analysis.result);
   const runKey = analysis.createdAt.toISOString();
+  if (!parsed.success) return <OutdatedResult subject="draft" action="Use Edit request above to run it again." />;
+  const draft = parsed.data;
   return (
     <>
       {!analysis.publishedIssueKey && draft.openQuestions.length > 0 && (
@@ -114,8 +126,10 @@ function CreationView({ analysis, trackerName, trackerKey }: ViewProps) {
 }
 
 function AuditView({ analysis, trackerName, trackerKey }: ViewProps) {
-  const report = auditReportSchema.parse(analysis.result);
-  const proposed = ticketDraftSchema.parse(
+  const parsedReport = auditReportSchema.safeParse(analysis.result);
+  if (!parsedReport.success) return <OutdatedResult subject="audit" action="Run the analysis again to update it." />;
+  const report = parsedReport.data;
+  const parsedProposal = ticketDraftSchema.safeParse(
     analysis.editedResult ?? { ...report.proposedTicket, evidence: report.evidence },
   );
   return (
@@ -143,15 +157,19 @@ function AuditView({ analysis, trackerName, trackerKey }: ViewProps) {
       </section>
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">Proposed ticket</h2>
-        <DraftWorkspace
-          initial={proposed}
-          publish={applyAuditToTracker.bind(null, analysis.id)}
-          publishLabel={`Approve & update the ${trackerName} ticket`}
-          trackerName={trackerName}
-          projectLabel={trackerKey}
-          existingKey={analysisRequest(analysis.input)}
-          published={publishedOf(analysis)}
-        />
+        {parsedProposal.success ? (
+          <DraftWorkspace
+            initial={parsedProposal.data}
+            publish={applyAuditToTracker.bind(null, analysis.id)}
+            publishLabel={`Approve & update the ${trackerName} ticket`}
+            trackerName={trackerName}
+            projectLabel={trackerKey}
+            existingKey={analysisRequest(analysis.input)}
+            published={publishedOf(analysis)}
+          />
+        ) : (
+          <OutdatedResult subject="proposed ticket" action="Run the analysis again to update it." />
+        )}
       </section>
     </div>
   );

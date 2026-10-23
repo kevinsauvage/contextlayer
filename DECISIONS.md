@@ -84,3 +84,10 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - The create input is a request (up to 4,000 characters, multi-line), not a title · users give context, constraints and background; the model writes the ticket's own title and must carry every stated need into the draft. Stored as `input.request`; older rows with `input.title` are still read (`analysisRequest`). Requests longer than a title keep up to 10 search terms.
 - Open questions are answered in place: answers are stored in `input.answers`, merged across rounds (`mergeAnswers`), fed to retrieval and to the prompt as `<answers>`, and the draft is regenerated in the same analysis. Blank answers keep the question open in the ticket · refining a whole request to answer one question was clumsy.
 - The draft page defaults to a preview rendered from `ticketSections`, the same structure sent to the tracker, so what the user approves is what gets published; editing is a second tab, and publishing sits in a sticky bar.
+
+## Correctness P1 (2026-10-23)
+
+- A re-run moves the row to `running` with a conditional `UPDATE … WHERE status <> 'running'`; no updated row raises `AnalysisAlreadyRunningError` ("This analysis is already running") · the pre-check in `findRefinable` cannot stop two tabs from both spending tokens.
+- `integration_connection.exclusive_key` (`provider:externalId`, null for shared providers) carries a unique index, and `saveAccounts` runs its pre-check and upserts in one transaction · the pre-check alone let two organizations link the same GitHub installation, and a mid-loop failure left a partial grant. Migration `0004` backfills existing GitHub rows.
+- Server actions map known failures through `toActionError` / `withActionErrors` (`src/features/errors.ts`); `ForbiddenError` and `AnalysisAlreadyRunningError` live in `src/core/errors.ts` · a non-admin sees a message instead of the error page, and unknown errors (including `redirect`) still propagate.
+- Analysis views use `safeParse` and render an "older version" state with the request edit form · one row written by an older schema used to crash the whole page.

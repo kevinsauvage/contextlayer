@@ -10,6 +10,7 @@ import { analysisAnswers, analysisRequest, mergeAnswers } from "@/features/analy
 import { buildProjectContext } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
 import { runAnalysis } from "@/features/analysis/run";
+import { withActionErrors } from "@/features/errors";
 import { getAnalysis, getProject, type Project } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb, type Database } from "@/infrastructure/db/client";
@@ -78,25 +79,27 @@ async function redraft(
     answers: Clarification[];
   },
 ): Promise<ActionState> {
-  const refinable = await findRefinable(analysisId);
-  if ("error" in refinable) return refinable;
-  const { db, userId, found } = refinable;
-  const next = change({
-    request: analysisRequest(found.analysis.input),
-    answers: analysisAnswers(found.analysis.input),
-  });
+  return withActionErrors(async () => {
+    const refinable = await findRefinable(analysisId);
+    if ("error" in refinable) return refinable;
+    const { db, userId, found } = refinable;
+    const next = change({
+      request: analysisRequest(found.analysis.input),
+      answers: analysisAnswers(found.analysis.input),
+    });
 
-  await runAnalysis({
-    db,
-    project: found.project,
-    userId,
-    kind: "create",
-    input: next.answers.length ? next : { request: next.request },
-    execute: draftFromRequest(db, found.project, next.request, next.answers),
-    rerunId: analysisId,
+    await runAnalysis({
+      db,
+      project: found.project,
+      userId,
+      kind: "create",
+      input: next.answers.length ? next : { request: next.request },
+      execute: draftFromRequest(db, found.project, next.request, next.answers),
+      rerunId: analysisId,
+    });
+    refresh();
+    return {};
   });
-  refresh();
-  return {};
 }
 
 export async function rerunTicketAnalysis(

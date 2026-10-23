@@ -1,6 +1,7 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
+import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -24,7 +25,7 @@ type RunArgs = {
 async function startRow(args: RunArgs): Promise<string> {
   const { db } = args;
   if (args.rerunId) {
-    await db
+    const [row] = await db
       .update(analysis)
       .set({
         status: "running",
@@ -40,8 +41,10 @@ async function startRow(args: RunArgs): Promise<string> {
         error: null,
         createdAt: new Date(),
       })
-      .where(eq(analysis.id, args.rerunId));
-    return args.rerunId;
+      .where(and(eq(analysis.id, args.rerunId), ne(analysis.status, "running")))
+      .returning({ id: analysis.id });
+    if (!row) throw new AnalysisAlreadyRunningError();
+    return row.id;
   }
   const row = first(
     await db

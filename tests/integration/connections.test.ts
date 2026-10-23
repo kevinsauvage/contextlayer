@@ -17,7 +17,7 @@ let db: Database;
 
 beforeAll(async () => {
   db = await migratedDb();
-  await seedOrgs(db, ["orgA", "orgB"]);
+  await seedOrgs(db, ["orgA", "orgB", "orgC"]);
 });
 
 const github = { id: "github", name: "GitHub", exclusive: true } as IntegrationProvider;
@@ -44,6 +44,7 @@ describe("saving connected accounts", () => {
     expect(await save("orgA", github, [account("99"), account("100")])).toBe("connected");
     expect(await save("orgA", github, [account("99")])).toBe("connected");
     expect((await listConnections(db, "orgA")).filter((c) => c.provider === "github")).toHaveLength(2);
+    expect((await connectionOf("orgA", "github", "99")).exclusiveKey).toBe("github:99");
   });
 
   it("refuses an exclusive account that belongs to another organization", async () => {
@@ -51,9 +52,29 @@ describe("saving connected accounts", () => {
     expect(await listConnections(db, "orgB")).toEqual([]);
   });
 
+  it("links the free accounts of a batch and skips the taken one", async () => {
+    expect(await save("orgB", github, [account("300"), account("99")])).toBe("connected");
+    const githubAccounts = (await listConnections(db, "orgB")).filter((c) => c.provider === "github");
+    expect(githubAccounts.map((c) => c.label)).toEqual(["account-300"]);
+  });
+
+  it("keeps exclusive keys unique in the database", async () => {
+    await expect(
+      db.insert(schema.integrationConnection).values({
+        organizationId: "orgC",
+        provider: "github",
+        externalId: "99",
+        label: "duplicate",
+        connectedByUserId: "u1",
+        exclusiveKey: "github:99",
+      }),
+    ).rejects.toThrow();
+  });
+
   it("lets several organizations share a non-exclusive account", async () => {
     expect(await save("orgA", jira, [account("site", true)])).toBe("connected");
     expect(await save("orgB", jira, [account("site", true)])).toBe("connected");
+    expect((await connectionOf("orgA", "jira", "site")).exclusiveKey).toBeNull();
   });
 
   it("stores tokens encrypted", async () => {

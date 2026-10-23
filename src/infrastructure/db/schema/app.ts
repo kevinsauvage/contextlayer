@@ -28,9 +28,12 @@ export const integrationConnection = pgTable(
       .references(() => user.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    // Set for exclusive providers (`provider:externalId`) so the database, not just a pre-check, keeps them unique.
+    exclusiveKey: text("exclusive_key"),
   },
   (t) => [
     uniqueIndex("integration_connection_org_provider_external_idx").on(t.organizationId, t.provider, t.externalId),
+    uniqueIndex("integration_connection_exclusive_key_idx").on(t.exclusiveKey),
     index("integration_connection_org_idx").on(t.organizationId),
     index("integration_connection_grant_idx").on(t.grantId),
   ],

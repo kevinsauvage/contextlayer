@@ -1,6 +1,6 @@
 # TODO
 
-Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. Markers: `[ ]` open, `[~]` partly done (the remaining scope is described). Each item says why it matters (**Context**) and how to close it (**Fix**).
+Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. Markers: `[ ]` open, `[~]` partly done (the remaining scope is described). Each item says why it matters (**Context**) and how to close it (**Fix**). Architecture and code-quality debt lives in [`TODO-CODE-QUALITY.md`](TODO-CODE-QUALITY.md).
 
 ## P0: Decide whether to build (Phase 0)
 
@@ -23,27 +23,35 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Context: `tests/evaluation/baseline.eval.ts` scores original vs generic AI vs ContextLayer. The judge seam and the blind packet tooling now exist; the current E2 numbers still come from a run where one model did both jobs.
   - Done: `AI_JUDGE_MODEL` (plus `AI_JUDGE_BASE_URL`, `AI_JUDGE_API_KEY`, `AI_JUDGE_STRUCTURED_OUTPUTS`) is read by `resolveJudgeModel`; results record `judgeModel` / `judgeIsGenerator` and the run warns when the judge is the generator. `pnpm review:export` writes A/B/C packets and a score template; `pnpm review:report` writes `docs/product/e3-blind-review.md` from the filled scores.
   - Fix: set `AI_JUDGE_MODEL` to a different model (own base URL if the provider differs) and rerun `pnpm eval tests/evaluation/baseline.eval.ts`; then score the four packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`.
+
 - [ ] **Grow the fixtures from 4 to 8–10**
   - Context: `tests/fixtures/` has four miniature repositories; C3 asks for 8 to 10, and there is no case with a Jira issue or a duplicate ticket.
   - Fix: add `case.json` plus `repo/` for a Jira-issue audit, a duplicate-ticket case, the "banner title" miss (copy in an imported content module), a multi-paragraph request, and a prompt-injection file. `tests/unit/fixtures.test.ts` validates the shape.
+
 - [ ] **Assert forbidden claims and must-stay-uncertain facts in `analysis.eval.ts`**
   - Context: each `case.json` lists `forbiddenClaims` and `mustStayUncertain`, but the eval only asserts that evidence references are valid, so C3 (no fabricated claim) is unchecked.
   - Fix: add an LLM-judge step (with the separate judge model) that checks each forbidden claim is absent and each uncertain fact is not marked `verified`; fail the case and write the verdict to `results/<case>.json`.
+
 - [ ] **Evaluate the clarification loop**
   - Context: answers to open questions regenerate the draft (`answerQuestions`, `<answers>` in `src/integrations/ai/prompt.ts`), but nothing checks that the model applies them.
   - Fix: add eval cases with prepared answers. Assert that answered questions disappear from `openQuestions`, that the answer shows up in the description or criteria, and that a blank answer keeps its question open.
+
 - [ ] **Pick the default model**
   - Context: only DeepSeek and Gemini free tiers have been tried; the weak model produced padded drafts that the prompt now has to correct.
   - Fix: run `pnpm eval` on one or two paid mid-tier models (through the AI Gateway) and on DeepSeek; compare eval pass rate, judge score, latency and cost, and record the winner as the `AI_MODEL` default in `DECISIONS.md`.
+
 - [ ] **Cost per analysis** (H7, C5)
   - Context: the `analysis` row stores input and output tokens and the model, but no price, so H7 (a few cents per analysis) cannot be tested.
   - Fix: add a per-model price table (input and output per million tokens) in `src/core` or the env, compute cost in `runAnalysis`, store it in a new `cost_usd` column, and show it next to the token counts on the analysis page.
+
 - [ ] **Retrieval: query expansion with the model** (E6)
   - Context: `extractTerms` relies on keywords plus a hand-written synonym map, and still misses `mail/send.ts` for "Add password reset". Embeddings are deferred until measured.
   - Fix: before retrieval, ask a small model for 5–10 code-search terms (identifiers, file names) from the request and merge them with `extractTerms`. Measure recall on the fixtures and on two real repositories (E6), and consider embeddings only if recall stays under 90%.
+
 - [ ] **Import following beyond JS/TS aliases**
   - Context: `resolveImports` in `src/core/context/retrieve.ts` only resolves relative, `@/` and `~/` imports, assuming `@/` means `src/`.
   - Fix: read `compilerOptions.paths` from the repository's `tsconfig.json` when it exists, and add resolvers for Python (`from x import y`) and Go packages before relying on it in those stacks.
+
 - [ ] **Large repositories**
   - Context: `GithubSource.listFiles` uses one recursive tree call, which GitHub truncates at about 100,000 entries or 7 MB; monorepos have no scoping, and latency on big repositories is unmeasured.
   - Fix: detect `truncated` in the tree response and fall back to paginated directory reads; add an optional subdirectory to the project (`source_resource_id` like `owner/repo#apps/web`); measure latency on a repository of about 1,000 files and record it in `phase-0-feasibility.md`.
