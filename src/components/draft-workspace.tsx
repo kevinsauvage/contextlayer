@@ -1,12 +1,13 @@
 "use client";
 
 import { CircleCheck, ExternalLink } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { DraftEditor } from "@/components/draft-editor";
 import { TicketPreview } from "@/components/ticket-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMutation } from "@/components/use-mutation";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 
@@ -34,9 +35,8 @@ export function DraftWorkspace({
   const [result, setResult] = useState<PublishResult>(
     initialPublished.url ? { issueUrl: initialPublished.url, issueKey: initialPublished.key ?? undefined } : {},
   );
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useMutation();
   const published = Boolean(result.issueUrl);
-
   return (
     <div className="flex flex-col gap-4">
       <Tabs defaultValue="preview" className="gap-4">
@@ -83,7 +83,15 @@ export function DraftWorkspace({
       ) : (
         <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur">
           <p className="text-sm text-muted-foreground">Nothing is sent to {trackerName} until you approve.</p>
-          <Button disabled={pending} onClick={() => startTransition(async () => setResult(await publish(draft)))}>
+          <Button
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                setResult(await publish(draft));
+                return {};
+              })
+            }
+          >
             {pending ? "Publishing…" : publishLabel}
           </Button>
         </div>

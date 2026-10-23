@@ -31,10 +31,12 @@ describe("ticket rendering", () => {
 
   it("labels anything that is not verified", () => {
     expect(sections[0]?.paragraphs).toEqual([
-      "Pay button has no accessible name.",
-      "Needs clarification: Scope is the whole checkout.",
+      { status: "verified", text: "Pay button has no accessible name." },
+      { status: "needs_clarification", text: "Scope is the whole checkout." },
     ]);
-    expect(sections[1]?.bullets).toEqual(["Inferred: Pay button is announced as 'Pay'. (needs product decision)"]);
+    expect(sections[1]?.bullets).toEqual([
+      { status: "inferred", text: "Pay button is announced as 'Pay'. (needs product decision)" },
+    ]);
   });
 
   it("links evidence and keeps assumptions and questions", () => {

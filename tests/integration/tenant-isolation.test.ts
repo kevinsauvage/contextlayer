@@ -5,7 +5,7 @@ import { getAnalysis, getProject, listProjects } from "@/features/projects/queri
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
 import { first } from "@/lib/first";
-import { migratedDb, seedOrgs } from "../helpers/db";
+import { migratedDb, seedConnections, seedOrgs, seedProject } from "../helpers/db";
 
 let db: Database;
 const ids = { project: "", analysis: "", source: "", tracker: "" };
@@ -16,36 +16,24 @@ beforeAll(async () => {
   await db
     .insert(schema.member)
     .values({ id: "m1", organizationId: "orgA", userId: "u1", role: "owner", createdAt: new Date() });
-  const [source, tracker] = await db
-    .insert(schema.integrationConnection)
-    .values([
-      { organizationId: "orgA", provider: "github", externalId: "42", label: "acme", connectedByUserId: "u1" },
-      { organizationId: "orgA", provider: "jira", externalId: "c", label: "A", connectedByUserId: "u1" },
-    ])
-    .returning();
-  if (!source || !tracker) throw new Error("seed failed");
-  const project = first(
-    await db
-      .insert(schema.project)
-      .values({
-        organizationId: "orgA",
-        name: "P",
-        sourceConnectionId: source.id,
-        sourceResourceId: "acme/shop",
-        sourceResourceLabel: "acme/shop",
-        trackerConnectionId: tracker.id,
-        trackerResourceId: "SHOP",
-        trackerResourceLabel: "SHOP · Shop",
-      })
-      .returning(),
-  );
+  const connections = await seedConnections(db, "orgA");
+  const project = await seedProject(db, "orgA", connections, {
+    sourceResourceId: "acme/shop",
+    trackerResourceId: "SHOP",
+    trackerResourceLabel: "SHOP · Shop",
+  });
   const analysis = first(
     await db
       .insert(schema.analysis)
       .values({ projectId: project.id, createdByUserId: "u1", kind: "create", input: { title: "t" } })
       .returning(),
   );
-  Object.assign(ids, { project: project.id, analysis: analysis.id, source: source.id, tracker: tracker.id });
+  Object.assign(ids, {
+    project: project.id,
+    analysis: analysis.id,
+    source: connections.source.id,
+    tracker: connections.tracker.id,
+  });
 });
 
 describe("tenant isolation", () => {

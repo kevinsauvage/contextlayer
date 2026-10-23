@@ -1,32 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
 
-type Props = { label: string; pendingLabel: string; run: () => Promise<{ error: { message?: string } | null }> };
+type Props = { label: string; pendingLabel: string; action: () => Promise<{ error: { message?: string } | null }> };
 
-function AsyncButton({ label, pendingLabel, run }: Props) {
-  const router = useRouter();
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
+function MemberAction({ label, pendingLabel, action }: Props) {
+  const { run, pending, error } = useMutation({ refresh: true });
   return (
     <span className="flex items-center gap-2">
-      {error && (
-        <span role="alert" className="text-xs text-destructive">
-          {error}
-        </span>
-      )}
+      <FormError error={error} className="text-xs" />
       <Button
         variant="ghost"
         size="sm"
         disabled={pending}
         onClick={() =>
-          startTransition(async () => {
-            const { error } = await run();
-            if (error) setError(error.message ?? "Something went wrong");
-            else router.refresh();
+          run(async () => {
+            const { error } = await action();
+            return error ? { error: error.message ?? "Something went wrong" } : {};
           })
         }
       >
@@ -37,17 +30,17 @@ function AsyncButton({ label, pendingLabel, run }: Props) {
 }
 
 export const RemoveMemberButton = ({ memberId }: { memberId: string }) => (
-  <AsyncButton
+  <MemberAction
     label="Remove"
     pendingLabel="Removing…"
-    run={() => authClient.organization.removeMember({ memberIdOrEmail: memberId })}
+    action={() => authClient.organization.removeMember({ memberIdOrEmail: memberId })}
   />
 );
 
 export const CancelInvitationButton = ({ invitationId }: { invitationId: string }) => (
-  <AsyncButton
+  <MemberAction
     label="Revoke"
     pendingLabel="Revoking…"
-    run={() => authClient.organization.cancelInvitation({ invitationId })}
+    action={() => authClient.organization.cancelInvitation({ invitationId })}
   />
 );

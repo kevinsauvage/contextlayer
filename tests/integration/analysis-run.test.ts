@@ -5,8 +5,7 @@ import { runAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
-import { first } from "@/lib/first";
-import { migratedDb, seedOrgs } from "../helpers/db";
+import { migratedDb, seedConnections, seedOrgs, seedProject } from "../helpers/db";
 
 let db: Database;
 let project: Project;
@@ -14,29 +13,8 @@ let project: Project;
 beforeAll(async () => {
   db = await migratedDb();
   await seedOrgs(db, ["orgA"]);
-  const [source, tracker] = await db
-    .insert(schema.integrationConnection)
-    .values([
-      { organizationId: "orgA", provider: "github", externalId: "1", label: "a", connectedByUserId: "u1" },
-      { organizationId: "orgA", provider: "jira", externalId: "c", label: "b", connectedByUserId: "u1" },
-    ])
-    .returning();
-  if (!source || !tracker) throw new Error("seed failed");
-  project = first(
-    await db
-      .insert(schema.project)
-      .values({
-        organizationId: "orgA",
-        name: "P",
-        sourceConnectionId: source.id,
-        sourceResourceId: "a/b",
-        sourceResourceLabel: "a/b",
-        trackerConnectionId: tracker.id,
-        trackerResourceId: "P",
-        trackerResourceLabel: "P",
-      })
-      .returning(),
-  );
+  const connections = await seedConnections(db, "orgA");
+  project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
 const run = (request: string, execute: () => Promise<{ result: unknown; issues: [] }>, rerunId?: string) =>

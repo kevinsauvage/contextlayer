@@ -3,8 +3,9 @@
 import { EditableList } from "@/components/editable-list";
 import { EvidenceList } from "@/components/evidence-list";
 import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import type { ClaimStatus } from "@/core/evidence/schemas";
+import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, type ClaimStatus } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
 
 type Props = {
@@ -14,22 +15,20 @@ type Props = {
   trackerName: string;
 };
 
-const STATUSES: ClaimStatus[] = ["verified", "inferred", "unknown", "needs_clarification"];
-
 function StatusSelect({ value, onChange }: { value: ClaimStatus; onChange: (status: ClaimStatus) => void }) {
   return (
-    <select
+    <NativeSelect
       value={value}
       onChange={(event) => onChange(event.target.value as ClaimStatus)}
       aria-label="Claim status"
-      className="h-9 w-fit rounded-lg border bg-background px-2 text-sm"
+      className="w-fit"
     >
-      {STATUSES.map((status) => (
-        <option key={status} value={status}>
-          {status.replace("_", " ")}
-        </option>
+      {CLAIM_STATUSES.map((status) => (
+        <NativeSelectOption key={status} value={status}>
+          {CLAIM_STATUS_LABELS[status]}
+        </NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 

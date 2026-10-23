@@ -6,16 +6,14 @@ import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
 import { clarificationSchema, type Clarification } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
+import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { analysisAnswers, analysisRequest, mergeAnswers } from "@/features/analysis/input";
 import { buildProjectContext } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
 import { runAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
-import { getAnalysis, getProject, type Project } from "@/features/projects/queries";
-import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb, type Database } from "@/infrastructure/db/client";
-import { getEnv } from "@/infrastructure/env";
-import { AiGenerator } from "@/integrations/ai/generator";
+import type { Project } from "@/features/projects/queries";
+import type { Database } from "@/infrastructure/db/client";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage } from "@/lib/zod";
 
@@ -25,17 +23,15 @@ const requestSchema = z
   .min(3, "Describe what you need in at least a few words")
   .max(4000, "Keep the request under 4,000 characters");
 
-const draftFromRequest =
-  (db: Database, project: Project, request: string, answers: Clarification[] = []) =>
-  async () => {
-    const { draft, issues, usage } = await draftTicket({
-      request,
-      answers,
-      ...(await buildProjectContext(db, project)),
-      generator: new AiGenerator(getEnv().AI_MODEL),
-    });
-    return { result: draft, issues, usage };
-  };
+const draftFromRequest = async (db: Database, project: Project, request: string, answers: Clarification[] = []) => {
+  const { draft, issues, usage } = await draftTicket({
+    request,
+    answers,
+    ...(await buildProjectContext(db, project)),
+    generator: defaultGenerator(),
+  });
+  return { result: draft, issues, usage };
+};
 
 export async function createTicketAnalysis(
   projectId: string,
@@ -45,10 +41,9 @@ export async function createTicketAnalysis(
   const request = requestSchema.safeParse(formData.get("request"));
   if (!request.success) return { error: firstIssueMessage(request.error) };
 
-  const { organizationId, userId } = await requireOrgContext();
-  const db = getDb();
-  const project = await getProject(db, organizationId, projectId);
-  if (!project) return { error: "Project not found" };
+  const loaded = await loadProject(projectId);
+  if ("error" in loaded) return loaded;
+  const { db, userId, project } = loaded;
 
   const analysisId = await runAnalysis({
     db,
@@ -56,19 +51,9 @@ export async function createTicketAnalysis(
     userId,
     kind: "create",
     input: { request: request.data },
-    execute: draftFromRequest(db, project, request.data),
+    execute: () => draftFromRequest(db, project, request.data),
   });
   redirect(`/projects/${projectId}/analyses/${analysisId}`);
-}
-
-async function findRefinable(analysisId: string) {
-  const { organizationId, userId } = await requireOrgContext();
-  const db = getDb();
-  const found = await getAnalysis(db, organizationId, analysisId);
-  if (found?.analysis.kind !== "create") return { error: "Analysis not found" };
-  if (found.analysis.publishedIssueKey) return { error: `Already published as ${found.analysis.publishedIssueKey}` };
-  if (found.analysis.status === "running") return { error: "This analysis is still running" };
-  return { db, userId, found };
 }
 
 // Until a ticket is published, refining replaces the draft instead of adding another analysis to the history.
@@ -80,21 +65,25 @@ async function redraft(
   },
 ): Promise<ActionState> {
   return withActionErrors(async () => {
-    const refinable = await findRefinable(analysisId);
-    if ("error" in refinable) return refinable;
-    const { db, userId, found } = refinable;
+    const loaded = await loadAnalysis(analysisId, {
+      kind: "create",
+      publishedError: (issueKey) => `Already published as ${issueKey}`,
+      runningError: "This analysis is still running",
+    });
+    if ("error" in loaded) return loaded;
+    const { db, userId, project, analysis } = loaded;
     const next = change({
-      request: analysisRequest(found.analysis.input),
-      answers: analysisAnswers(found.analysis.input),
+      request: analysisRequest(analysis.input),
+      answers: analysisAnswers(analysis.input),
     });
 
     await runAnalysis({
       db,
-      project: found.project,
+      project,
       userId,
       kind: "create",
       input: next.answers.length ? next : { request: next.request },
-      execute: draftFromRequest(db, found.project, next.request, next.answers),
+      execute: () => draftFromRequest(db, project, next.request, next.answers),
       rerunId: analysisId,
     });
     refresh();
@@ -123,16 +112,16 @@ export async function answerQuestions(analysisId: string, input: unknown): Promi
 
 export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {
   const approved = parseApprovedDraft(draftInput, "The draft is invalid");
-  if ("error" in approved) return { error: approved.error };
+  if ("error" in approved) return approved;
 
-  const { organizationId } = await requireOrgContext();
-  const db = getDb();
-  const found = await getAnalysis(db, organizationId, analysisId);
-  if (found?.analysis.kind !== "create" || found.analysis.status !== "completed")
-    return { error: "Analysis not found" };
-  if (found.analysis.publishedIssueKey) return { error: `Already published as ${found.analysis.publishedIssueKey}` };
+  const loaded = await loadAnalysis(analysisId, {
+    kind: "create",
+    status: "completed",
+    publishedError: (issueKey) => `Already published as ${issueKey}`,
+  });
+  if ("error" in loaded) return loaded;
 
-  return publishApproved(db, analysisId, approved.draft, async () =>
-    (await buildProjectContext(db, found.project)).tracker.createIssue(approved.draft),
+  return publishApproved(loaded.db, analysisId, approved.draft, async () =>
+    (await buildProjectContext(loaded.db, loaded.project)).tracker.createIssue(approved.draft),
   );
 }

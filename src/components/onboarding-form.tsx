@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
 
@@ -16,8 +17,7 @@ const slugify = (name: string) =>
 
 export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: string }) {
   const router = useRouter();
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
+  const { run, pending, error, setError } = useMutation();
 
   function submit(formData: FormData) {
     const name = formString(formData, "name").trim();
@@ -25,15 +25,13 @@ export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: str
       setError("Enter a name of at least 2 characters");
       return;
     }
-    startTransition(async () => {
+    run(async () => {
       const created = await authClient.organization.create({ name, slug: slugify(name) });
-      if (created.error) {
-        setError(created.error.message ?? "Could not create the organization");
-        return;
-      }
+      if (created.error) return { error: created.error.message ?? "Could not create the organization" };
       await authClient.organization.setActive({ organizationId: created.data.id });
       router.push("/projects");
       router.refresh();
+      return {};
     });
   }
 
@@ -53,11 +51,7 @@ export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: str
         />
         <p className="text-xs text-muted-foreground">Usually your company or team. You can rename it later.</p>
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FormError error={error} />
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : submitLabel}
       </Button>

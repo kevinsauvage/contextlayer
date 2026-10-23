@@ -7,6 +7,15 @@ const claimStatusSchema = z
   );
 export type ClaimStatus = z.infer<typeof claimStatusSchema>;
 
+export const CLAIM_STATUSES = claimStatusSchema.options;
+
+export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
+  verified: "Verified",
+  inferred: "Inferred",
+  unknown: "Unknown",
+  needs_clarification: "Needs clarification",
+};
+
 const evidenceKindSchema = z.enum(["code", "documentation", "decision", "jira_issue"]);
 export type EvidenceKind = z.infer<typeof evidenceKindSchema>;
 

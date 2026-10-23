@@ -2,11 +2,13 @@
 
 import { Plus } from "lucide-react";
 import { useActionState, useState } from "react";
+import { FormError } from "@/components/form-error";
 import { ProviderIcon } from "@/components/provider-icon";
 import { ResourcePicker } from "@/components/resource-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type { ProviderKind, Resource } from "@/core/integrations/provider";
 import { connectHref } from "@/features/integrations/notices";
 import type { ProviderOverview } from "@/features/integrations/overview";
@@ -85,20 +87,20 @@ function ConnectionStep({ step, kind, title, description, providers, onResource 
           {options.length > 1 ? (
             <div className="flex flex-col gap-2">
               <Label htmlFor={`${field}ConnectionId`}>Account</Label>
-              <select
+              <NativeSelect
                 id={`${field}ConnectionId`}
                 name={`${field}ConnectionId`}
                 value={connectionId}
                 onChange={(e) => setConnectionId(e.target.value)}
-                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                className="w-full"
               >
                 {options.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <NativeSelectOption key={option.id} value={option.id}>
                     {option.provider.name} · {option.label}
                     {option.status === "needs_reconnect" ? " (reconnect required)" : ""}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           ) : (
             <p className="flex items-center gap-2 text-sm">
@@ -167,11 +169,7 @@ export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]
           placeholder="Checkout web app"
         />
       </section>
-      {state.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      )}
+      {state.error && <FormError error={state.error} />}
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={pending || !ready}>
           {pending ? "Creating…" : "Create project"}

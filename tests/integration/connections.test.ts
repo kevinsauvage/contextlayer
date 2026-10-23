@@ -11,7 +11,7 @@ import {
 import { decrypt } from "@/infrastructure/crypto";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
-import { migratedDb, seedOrgs } from "../helpers/db";
+import { migratedDb, seedOrgs, seedProject } from "../helpers/db";
 
 let db: Database;
 
@@ -136,16 +136,7 @@ describe("disconnecting", () => {
   it("reports the projects that still use a connection", async () => {
     const source = await connectionOf("orgA", "github", "100");
     const tracker = await connectionOf("orgA", "jira", "site");
-    await db.insert(schema.project).values({
-      organizationId: "orgA",
-      name: "Shop",
-      sourceConnectionId: source.id,
-      sourceResourceId: "a/b",
-      sourceResourceLabel: "a/b",
-      trackerConnectionId: tracker.id,
-      trackerResourceId: "S",
-      trackerResourceLabel: "S",
-    });
+    await seedProject(db, "orgA", { source, tracker }, { name: "Shop", trackerResourceId: "S" });
     expect((await projectsUsingConnection(db, "orgA", tracker.id)).map((p) => p.name)).toEqual(["Shop"]);
     expect(await projectsUsingConnection(db, "orgB", tracker.id)).toEqual([]);
     await db.delete(schema.project).where(eq(schema.project.name, "Shop"));

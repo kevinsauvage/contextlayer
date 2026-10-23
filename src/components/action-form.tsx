@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,11 +95,7 @@ export function ActionForm({
               Reading the code and related tickets. This usually takes under a minute.
             </p>
           )}
-          {state.error && (
-            <p id={errorId} role="alert" className="text-sm text-destructive">
-              {state.error}
-            </p>
-          )}
+          <FormError id={errorId} error={state.error} />
         </form>
       </CardContent>
     </Card>

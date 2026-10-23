@@ -12,45 +12,9 @@ What holds up:
 
 Where debt is building up, by impact:
 
-1. **Server actions repeat the same load → authorize → check → run steps.**
-2. **Client components repeat the same mutation boilerplate** (transition, error state, refresh, error paragraph) about ten times, plus two near-identical confirm dialogs.
-3. **Big files mix concerns**: `retrieve.ts` (terms, synonyms, imports, scoring) and the analysis page (five inline components).
-4. **Untyped JSON columns** (`analysis.input`, `analysis.result`) are parsed differently in each place that reads them.
-5. **Two ways to mutate**: most writes are server actions, but organization writes call the Better Auth client directly from components.
-
-## P2: Duplication
-
-- [ ] **Shared server-action helpers**
-  - Context: `publishTicket` and `applyAuditToTracker` repeat parse draft → `requireOrgContext` → `getAnalysis` → kind and status check → already-published check → `publishApproved`. `createTicketAnalysis` and `createAuditAnalysis` both load the project, then build `new AiGenerator(getEnv().AI_MODEL)` and `buildProjectContext` the same way.
-  - Fix: in `src/features/analysis/`, add `loadAnalysis(analysisId, { kind, status, unpublished })` returning a typed result or `{ error }`, `loadProject(projectId)`, and `defaultGenerator()`. Rewrite the four actions on top of them; each should shrink to about ten lines.
-
-- [ ] **Client mutation hook**
-  - Context: `useTransition` + `useState<string>()` error + `router.refresh()` is written out in `disconnect-button`, `delete-project-button`, `organization-name-form`, `invite-form`, `member-actions`, `accept-invitation`, `clarify-questions`, `onboarding-form` and `draft-workspace`. `<p role="alert" className="text-sm text-destructive">` appears in 10 files.
-  - Fix: add `src/components/use-mutation.ts` (`run(fn)`, `pending`, `error`, optional refresh) and `src/components/form-error.tsx`. Move the components above onto them, then delete `AsyncButton` from `member-actions.tsx`.
-
-- [ ] **One confirm dialog**
-  - Context: `disconnect-button.tsx` and `delete-project-button.tsx` are the same AlertDialog with different copy and actions.
-  - Fix: add `ConfirmButton({ trigger, title, description, confirmLabel, action })` built on the mutation hook, and make both files thin wrappers or remove them.
-
-- [ ] **Claim status labels in one place**
-  - Context: the labels for `verified | inferred | unknown | needs_clarification` are defined in `src/core/requirements/render.ts`, `src/components/status-badge.tsx` and `src/components/ticket-preview.tsx` (by matching the display text), and the status list again in `draft-editor.tsx`.
-  - Fix: export `CLAIM_STATUS_LABELS` and the status list from `src/core/evidence/schemas.ts` (use `claimStatusSchema.options`), and use them everywhere.
-
-- [ ] **Preview parses strings that the renderer just built**
-  - Context: `ticketSections` returns strings like `"Needs clarification: …"`, and `ticket-preview.tsx` splits them back apart with a regex to draw pills. Changing a label in one place silently breaks the other.
-  - Fix: have `ticketSections` return items `{ status?: ClaimStatus; text; url? }`. Format the prefix in `src/integrations/jira/adf.ts` for Jira, and render pills from `status` in the preview. Update `tests/unit/jira-adf.test.ts`.
-
-- [ ] **Native select styling**
-  - Context: the same `h-8 rounded-lg border bg-background px-2 text-sm` select appears in `project-form.tsx` and `invite-form.tsx`, with a variant in `draft-editor.tsx`.
-  - Fix: add the shadcn `native-select` component (`pnpm exec shadcn add native-select`) and use it in all three.
-
-- [ ] **Test seeding**
-  - Context: `tenant-isolation`, `connections` and `analysis-run` tests each insert their own connections and project rows.
-  - Fix: add `seedConnections(db, orgId)` and `seedProject(db, orgId)` to `tests/helpers/db.ts`, and use them in all three files.
-
-- [ ] **`describeProvider` copies fields by hand**
-  - Context: `src/core/integrations/provider.ts` lists the eight descriptor fields in the type and again in `describeProvider`. TypeScript catches a missing field, so this is only extra editing when a field is added.
-  - Fix: declare `PROVIDER_DESCRIPTOR_KEYS` once, derive `ProviderDescriptor` from it (`Pick<…>`), and build the descriptor from those keys. Low priority.
+1. **Big files mix concerns**: `retrieve.ts` (terms, synonyms, imports, scoring) and the analysis page (five inline components).
+2. **Untyped JSON columns** (`analysis.input`, `analysis.result`) are parsed differently in each place that reads them.
+3. **Two ways to mutate**: most writes are server actions, but organization writes call the Better Auth client directly from components.
 
 ## P2: Structure
 

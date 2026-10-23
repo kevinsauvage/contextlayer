@@ -1,49 +1,42 @@
-import type { Claim } from "@/core/evidence/schemas";
+import type { Claim, ClaimStatus } from "@/core/evidence/schemas";
 import type { TicketDraft } from "./schemas";
 
-export type Bullet = string | { text: string; url: string };
-export type TicketSection = { heading?: string; paragraphs?: string[]; bullets?: Bullet[] };
+// A line keeps its claim status separate so each renderer can label or badge it in its own way.
+export type Bullet = { status?: ClaimStatus; text: string; url?: string };
+export type TicketSection = { heading?: string; paragraphs?: Bullet[]; bullets?: Bullet[] };
 
-const STATUS_LABEL: Partial<Record<Claim["status"], string>> = {
-  inferred: "Inferred",
-  unknown: "Unknown",
-  needs_clarification: "Needs clarification",
-};
-
-const labelled = (claim: Claim) => {
-  const label = STATUS_LABEL[claim.status];
-  return label ? `${label}: ${claim.text}` : claim.text;
-};
+const claimBullet = (claim: Claim): Bullet => ({ status: claim.status, text: claim.text });
 
 export function ticketSections(draft: TicketDraft): TicketSection[] {
-  const sections: TicketSection[] = [{ paragraphs: draft.description.map(labelled) }];
+  const sections: TicketSection[] = [{ paragraphs: draft.description.map(claimBullet) }];
   if (draft.acceptanceCriteria.length) {
     sections.push({
       heading: "Acceptance criteria",
-      bullets: draft.acceptanceCriteria.map((c) =>
-        c.requiresProductDecision ? `${labelled(c)} (needs product decision)` : labelled(c),
-      ),
+      bullets: draft.acceptanceCriteria.map((c) => ({
+        status: c.status,
+        text: c.requiresProductDecision ? `${c.text} (needs product decision)` : c.text,
+      })),
     });
   }
   if (draft.evidence.length) {
     sections.push({
       heading: "Relevant context",
-      bullets: draft.evidence.map((e) => {
-        const text = `${e.reference}${e.lines ? `:${e.lines.start}-${e.lines.end}` : ""}`;
-        return e.url ? { text, url: e.url } : text;
-      }),
+      bullets: draft.evidence.map((e) => ({
+        text: `${e.reference}${e.lines ? `:${e.lines.start}-${e.lines.end}` : ""}`,
+        ...(e.url ? { url: e.url } : {}),
+      })),
     });
   }
   if (draft.assumptions.length) {
     sections.push({
       heading: "Unverified assumptions",
-      bullets: draft.assumptions.map((a) => `${a.text} (${a.rationale})`),
+      bullets: draft.assumptions.map((a) => ({ text: `${a.text} (${a.rationale})` })),
     });
   }
   if (draft.openQuestions.length) {
     sections.push({
       heading: "Open questions",
-      bullets: draft.openQuestions.map((q) => `${q.question} — ${q.impact}`),
+      bullets: draft.openQuestions.map((q) => ({ text: `${q.question} — ${q.impact}` })),
     });
   }
   return sections;

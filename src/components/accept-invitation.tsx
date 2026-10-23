@@ -1,40 +1,34 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
 
 export function AcceptInvitation({ invitationId }: { invitationId: string }) {
   const router = useRouter();
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
+  const { run, pending, error } = useMutation();
 
   const respond = (accept: boolean) =>
-    startTransition(async () => {
+    run(async () => {
       if (!accept) {
         const { error } = await authClient.organization.rejectInvitation({ invitationId });
-        if (error) setError(error.message ?? "Could not decline the invitation");
-        else router.push("/projects");
-        return;
+        if (error) return { error: error.message ?? "Could not decline the invitation" };
+        router.push("/projects");
+        return {};
       }
       const { data, error } = await authClient.organization.acceptInvitation({ invitationId });
-      if (error) {
-        setError(error.message ?? "Could not accept the invitation");
-        return;
-      }
+      if (error) return { error: error.message ?? "Could not accept the invitation" };
       await authClient.organization.setActive({ organizationId: data.invitation.organizationId });
       router.push("/projects");
       router.refresh();
+      return {};
     });
 
   return (
     <div className="flex flex-col gap-3">
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FormError error={error} />
       <div className="flex gap-2">
         <Button disabled={pending} onClick={() => respond(true)}>
           {pending ? "Joining…" : "Accept and join"}

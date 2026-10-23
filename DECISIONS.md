@@ -91,3 +91,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - `integration_connection.exclusive_key` (`provider:externalId`, null for shared providers) carries a unique index, and `saveAccounts` runs its pre-check and upserts in one transaction · the pre-check alone let two organizations link the same GitHub installation, and a mid-loop failure left a partial grant. Migration `0004` backfills existing GitHub rows.
 - Server actions map known failures through `toActionError` / `withActionErrors` (`src/features/errors.ts`); `ForbiddenError` and `AnalysisAlreadyRunningError` live in `src/core/errors.ts` · a non-admin sees a message instead of the error page, and unknown errors (including `redirect`) still propagate.
 - Analysis views use `safeParse` and render an "older version" state with the request edit form · one row written by an older schema used to crash the whole page.
+
+## Structure P1 (2026-10-23)
+
+- `ticketSections` returns items `{ status, text, url }` rather than pre-labelled strings: Jira writes the status prefix in `src/integrations/jira/adf.ts`, the preview draws a pill from `status`, and the labels live only in `src/core/evidence/schemas.ts` · the preview used to parse the prefix back out with a regex, so changing a label silently broke the pills.
+- The four analysis actions load their row through `loadProject` / `loadAnalysis` (`src/features/analysis/context.ts`), which own the organization scope and the kind, status, already-published and running checks · the checks were copied per action, and one copy drifting means a cross-tenant read or a second publish.

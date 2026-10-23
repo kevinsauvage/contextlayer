@@ -1,31 +1,34 @@
 import { SquareKanban } from "lucide-react";
+import { CLAIM_STATUS_LABELS, type ClaimStatus } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { ticketSections, type Bullet } from "@/core/requirements/render";
 import { cn } from "@/lib/utils";
 
-// Mirrors render.ts: the preview shows exactly the text that is sent to the tracker, with status prefixes as pills.
-const STATUS_PREFIX = /^(Inferred|Unknown|Needs clarification): ([\s\S]*)$/;
-const PILL: Record<string, string> = {
-  Inferred: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
-  Unknown: "bg-muted text-muted-foreground",
-  "Needs clarification": "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+// Mirrors render.ts: verified claims carry no pill because they need no caveat.
+const PILL: Record<Exclude<ClaimStatus, "verified">, string> = {
+  inferred: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
+  unknown: "bg-muted text-muted-foreground",
+  needs_clarification: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
 };
 
-function ClaimText({ text }: { text: string }) {
-  const [, label, rest] = STATUS_PREFIX.exec(text) ?? [];
-  if (!label) return <>{text}</>;
+const pillOf = (status?: ClaimStatus) => (status && status !== "verified" ? status : undefined);
+
+function ClaimText({ item }: { item: Bullet }) {
+  const pill = pillOf(item.status);
   return (
     <>
-      <span className={cn("mr-1.5 rounded px-1.5 py-0.5 text-xs font-medium", PILL[label])}>{label}</span>
-      {rest}
+      {pill && (
+        <span className={cn("mr-1.5 rounded px-1.5 py-0.5 text-xs font-medium", PILL[pill])}>
+          {CLAIM_STATUS_LABELS[pill]}
+        </span>
+      )}
+      {item.text}
     </>
   );
 }
 
 const BulletItem = ({ bullet }: { bullet: Bullet }) =>
-  typeof bullet === "string" ? (
-    <ClaimText text={bullet} />
-  ) : (
+  bullet.url ? (
     <a
       href={bullet.url}
       target="_blank"
@@ -34,6 +37,8 @@ const BulletItem = ({ bullet }: { bullet: Bullet }) =>
     >
       {bullet.text}
     </a>
+  ) : (
+    <ClaimText item={bullet} />
   );
 
 type Props = {
@@ -73,7 +78,7 @@ export function TicketPreview({ draft, trackerName, projectLabel, issueKey }: Pr
               <h3 className="text-sm font-semibold">{section.heading ?? "Description"}</h3>
               {section.paragraphs?.map((paragraph, i) => (
                 <p key={i}>
-                  <ClaimText text={paragraph} />
+                  <ClaimText item={paragraph} />
                 </p>
               ))}
               {section.bullets && (

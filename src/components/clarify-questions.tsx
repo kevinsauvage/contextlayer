@@ -1,10 +1,12 @@
 "use client";
 
 import { MessageCircleQuestion } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@/components/use-mutation";
 import type { Clarification } from "@/core/requirements/schemas";
 import type { ActionState } from "@/lib/action-state";
 
@@ -18,18 +20,11 @@ type Props = {
 
 export function ClarifyQuestions({ questions, trackerName, answer }: Props) {
   const [answers, setAnswers] = useState<string[]>(() => questions.map(() => ""));
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
+  const { run, pending, error } = useMutation();
   const answered = answers.filter((value) => value.trim()).length;
 
   function submit() {
-    setError(undefined);
-    startTransition(async () => {
-      const result = await answer(
-        questions.map((q, i) => ({ question: q.question, answer: answers[i]?.trim() ?? "" })),
-      );
-      if (result.error) setError(result.error);
-    });
+    run(() => answer(questions.map((q, i) => ({ question: q.question, answer: answers[i]?.trim() ?? "" }))));
   }
 
   return (
@@ -64,11 +59,7 @@ export function ClarifyQuestions({ questions, trackerName, answer }: Props) {
             />
           </div>
         ))}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <FormError error={error} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground" role={pending ? "status" : undefined}>
             {pending

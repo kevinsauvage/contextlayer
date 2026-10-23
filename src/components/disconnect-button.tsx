@@ -1,27 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-button";
 import { disconnectConnection } from "@/features/integrations/actions";
 
 type Props = { connectionId: string; label: string; providerName: string; projectCount: number };
 
 export function DisconnectButton({ connectionId, label, providerName, projectCount }: Props) {
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
-
   if (projectCount > 0) {
     return (
       <span className="text-xs text-muted-foreground">
@@ -31,38 +15,15 @@ export function DisconnectButton({ connectionId, label, providerName, projectCou
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="ghost" size="sm" />}>Disconnect</AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Disconnect {label}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            ContextLayer forgets this {providerName} connection and its stored credentials. You can connect it again
-            later.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await disconnectConnection(connectionId);
-                if (result.error) setError(result.error);
-                else setOpen(false);
-              })
-            }
-          >
-            {pending ? "Disconnecting…" : "Disconnect"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmButton
+      trigger="Disconnect"
+      triggerVariant="ghost"
+      triggerSize="sm"
+      title={`Disconnect ${label}?`}
+      description={`ContextLayer forgets this ${providerName} connection and its stored credentials. You can connect it again later.`}
+      confirmLabel="Disconnect"
+      pendingLabel="Disconnecting…"
+      action={() => disconnectConnection(connectionId)}
+    />
   );
 }

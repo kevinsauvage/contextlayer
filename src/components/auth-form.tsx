@@ -3,18 +3,18 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
 import { safePath } from "@/lib/safe-path";
 
 export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: string }) {
   const router = useRouter();
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
+  const { run, pending, error } = useMutation();
   const signingUp = mode === "sign-up";
   const destination = safePath(next, "/projects") as Route;
   const otherMode = `${signingUp ? "/sign-in" : "/sign-up"}${next ? `?next=${encodeURIComponent(next)}` : ""}`;
@@ -22,16 +22,14 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
   function submit(formData: FormData) {
     const email = formString(formData, "email");
     const password = formString(formData, "password");
-    startTransition(async () => {
+    run(async () => {
       const { error } = signingUp
         ? await authClient.signUp.email({ email, password, name: formString(formData, "name") })
         : await authClient.signIn.email({ email, password });
-      if (error) {
-        setError(error.message ?? "Something went wrong");
-        return;
-      }
+      if (error) return { error: error.message ?? "Something went wrong" };
       router.push(destination);
       router.refresh();
+      return {};
     });
   }
 
@@ -64,11 +62,7 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
           </p>
         )}
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FormError error={error} />
       <Button type="submit" disabled={pending}>
         {pending ? "Please wait…" : signingUp ? "Create account" : "Sign in"}
       </Button>

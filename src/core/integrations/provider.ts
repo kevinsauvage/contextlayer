@@ -2,18 +2,17 @@ import type { ContextSource, IssueTracker } from "@/core/context/source";
 
 export type ProviderKind = "source" | "tracker";
 
-export type ProviderDescriptor = {
-  id: string;
-  name: string;
-  kind: ProviderKind;
-  description: string;
-  accountNoun: string;
-  resourceNoun: string;
-  // GitHub-style apps are installed per account, so "add another account" is a separate step from sign-in.
-  canAddAccount: boolean;
-  // An exclusive account (a GitHub App installation) may belong to one organization only.
-  exclusive: boolean;
-};
+// The fields every provider exposes to the UI; the descriptor is picked from them so adding a field is one edit.
+const PROVIDER_DESCRIPTOR_KEYS = [
+  "id",
+  "name",
+  "kind",
+  "description",
+  "accountNoun",
+  "resourceNoun",
+  "canAddAccount",
+  "exclusive",
+] as const;
 
 export type Resource = { id: string; label: string };
 
@@ -39,7 +38,17 @@ export type ConnectionContext = {
   accessToken: () => Promise<string>;
 };
 
-type BaseProvider = ProviderDescriptor & {
+type BaseProvider = {
+  id: string;
+  name: string;
+  kind: ProviderKind;
+  description: string;
+  accountNoun: string;
+  resourceNoun: string;
+  // GitHub-style apps are installed per account, so "add another account" is a separate step from sign-in.
+  canAddAccount: boolean;
+  // An exclusive account (a GitHub App installation) may belong to one organization only.
+  exclusive: boolean;
   isConfigured(): boolean;
   authorizeUrl(input: { state: string; redirectUri: string; add: boolean }): string;
   complete(input: { query: URLSearchParams; state: string; redirectUri: string }): Promise<CompleteResult>;
@@ -62,6 +71,8 @@ export type TrackerProvider = BaseProvider & {
 
 export type IntegrationProvider = SourceProvider | TrackerProvider;
 
+export type ProviderDescriptor = Pick<IntegrationProvider, (typeof PROVIDER_DESCRIPTOR_KEYS)[number]>;
+
 // The provider revoked or expired the grant: only a new consent can fix it.
 export class InvalidGrantError extends Error {}
 
@@ -71,22 +82,6 @@ export class ReconnectRequiredError extends Error {
   }
 }
 
-export const describeProvider = ({
-  id,
-  name,
-  kind,
-  description,
-  accountNoun,
-  resourceNoun,
-  canAddAccount,
-  exclusive,
-}: IntegrationProvider): ProviderDescriptor => ({
-  id,
-  name,
-  kind,
-  description,
-  accountNoun,
-  resourceNoun,
-  canAddAccount,
-  exclusive,
-});
+export function describeProvider(provider: IntegrationProvider): ProviderDescriptor {
+  return Object.fromEntries(PROVIDER_DESCRIPTOR_KEYS.map((key) => [key, provider[key]])) as ProviderDescriptor;
+}
