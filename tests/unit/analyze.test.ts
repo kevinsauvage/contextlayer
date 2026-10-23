@@ -14,9 +14,21 @@ const source: ContextSource = {
 const tracker: IssueTracker = {
   ...noIssues,
   searchRelated: async () => [
-    { key: "CHK-7", summary: "Pay button label", description: "", status: "Done", url: "https://jira.test/browse/CHK-7" },
+    {
+      key: "CHK-7",
+      summary: "Pay button label",
+      description: "",
+      status: "Done",
+      url: "https://jira.test/browse/CHK-7",
+    },
   ],
-  getIssue: async (key) => ({ key, summary: "Checkout button", description: "make it nicer", status: "To Do", url: "u" }),
+  getIssue: async (key) => ({
+    key,
+    summary: "Checkout button",
+    description: "make it nicer",
+    status: "To Do",
+    url: "u",
+  }),
 };
 
 const body = (evidenceIds: string[]): DraftBody => ({
@@ -56,11 +68,23 @@ describe("analyzeTitle", () => {
 describe("auditIssue", () => {
   const auditBody = (findingEvidence: string[]): AuditBody => ({
     summary: "Vague ticket",
-    findings: [{ text: "Existing label work in CHK-7", status: "verified", evidenceIds: findingEvidence, category: "existing_implementation_or_duplicate" }],
+    findings: [
+      {
+        text: "Existing label work in CHK-7",
+        status: "verified",
+        evidenceIds: findingEvidence,
+        category: "existing_implementation_or_duplicate",
+      },
+    ],
     proposedTicket: body(["e1"]),
   });
   const run = (b: AuditBody) =>
-    auditIssue({ issueKey: "CHK-9", source, tracker, generator: { audit: async () => ({ body: b }) } satisfies AuditGenerator });
+    auditIssue({
+      issueKey: "CHK-9",
+      source,
+      tracker,
+      generator: { audit: async () => ({ body: b }) } satisfies AuditGenerator,
+    });
 
   it("collects evidence cited by findings and the proposed ticket", async () => {
     const result = await run(auditBody(["e2"]));
@@ -69,6 +93,9 @@ describe("auditIssue", () => {
   });
 
   it("validates finding evidence", async () => {
-    expect((await run(auditBody([]))).issues[0]).toEqual({ path: "findings[0]", message: "verified claim has no evidence" });
+    expect((await run(auditBody([]))).issues[0]).toEqual({
+      path: "findings[0]",
+      message: "verified claim has no evidence",
+    });
   });
 });

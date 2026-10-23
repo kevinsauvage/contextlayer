@@ -7,7 +7,8 @@ import { getEnv } from "@/infrastructure/env";
 import { verifyState } from "@/infrastructure/signed-state";
 import { exchangeJiraCode, jiraRedirectUri, listJiraSites } from "@/integrations/jira/oauth";
 
-const done = (query: string) => NextResponse.redirect(new URL(`/settings/integrations?${query}`, getEnv().BETTER_AUTH_URL));
+const done = (query: string) =>
+  NextResponse.redirect(new URL(`/settings/integrations?${query}`, getEnv().BETTER_AUTH_URL));
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;

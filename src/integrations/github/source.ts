@@ -5,8 +5,10 @@ import { getGithubApp, type RepoRef } from "./app";
 
 const MAX_FILE_BYTES = 100_000;
 const MAX_SEARCH_TERMS = 5;
-const TEXT_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
-const IGNORED_PATH = /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)\/|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|\.min\./;
+const TEXT_EXTENSIONS =
+  /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
+const IGNORED_PATH =
+  /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)\/|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|\.min\./;
 
 export class GithubSource implements ContextSource {
   private constructor(
@@ -30,7 +32,7 @@ export class GithubSource implements ContextSource {
     });
     return data.tree
       .filter((node) => node.type === "blob" && node.path && (node.size ?? 0) <= MAX_FILE_BYTES)
-      .map((node) => node.path as string)
+      .map((node) => node.path)
       .filter((path) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path));
   }
 

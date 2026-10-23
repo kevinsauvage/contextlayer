@@ -24,10 +24,15 @@ export type Env = z.infer<typeof envSchema>;
 
 export class MissingConfigError extends Error {}
 
+// A blank `KEY=` line in .env.example-derived files means "unset", not an empty value.
+export function parseEnv(source: Record<string, string | undefined>): Env {
+  return envSchema.parse(Object.fromEntries(Object.entries(source).filter(([, value]) => value !== "")));
+}
+
 let cached: Env | undefined;
 
 export function getEnv(): Env {
-  return (cached ??= envSchema.parse(process.env));
+  return (cached ??= parseEnv(process.env));
 }
 
 export function requireEnv<K extends keyof Env>(...keys: K[]): Required<Pick<Env, K>> {

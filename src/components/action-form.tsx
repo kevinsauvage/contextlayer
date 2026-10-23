@@ -21,12 +21,23 @@ export function ActionForm({ action, name, label, placeholder, submitLabel, pend
     <form action={formAction} className="flex flex-col gap-2">
       <Label htmlFor={name}>{label}</Label>
       <div className="flex gap-2">
-        <Input id={name} name={name} placeholder={placeholder} required disabled={pending} aria-invalid={Boolean(state.error)} />
+        <Input
+          id={name}
+          name={name}
+          placeholder={placeholder}
+          required
+          disabled={pending}
+          aria-invalid={Boolean(state.error)}
+        />
         <Button type="submit" disabled={pending}>
           {pending ? pendingLabel : submitLabel}
         </Button>
       </div>
-      {state.error && <p role="alert" className="text-sm text-destructive">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      )}
     </form>
   );
 }

@@ -6,13 +6,13 @@ The app runs without these, but project creation and analysis need both. Local b
 
 GitHub → Settings → Developer settings → GitHub Apps → New GitHub App.
 
-| Field | Value |
-| --- | --- |
-| Callback URL | `{BASE}/api/github/callback` |
+| Field                                                  | Value                                                                  |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Callback URL                                           | `{BASE}/api/github/callback`                                           |
 | Request user authorization (OAuth) during installation | **On** (required: proves the installer has access to the installation) |
-| Setup URL / Webhook | none (uncheck "Active") |
-| Repository permissions | Contents: Read-only · Metadata: Read-only |
-| Where can it be installed | Any account |
+| Setup URL / Webhook                                    | none (uncheck "Active")                                                |
+| Repository permissions                                 | Contents: Read-only · Metadata: Read-only                              |
+| Where can it be installed                              | Any account                                                            |
 
 Then generate a private key and a client secret, and set:
 
@@ -43,26 +43,26 @@ Tokens are encrypted at rest with `ENCRYPTION_KEY` (AES-256-GCM). Atlassian rota
 
 ## AI
 
-Set either an OpenAI-compatible endpoint or the Vercel AI Gateway.
+Pick one route. Both are read in `src/integrations/ai/model.ts`.
 
-**Free tier (default for local experiments)** — Google AI Studio key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey), `GEMINI_API_KEY` equivalent:
+**Vercel AI Gateway (default)**: leave `AI_BASE_URL` blank, set `AI_GATEWAY_API_KEY`, and set `AI_MODEL` to any `provider/model` id the gateway serves (for example `anthropic/claude-sonnet-5.5`). Some gateway models are free but weak at structured output or rate limited; paid credits unlock the rest.
 
-```
-AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-AI_API_KEY=              # Google AI Studio key
-AI_MODEL=gemini-2.5-flash
-```
+**OpenAI-compatible endpoint**: set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` (that provider's own model id).
 
-The same two variables point at any OpenAI-compatible provider — Groq
-(`https://api.groq.com/openai/v1`), OpenRouter (`https://openrouter.ai/api/v1`),
-or local Ollama (`http://localhost:11434/v1`, any `AI_API_KEY` value). The
-endpoint must support structured outputs (`response_format: json_schema`),
-which Gemini, Groq and Ollama do; free models that only emit loose JSON fail
-draft validation.
+| Provider         | `AI_BASE_URL`                                             | Example `AI_MODEL` | `AI_STRUCTURED_OUTPUTS` | Notes                                                        |
+| ---------------- | --------------------------------------------------------- | ------------------ | ----------------------- | ------------------------------------------------------------ |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-3.8-flash` | `true`                  | Free tier; hits rate limits during `pnpm eval`               |
+| DeepSeek         | `https://api.deepseek.com/v1`                             | `deepseek-flash`   | `false`                 | Paid; needs a topped-up balance. List ids with `GET /models` |
+| Groq             | `https://api.groq.com/openai/v1`                          | provider-specific  | `true`                  | Free tier                                                    |
+| OpenRouter       | `https://openrouter.ai/api/v1`                            | provider-specific  | provider-specific       |                                                              |
+| Ollama           | `http://localhost:11434/v1`                               | any local model    | `true`                  | `AI_API_KEY` can be any value                                |
 
-**Vercel AI Gateway** — leave `AI_BASE_URL` unset and set `AI_GATEWAY_API_KEY`;
-`AI_MODEL` is then any `provider/model` the gateway serves.
+`AI_STRUCTURED_OUTPUTS=true` (default) sends `response_format: json_schema`. Endpoints that reject it (DeepSeek: "This response_format type is unavailable now") need `false`: the schema is then appended to the instructions and the model answers in JSON mode. Zod validates the result either way, and weaker models fail validation more often.
+
+Do not point the app at an OpenCode Go key. Go is licensed for coding-agent traffic and requires an `x-opencode-session` header, which a ticket-drafting service does not fit. OpenCode Zen (pay-as-you-go) has no such restriction.
+
+Source code and Jira text are sent to the configured provider. Choose one whose data policy fits your customers.
 
 ## Local database
 
-`docker compose up -d` starts Postgres on port 5434; `pnpm db:migrate` applies `drizzle/` migrations.
+`pnpm db:up` starts Postgres on port 5434 (credentials in `docker-compose.yml` and `.env.example`); `pnpm db:migrate` applies the `drizzle/` migrations.

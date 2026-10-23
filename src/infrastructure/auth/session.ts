@@ -17,7 +17,8 @@ export async function requireOrgContext(): Promise<OrgContext> {
   const organizationId = session.session.activeOrganizationId;
   if (!organizationId) redirect("/onboarding");
 
-  const member = await getAuth().api.getActiveMember({ headers: await headers() });
+  // Not a member answers null with a 400, which the endpoint's declared return type omits.
+  const member = (await getAuth().api.getActiveMember({ headers: await headers() })) as { role: string } | null;
   if (!member) redirect("/onboarding");
   return { userId: session.user.id, organizationId, role: member.role };
 }

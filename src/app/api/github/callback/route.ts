@@ -6,7 +6,8 @@ import { getEnv } from "@/infrastructure/env";
 import { verifyState } from "@/infrastructure/signed-state";
 import { installationAccountForUser } from "@/integrations/github/app";
 
-const done = (query: string) => NextResponse.redirect(new URL(`/settings/integrations?${query}`, getEnv().BETTER_AUTH_URL));
+const done = (query: string) =>
+  NextResponse.redirect(new URL(`/settings/integrations?${query}`, getEnv().BETTER_AUTH_URL));
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -15,7 +16,12 @@ export async function GET(request: Request) {
   const state = verifyState(params.get("state"));
   const installationId = Number(params.get("installation_id"));
   const code = params.get("code");
-  if (state?.userId !== userId || state.organizationId !== organizationId || !Number.isInteger(installationId) || !code) {
+  if (
+    state?.userId !== userId ||
+    state.organizationId !== organizationId ||
+    !Number.isInteger(installationId) ||
+    !code
+  ) {
     return done("github=invalid");
   }
 

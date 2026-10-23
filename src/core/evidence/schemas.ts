@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-export const claimStatusSchema = z
+const claimStatusSchema = z
   .enum(["verified", "inferred", "unknown", "needs_clarification"])
   .describe(
     "verified: directly supported by cited evidence. inferred: reasonable but unconfirmed. unknown: context cannot establish it. needs_clarification: a human must decide.",
   );
 export type ClaimStatus = z.infer<typeof claimStatusSchema>;
 
-export const evidenceKindSchema = z.enum(["code", "documentation", "decision", "jira_issue"]);
+const evidenceKindSchema = z.enum(["code", "documentation", "decision", "jira_issue"]);
 export type EvidenceKind = z.infer<typeof evidenceKindSchema>;
 
 export const evidenceSchema = z.object({

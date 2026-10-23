@@ -15,4 +15,6 @@ const VARIANTS: Record<ClaimStatus, "default" | "secondary" | "outline" | "destr
   needs_clarification: "destructive",
 };
 
-export const StatusBadge = ({ status }: { status: ClaimStatus }) => <Badge variant={VARIANTS[status]}>{LABELS[status]}</Badge>;
+export const StatusBadge = ({ status }: { status: ClaimStatus }) => (
+  <Badge variant={VARIANTS[status]}>{LABELS[status]}</Badge>
+);

@@ -11,7 +11,12 @@ export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
             <Badge variant="outline">{item.id}</Badge>
             <span className="text-muted-foreground">{item.kind.replace("_", " ")}</span>
             {item.url ? (
-              <a href={item.url} target="_blank" rel="noreferrer" className="font-medium underline-offset-2 hover:underline">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline-offset-2 hover:underline"
+              >
                 {item.reference}
                 {item.lines && `:${item.lines.start}-${item.lines.end}`}
               </a>

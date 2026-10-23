@@ -22,7 +22,11 @@ export default async function Page() {
         />
       ) : (
         <p className="text-muted-foreground">
-          Connect both GitHub and Jira in <Link href="/settings/integrations" className="underline">Integrations</Link> first.
+          Connect both GitHub and Jira in{" "}
+          <Link href="/settings/integrations" className="underline">
+            Integrations
+          </Link>{" "}
+          first.
         </p>
       )}
     </div>

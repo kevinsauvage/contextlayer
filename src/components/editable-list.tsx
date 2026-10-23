@@ -14,8 +14,18 @@ type Props<T> = {
   renderItem: (item: T, update: (patch: Partial<T>) => void) => ReactNode;
 };
 
-export function EditableList<T>({ title, hint, items, onChange, createItem, addLabel, minItems = 0, renderItem }: Props<T>) {
-  const update = (index: number, patch: Partial<T>) => onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+export function EditableList<T>({
+  title,
+  hint,
+  items,
+  onChange,
+  createItem,
+  addLabel,
+  minItems = 0,
+  renderItem,
+}: Props<T>) {
+  const update = (index: number, patch: Partial<T>) =>
+    onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   return (
     <section className="flex flex-col gap-3">
       <div>
@@ -37,7 +47,13 @@ export function EditableList<T>({ title, hint, items, onChange, createItem, addL
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => onChange([...items, createItem()])}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="self-start"
+        onClick={() => onChange([...items, createItem()])}
+      >
         {addLabel}
       </Button>
     </section>

@@ -22,7 +22,9 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold">{project.name}</h1>
-        <p className="text-sm text-muted-foreground">{project.repoOwner}/{project.repoName} · Jira {project.jiraProjectKey}</p>
+        <p className="text-sm text-muted-foreground">
+          {project.repoOwner}/{project.repoName} · Jira {project.jiraProjectKey}
+        </p>
       </div>
 
       <ActionForm
@@ -48,12 +50,20 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
         <ul className="flex flex-col divide-y rounded-lg border">
           {analyses.map((a) => (
             <li key={a.id}>
-              <Link href={`/projects/${project.id}/analyses/${a.id}`} className="flex items-center gap-3 p-3 text-sm hover:bg-muted/50">
+              <Link
+                href={`/projects/${project.id}/analyses/${a.id}`}
+                className="flex items-center gap-3 p-3 text-sm hover:bg-muted/50"
+              >
                 <Badge variant="outline">{a.kind === "create" ? "Create" : "Audit"}</Badge>
-                <span className="flex-1 truncate">{(a.input as { title?: string; issueKey?: string }).title ?? (a.input as { issueKey?: string }).issueKey}</span>
+                <span className="flex-1 truncate">
+                  {(a.input as { title?: string; issueKey?: string }).title ??
+                    (a.input as { issueKey?: string }).issueKey}
+                </span>
                 {a.publishedIssueKey && <Badge>{a.publishedIssueKey}</Badge>}
                 {a.status === "failed" && <Badge variant="destructive">Failed</Badge>}
-                <time className="text-muted-foreground" dateTime={a.createdAt.toISOString()}>{a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</time>
+                <time className="text-muted-foreground" dateTime={a.createdAt.toISOString()}>
+                  {a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
+                </time>
               </Link>
             </li>
           ))}

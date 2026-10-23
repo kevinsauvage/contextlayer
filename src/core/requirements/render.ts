@@ -20,7 +20,9 @@ export function ticketSections(draft: TicketDraft): TicketSection[] {
   if (draft.acceptanceCriteria.length) {
     sections.push({
       heading: "Acceptance criteria",
-      bullets: draft.acceptanceCriteria.map((c) => (c.requiresProductDecision ? `${labelled(c)} (needs product decision)` : labelled(c))),
+      bullets: draft.acceptanceCriteria.map((c) =>
+        c.requiresProductDecision ? `${labelled(c)} (needs product decision)` : labelled(c),
+      ),
     });
   }
   if (draft.evidence.length) {
@@ -33,10 +35,16 @@ export function ticketSections(draft: TicketDraft): TicketSection[] {
     });
   }
   if (draft.assumptions.length) {
-    sections.push({ heading: "Unverified assumptions", bullets: draft.assumptions.map((a) => `${a.text} (${a.rationale})`) });
+    sections.push({
+      heading: "Unverified assumptions",
+      bullets: draft.assumptions.map((a) => `${a.text} (${a.rationale})`),
+    });
   }
   if (draft.openQuestions.length) {
-    sections.push({ heading: "Open questions", bullets: draft.openQuestions.map((q) => `${q.question} — ${q.impact}`) });
+    sections.push({
+      heading: "Open questions",
+      bullets: draft.openQuestions.map((q) => `${q.question} — ${q.impact}`),
+    });
   }
   return sections;
 }

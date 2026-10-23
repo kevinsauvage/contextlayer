@@ -2,7 +2,7 @@ import { z } from "zod";
 import { claimSchema, evidenceSchema } from "@/core/evidence/schemas";
 import { draftBodySchema } from "@/core/requirements/schemas";
 
-export const findingCategorySchema = z.enum([
+const findingCategorySchema = z.enum([
   "ambiguity",
   "missing_acceptance_criteria",
   "non_testable_criteria",
@@ -11,18 +11,18 @@ export const findingCategorySchema = z.enum([
   "unsupported_assumption",
   "needs_human_decision",
 ]);
-export type FindingCategory = z.infer<typeof findingCategorySchema>;
 
-export const findingSchema = claimSchema.extend({
+const findingSchema = claimSchema.extend({
   category: findingCategorySchema,
   suggestion: z.string().optional().describe("Concrete improvement for the ticket, when one is supported."),
 });
-export type Finding = z.infer<typeof findingSchema>;
 
 export const auditBodySchema = z.object({
   summary: z.string().min(1),
   findings: z.array(findingSchema),
-  proposedTicket: draftBodySchema.describe("An improved version of the ticket that fixes the findings without inventing requirements."),
+  proposedTicket: draftBodySchema.describe(
+    "An improved version of the ticket that fixes the findings without inventing requirements.",
+  ),
 });
 export type AuditBody = z.infer<typeof auditBodySchema>;
 

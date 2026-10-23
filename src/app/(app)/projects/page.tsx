@@ -14,11 +14,19 @@ export default async function Page() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Projects</h1>
-        {isAdmin && <Link href="/projects/new" className={buttonVariants()}>New project</Link>}
+        {isAdmin && (
+          <Link href="/projects/new" className={buttonVariants()}>
+            New project
+          </Link>
+        )}
       </div>
       {projects.length === 0 && (
         <p className="text-muted-foreground">
-          No projects yet. Connect <Link href="/settings/integrations" className="underline">GitHub and Jira</Link>, then link a repository to a Jira project.
+          No projects yet. Connect{" "}
+          <Link href="/settings/integrations" className="underline">
+            GitHub and Jira
+          </Link>
+          , then link a repository to a Jira project.
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -27,7 +35,9 @@ export default async function Page() {
             <Card className="transition-colors hover:bg-muted/50">
               <CardHeader>
                 <CardTitle>{p.name}</CardTitle>
-                <CardDescription>{p.repoOwner}/{p.repoName} · Jira {p.jiraProjectKey}</CardDescription>
+                <CardDescription>
+                  {p.repoOwner}/{p.repoName} · Jira {p.jiraProjectKey}
+                </CardDescription>
               </CardHeader>
             </Card>
           </Link>

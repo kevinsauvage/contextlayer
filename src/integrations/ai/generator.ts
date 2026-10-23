@@ -27,7 +27,7 @@ export class AiGenerator implements DraftGenerator, AuditGenerator {
   private async run<T>(system: string, prompt: string, schema: z.ZodType<T>): Promise<GeneratorResult<T>> {
     const { output, usage } = await generateText({
       model: resolveModel(this.modelId),
-      system: withSchemaInstruction(system, schema),
+      instructions: withSchemaInstruction(system, schema),
       prompt,
       output: Output.object({ schema }),
     });

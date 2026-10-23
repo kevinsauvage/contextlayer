@@ -30,7 +30,7 @@ export function adfToText(node: unknown): string {
   const { type, text: value, content, attrs } = node as AdfNode;
   if (type === "text") return value ?? "";
   if (type === "hardBreak") return "\n";
-  if (type === "inlineCard") return String(attrs?.url ?? "");
+  if (type === "inlineCard") return typeof attrs?.url === "string" ? attrs.url : "";
   const inner = (content ?? []).map(adfToText).join("");
   if (type === "listItem") return `- ${inner.trim()}\n`;
   return type && BLOCK_TYPES.has(type) ? `${inner}\n` : inner;

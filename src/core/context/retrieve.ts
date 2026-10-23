@@ -4,8 +4,32 @@ import type { ContextSource } from "./source";
 export type EvidenceCandidate = Omit<Evidence, "id">;
 
 const STOPWORDS = new Set([
-  "the", "and", "for", "with", "add", "new", "improve", "fix", "make", "from", "into", "page", "when",
-  "that", "this", "should", "would", "could", "have", "has", "are", "was", "not", "can", "will", "all",
+  "the",
+  "and",
+  "for",
+  "with",
+  "add",
+  "new",
+  "improve",
+  "fix",
+  "make",
+  "from",
+  "into",
+  "page",
+  "when",
+  "that",
+  "this",
+  "should",
+  "would",
+  "could",
+  "have",
+  "has",
+  "are",
+  "was",
+  "not",
+  "can",
+  "will",
+  "all",
 ]);
 const MAX_TERMS = 8;
 const READ_LIMIT = 20;
@@ -18,7 +42,10 @@ export function extractTerms(text: string, max = MAX_TERMS): string[] {
   for (const term of text.toLowerCase().split(/[^a-z0-9]+/)) {
     if (term.length > 2 && !STOPWORDS.has(term)) frequency.set(term, (frequency.get(term) ?? 0) + 1);
   }
-  return [...frequency].sort((a, b) => b[1] - a[1]).slice(0, max).map(([term]) => term);
+  return [...frequency]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([term]) => term);
 }
 
 function classifyKind(path: string): EvidenceKind {

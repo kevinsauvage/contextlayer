@@ -13,11 +13,12 @@ export async function buildProjectContext(db: Database, project: Project): Promi
   if (!connection) throw new Error("The Jira connection for this project no longer exists");
 
   return {
-    source: await GithubSource.connect(project.githubInstallationId, { owner: project.repoOwner, name: project.repoName }),
-    tracker: new JiraClient(
-      { cloudId: connection.cloudId, siteUrl: connection.siteUrl },
-      project.jiraProjectKey,
-      () => jiraAccessToken(db, connection),
+    source: await GithubSource.connect(project.githubInstallationId, {
+      owner: project.repoOwner,
+      name: project.repoName,
+    }),
+    tracker: new JiraClient({ cloudId: connection.cloudId, siteUrl: connection.siteUrl }, project.jiraProjectKey, () =>
+      jiraAccessToken(db, connection),
     ),
   };
 }

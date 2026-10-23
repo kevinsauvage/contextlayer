@@ -48,8 +48,15 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <label htmlFor="draft-title" className="font-medium">Title</label>
-        <Input id="draft-title" value={draft.title} disabled={published} onChange={(e) => patch({ title: e.target.value })} />
+        <label htmlFor="draft-title" className="font-medium">
+          Title
+        </label>
+        <Input
+          id="draft-title"
+          value={draft.title}
+          disabled={published}
+          onChange={(e) => patch({ title: e.target.value })}
+        />
       </div>
 
       <EditableList
@@ -75,7 +82,12 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
         title="Acceptance criteria"
         items={draft.acceptanceCriteria}
         onChange={(acceptanceCriteria) => patch({ acceptanceCriteria })}
-        createItem={() => ({ text: "", status: "needs_clarification" as const, evidenceIds: [], requiresProductDecision: true })}
+        createItem={() => ({
+          text: "",
+          status: "needs_clarification" as const,
+          evidenceIds: [],
+          requiresProductDecision: true,
+        })}
         addLabel="Add criterion"
         renderItem={(item, update) => (
           <>
@@ -83,7 +95,11 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <StatusSelect value={item.status} onChange={(status) => update({ status })} />
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={item.requiresProductDecision} onChange={(e) => update({ requiresProductDecision: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  checked={item.requiresProductDecision}
+                  onChange={(e) => update({ requiresProductDecision: e.target.checked })}
+                />
                 Needs product decision
               </label>
               {item.evidenceIds.length > 0 && <span>Evidence: {item.evidenceIds.join(", ")}</span>}
@@ -100,8 +116,18 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
         addLabel="Add assumption"
         renderItem={(item, update) => (
           <>
-            <Input value={item.text} placeholder="Assumption" onChange={(e) => update({ text: e.target.value })} disabled={published} />
-            <Input value={item.rationale} placeholder="Why it cannot be verified" onChange={(e) => update({ rationale: e.target.value })} disabled={published} />
+            <Input
+              value={item.text}
+              placeholder="Assumption"
+              onChange={(e) => update({ text: e.target.value })}
+              disabled={published}
+            />
+            <Input
+              value={item.rationale}
+              placeholder="Why it cannot be verified"
+              onChange={(e) => update({ rationale: e.target.value })}
+              disabled={published}
+            />
           </>
         )}
       />
@@ -114,8 +140,18 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
         addLabel="Add question"
         renderItem={(item, update) => (
           <>
-            <Input value={item.question} placeholder="Question" onChange={(e) => update({ question: e.target.value })} disabled={published} />
-            <Input value={item.impact} placeholder="How the answer changes scope" onChange={(e) => update({ impact: e.target.value })} disabled={published} />
+            <Input
+              value={item.question}
+              placeholder="Question"
+              onChange={(e) => update({ question: e.target.value })}
+              disabled={published}
+            />
+            <Input
+              value={item.impact}
+              placeholder="How the answer changes scope"
+              onChange={(e) => update({ impact: e.target.value })}
+              disabled={published}
+            />
           </>
         )}
       />
@@ -135,7 +171,9 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
         <Alert>
           <AlertTitle>Published to Jira</AlertTitle>
           <AlertDescription>
-            <a href={result.issueUrl} target="_blank" rel="noreferrer" className="underline">{result.issueKey ?? result.issueUrl}</a>
+            <a href={result.issueUrl} target="_blank" rel="noreferrer" className="underline">
+              {result.issueKey ?? result.issueUrl}
+            </a>
           </AlertDescription>
         </Alert>
       ) : (

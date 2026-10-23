@@ -1,41 +1,60 @@
 # ContextLayer
 
-Turns a vague ticket title into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. It separates **verified**, **inferred**, **unknown** and **needs clarification** instead of inventing requirements.
+Turns a vague ticket title into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. Every claim is labelled **verified**, **inferred**, **unknown** or **needs clarification**; `verified` requires cited evidence, and nothing is written to Jira without explicit approval.
 
-Stack: Next.js (App Router), strict TypeScript, Tailwind, shadcn/ui, Zod, Vitest. GitHub + Jira Cloud later.
+**Status:** private prototype. The end-to-end flow works (sign up → connect GitHub and Jira → analyze → review → publish). Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
 
-## Getting started
+Stack: Next.js (App Router), strict TypeScript, Tailwind, shadcn/ui, Zod, Drizzle + Postgres, Better Auth, Vercel AI SDK, Vitest.
+
+## Quick start
+
+Requirements: Node 24, pnpm 12, Docker.
 
 ```bash
 pnpm install
-docker compose up -d          # local Postgres on :5434
-cp .env.example .env.local    # fill in secrets (see docs/engineering/integrations-setup.md)
+pnpm setup        # creates .env.local with generated BETTER_AUTH_SECRET and ENCRYPTION_KEY
+pnpm db:up        # Postgres on :5434, waits until healthy
 pnpm db:migrate
-pnpm dev                      # http://localhost:3000
-pnpm check                    # lint + typecheck + tests + build
+pnpm dev          # http://localhost:3000
 ```
 
-Flow: sign up → create an organization → connect GitHub (App) and Jira (OAuth) → link a repo to a Jira project → paste a title or audit an issue → review/edit → approve to write to Jira.
+Sign-up works right away. Analyses need an AI provider and the GitHub and Jira connections: fill in the matching blocks of `.env.local` using [`docs/engineering/integrations-setup.md`](docs/engineering/integrations-setup.md). Day-to-day workflow: [`docs/engineering/development.md`](docs/engineering/development.md).
+
+## Scripts
+
+| Script                                          | What it does                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `pnpm dev` / `build` / `start`                  | Next.js dev server, production build, production server                    |
+| `pnpm check`                                    | Everything CI runs: format, lint, typecheck, knip, tests, build            |
+| `pnpm lint` / `lint:fix`                        | ESLint (type-aware, layer boundaries), zero warnings allowed               |
+| `pnpm format` / `format:check`                  | Prettier                                                                   |
+| `pnpm typecheck`                                | `next typegen` + `tsc --noEmit`                                            |
+| `pnpm knip`                                     | Unused files, exports and dependencies                                     |
+| `pnpm test` / `test:watch` / `test:coverage`    | Vitest (unit + PGlite integration)                                         |
+| `pnpm eval`                                     | Real-model evaluation on the fixtures (needs an AI provider, costs tokens) |
+| `pnpm db:up` / `db:down`                        | Start / stop local Postgres                                                |
+| `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle migrations and studio                                              |
 
 ## Layout
 
 ```
-src/app              routes, API route handlers (thin)
+src/app              routes and API route handlers (thin)
+src/components       UI (shadcn/ui in components/ui)
 src/features         use cases: projects, ticket-creation, ticket-audit, analysis, integrations
 src/core             pure logic: analysis, audit, context, evidence, requirements
-src/integrations     github, jira, ai, filesystem (implement core interfaces)
+src/integrations     github, jira, ai, filesystem (implement interfaces defined in core)
 src/infrastructure   env, db (Drizzle), auth (Better Auth), crypto, signed state
+src/lib              small dependency-free helpers
 tests/               unit, integration (PGlite), evaluation, fixtures
-docs/                product, engineering
+docs/                product, engineering, architecture
 ```
 
-## Evaluation fixtures
+Dependencies point inward (`app` → `features` → `core`) and ESLint enforces it. Details: [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
-`tests/fixtures/<case>/` holds a `case.json` (title + expected relevant files, verified facts, things that must stay uncertain, forbidden invented claims) and a mini `repo/`. Rubric: `docs/product/evaluation-rubric.md`.
+## Documentation
 
-## Running the evaluation
+[`docs/README.md`](docs/README.md) indexes everything. Start with [`docs/product/plan.md`](docs/product/plan.md) for the why, [`docs/architecture/overview.md`](docs/architecture/overview.md) for the how, [`DECISIONS.md`](DECISIONS.md) for choices and [`TODO.md`](TODO.md) for the backlog.
 
-```bash
-cp .env.example .env.local   # set AI_API_KEY (free Google AI Studio key)
-pnpm eval                    # writes tests/evaluation/results/<case>.json (draft, recall, latency, tokens)
-```
+## Evaluation
+
+`tests/fixtures/<case>/` holds a `case.json` (title, expected relevant files, verified facts, facts that must stay uncertain, forbidden invented claims) and a miniature `repo/`. `pnpm eval` runs the analysis pipeline and the baseline comparison against a real model and writes results to `tests/evaluation/results/` (gitignored). Rubric and latest numbers: [`docs/product/evaluation-rubric.md`](docs/product/evaluation-rubric.md).

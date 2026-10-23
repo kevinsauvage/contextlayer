@@ -7,12 +7,14 @@ import { withSchemaInstruction } from "@/integrations/ai/generator";
 import { resolveModel } from "@/integrations/ai/model";
 import { getEnv } from "@/infrastructure/env";
 import { loadEvaluationCases, type LoadedCase } from "./fixtures";
+import { analysisResultSchema } from "./results";
 
 const RESULTS_DIR = path.join(import.meta.dirname, "results");
 const modelId = getEnv().AI_MODEL;
 const model = resolveModel(modelId);
 
-const BASELINE_SYSTEM_PROMPT = "You are a product engineer. Turn the ticket title into a complete Jira ticket with a description and acceptance criteria.";
+const BASELINE_SYSTEM_PROMPT =
+  "You are a product engineer. Turn the ticket title into a complete Jira ticket with a description and acceptance criteria.";
 
 const score = z.number().int().min(0).max(2);
 const scoresSchema = z.object({
@@ -38,16 +40,16 @@ function buildJudgePrompt(c: LoadedCase, baseline: string, contextlayer: unknown
   ].join("\n\n");
 }
 
-const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.AI_BASE_URL);
+const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY) || Boolean(process.env.AI_BASE_URL);
 
 describe.skipIf(!hasModel)("baseline comparison", () => {
   it.each(loadEvaluationCases().map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const resultPath = path.join(RESULTS_DIR, `${c.id}.json`);
     expect(existsSync(resultPath), "run analysis.eval.ts first").toBe(true);
-    const contextlayer = JSON.parse(readFileSync(resultPath, "utf8"));
+    const contextlayer = analysisResultSchema.parse(JSON.parse(readFileSync(resultPath, "utf8")));
 
     const startedAt = Date.now();
-    const { text, usage } = await generateText({ model, system: BASELINE_SYSTEM_PROMPT, prompt: c.title });
+    const { text, usage } = await generateText({ model, instructions: BASELINE_SYSTEM_PROMPT, prompt: c.title });
     const baselineLatencyMs = Date.now() - startedAt;
 
     const { output: judgment } = await generateText({
@@ -61,7 +63,11 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
       JSON.stringify(
         {
           model: modelId,
-          baseline: { latencyMs: baselineLatencyMs, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 }, text },
+          baseline: {
+            latencyMs: baselineLatencyMs,
+            usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },
+            text,
+          },
           contextlayer: { latencyMs: contextlayer.latencyMs, usage: contextlayer.usage },
           judgment,
         },
@@ -69,5 +75,5 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
         2,
       ),
     );
-  }, 600_000);
+  });
 });

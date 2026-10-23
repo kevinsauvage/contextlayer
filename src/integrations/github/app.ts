@@ -6,7 +6,12 @@ let cached: App | undefined;
 
 export function getGithubApp(): App {
   if (!cached) {
-    const env = requireEnv("GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET");
+    const env = requireEnv(
+      "GITHUB_APP_ID",
+      "GITHUB_APP_PRIVATE_KEY",
+      "GITHUB_APP_CLIENT_ID",
+      "GITHUB_APP_CLIENT_SECRET",
+    );
     cached = new App({
       appId: env.GITHUB_APP_ID,
       privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -33,7 +38,9 @@ export async function installationAccountForUser(code: string, installationId: n
   const app = getGithubApp();
   const { authentication } = await app.oauth.createToken({ code });
   const userOctokit = await app.oauth.getUserOctokit({ token: authentication.token });
-  const installations = await userOctokit.paginate(userOctokit.rest.apps.listInstallationsForAuthenticatedUser, { per_page: 100 });
+  const installations = await userOctokit.paginate(userOctokit.rest.apps.listInstallationsForAuthenticatedUser, {
+    per_page: 100,
+  });
   const match = installations.find((installation) => installation.id === installationId);
   return match?.account && "login" in match.account ? match.account.login : null;
 }

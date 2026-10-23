@@ -3,7 +3,19 @@ import path from "node:path";
 import type { ContextSource } from "@/core/context/source";
 
 const IGNORED_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build"]);
-const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".mdx", ".css", ".sql", ".yml", ".yaml"]);
+const TEXT_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".json",
+  ".md",
+  ".mdx",
+  ".css",
+  ".sql",
+  ".yml",
+  ".yaml",
+]);
 
 export class DirectorySource implements ContextSource {
   constructor(private readonly root: string) {}

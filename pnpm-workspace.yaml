@@ -1,6 +1,7 @@
 allowBuilds:
-  '@prisma/client': false
+  "@prisma/client": false
   better-sqlite3: false
   esbuild: true
   sharp: false
+  simple-git-hooks: false
   unrs-resolver: false

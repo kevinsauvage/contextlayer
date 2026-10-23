@@ -17,7 +17,9 @@ const citedBy = (candidates: Evidence[], claimLists: { evidenceIds: string[] }[]
   return candidates.filter((candidate) => ids.has(candidate.id));
 };
 
-export async function analyzeTitle(input: Deps & { title: string; generator: DraftGenerator }): Promise<CreationResult> {
+export async function analyzeTitle(
+  input: Deps & { title: string; generator: DraftGenerator },
+): Promise<CreationResult> {
   const candidates = await gatherContext({ query: input.title, ...input });
   const { body, usage } = await input.generator.generate({ title: input.title, candidates });
 

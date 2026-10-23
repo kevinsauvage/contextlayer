@@ -21,8 +21,11 @@ const createdSchema = z.object({ key: z.string() });
 const ISSUE_FIELDS = ["summary", "description", "status"];
 const PREFERRED_ISSUE_TYPE = "Task";
 
-export class JiraApiError extends Error {
-  constructor(readonly status: number, detail: string) {
+class JiraApiError extends Error {
+  constructor(
+    readonly status: number,
+    detail: string,
+  ) {
     super(`Jira API error ${status}: ${detail}`);
   }
 }
@@ -60,7 +63,10 @@ export class JiraClient implements IssueTracker {
   async searchRelated(terms: string[], limit: number): Promise<Issue[]> {
     const text = terms.map((term) => `text ~ "${term}"`).join(" OR ");
     const jql = `project = "${this.projectKey}" AND (${text}) ORDER BY updated DESC`;
-    const result = await this.call("/search/jql", { method: "POST", body: { jql, fields: ISSUE_FIELDS, maxResults: limit } });
+    const result = await this.call("/search/jql", {
+      method: "POST",
+      body: { jql, fields: ISSUE_FIELDS, maxResults: limit },
+    });
     return searchSchema.parse(result).issues.map((issue) => this.toIssue(issue));
   }
 

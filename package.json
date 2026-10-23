@@ -2,19 +2,43 @@
   "name": "contextlayer",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=12"
+  },
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
+    "setup": "node scripts/setup-env.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings=0",
+    "lint:fix": "eslint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "next typegen && tsc --noEmit",
+    "knip": "knip",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.eval.config.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "test:coverage": "vitest run --coverage",
+    "eval": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm build",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
-    "db:studio": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs studio"
+    "db:studio": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs studio",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0 --no-warn-ignored"
+    ],
+    "*.{json,md,css,yml,yaml}": "prettier --write --ignore-unknown"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.75",
@@ -24,7 +48,6 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "drizzle-orm": "^0.45.4",
-    "lucide-react": "^1.61.0",
     "next": "16.4.2",
     "octokit": "^5.0.5",
     "postgres": "^3.4.9",
@@ -36,7 +59,6 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.21",
     "@electric-sql/pglite": "^0.5.10",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
@@ -46,10 +68,14 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "knip": "^6.42.1",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^6.1.1",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
-  },
-  "packageManager": "pnpm@12.3.4"
+  }
 }

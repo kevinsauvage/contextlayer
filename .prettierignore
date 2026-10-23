@@ -1,0 +1,8 @@
+.next
+coverage
+drizzle
+node_modules
+pnpm-lock.yaml
+src/components/ui
+tests/fixtures
+tests/evaluation/results

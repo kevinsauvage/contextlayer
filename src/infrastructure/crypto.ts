@@ -15,7 +15,9 @@ export function encrypt(plaintext: string): string {
 }
 
 export function decrypt(payload: string): string {
-  const [iv, tag, body] = payload.split(".").map((part) => Buffer.from(part, "base64"));
+  const parts = payload.split(".").map((part) => Buffer.from(part, "base64"));
+  const [iv, tag, body] = parts;
+  if (parts.length !== 3 || !iv || !tag || !body) throw new Error("Malformed encrypted payload");
   const decipher = createDecipheriv(ALGORITHM, key(), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8");

@@ -13,10 +13,12 @@ describe("encrypt/decrypt", () => {
 
   it("rejects tampered ciphertext", () => {
     const [iv, tag, body] = encrypt("secret").split(".");
-    const flipped = Buffer.from(body, "base64");
-    flipped[0] ^= 1;
+    const flipped = Buffer.from(body ?? "", "base64");
+    flipped.writeUInt8(flipped.readUInt8(0) ^ 1, 0);
     expect(() => decrypt([iv, tag, flipped.toString("base64")].join("."))).toThrow();
   });
+
+  it("rejects malformed payloads", () => expect(() => decrypt("not-a-payload")).toThrow("Malformed"));
 });
 
 describe("signed state", () => {
@@ -26,7 +28,9 @@ describe("signed state", () => {
 
   it("rejects tampered or foreign tokens", () => {
     const [body, signature] = signState(payload).split(".");
-    const forged = Buffer.from(JSON.stringify({ ...payload, organizationId: "o2", expiresAt: Date.now() + 1e6 })).toString("base64url");
+    const forged = Buffer.from(
+      JSON.stringify({ ...payload, organizationId: "o2", expiresAt: Date.now() + 1e6 }),
+    ).toString("base64url");
     expect(verifyState(`${forged}.${signature}`)).toBeNull();
     expect(verifyState(`${body}.bad`)).toBeNull();
     expect(verifyState(null)).toBeNull();

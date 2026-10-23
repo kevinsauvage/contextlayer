@@ -14,8 +14,9 @@ AI ticket creation and QA: turns a vague title into an evidence-backed Jira tick
 
 ## Commands
 
-- `pnpm dev` / `pnpm build`
-- `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm check` (all of the above plus build; run before finishing)
+- `pnpm setup` (create `.env.local`) · `pnpm db:up` · `pnpm db:migrate` · `pnpm dev` / `pnpm build`
+- `pnpm check` runs everything CI runs: `format:check`, `lint`, `typecheck`, `knip`, `test`, `build`. Run it before finishing. `pnpm format` and `pnpm lint:fix` fix most failures.
+- Target a single test with `pnpm test tests/unit/<file>`. `pnpm eval` calls a real model and costs tokens; run it only when asked.
 
 ## Rules
 
@@ -29,7 +30,9 @@ AI ticket creation and QA: turns a vague title into an evidence-backed Jira tick
 
 ## Code quality
 
-- Comments: avoid them by default. Add one short comment only when the *why* is non-obvious; never restate what the code does.
+- Comments: avoid them by default. Add one short comment only when the _why_ is non-obvious; never restate what the code does.
 - No duplication (DRY): reuse or extract shared logic and types; derive types from Zod schemas (`z.infer`) instead of redeclaring them.
-- Clean architecture: dependencies point inward (`app` → `features` → `core`; `integrations` implement interfaces `core` defines). `core` never imports from `app`, `features` or `integrations`.
+- Clean architecture: dependencies point inward (`app` → `features` → `core`; `integrations` implement interfaces `core` defines). `core` imports only `core` and `zod`. ESLint enforces the layer boundaries (`eslint.config.mjs`); fix the import, never disable the rule.
+- Strict TypeScript includes `noUncheckedIndexedAccess`: handle `undefined` from indexing (`first()` in `src/lib`, `?? fallback`, destructuring defaults) instead of asserting non-null.
+- Read form data with `formString()` and Zod error messages with `firstIssueMessage()` (both in `src/lib`).
 - Follow best practices: small single-purpose functions, explicit types at boundaries, descriptive names, early returns, no dead code or speculative abstractions.

@@ -24,21 +24,31 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     searchParams,
   ]);
   const isAdmin = role === "owner" || role === "admin";
-  const notice = Object.entries(params).map(([k, v]) => NOTICES[`${k}=${v}`]).find(Boolean);
+  const notice = Object.entries(params)
+    .map(([k, v]) => NOTICES[`${k}=${v}`])
+    .find(Boolean);
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Integrations</h1>
-      {notice && <p role="status" className="rounded-lg border bg-muted p-3 text-sm">{notice}</p>}
+      {notice && (
+        <p role="status" className="rounded-lg border bg-muted p-3 text-sm">
+          {notice}
+        </p>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle>GitHub</CardTitle>
-          <CardDescription>Read-only access to the repositories you choose, through the ContextLayer GitHub App.</CardDescription>
+          <CardDescription>
+            Read-only access to the repositories you choose, through the ContextLayer GitHub App.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <ul className="text-sm">
-            {installations.map((i) => <li key={i.id}>{i.accountLogin}</li>)}
+            {installations.map((i) => (
+              <li key={i.id}>{i.accountLogin}</li>
+            ))}
             {!installations.length && <li className="text-muted-foreground">Not connected.</li>}
           </ul>
           {isAdmin && (
@@ -56,7 +66,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <ul className="text-sm">
-            {connections.map((c) => <li key={c.id}>{c.siteName} <span className="text-muted-foreground">{c.siteUrl}</span></li>)}
+            {connections.map((c) => (
+              <li key={c.id}>
+                {c.siteName} <span className="text-muted-foreground">{c.siteUrl}</span>
+              </li>
+            ))}
             {!connections.length && <li className="text-muted-foreground">Not connected.</li>}
           </ul>
           {isAdmin && (

@@ -1,22 +1,22 @@
 import { z } from "zod";
 import { claimSchema, evidenceSchema } from "@/core/evidence/schemas";
 
-export const acceptanceCriterionSchema = claimSchema.extend({
-  requiresProductDecision: z.boolean().default(false).describe("True when the criterion encodes a product decision the context cannot establish."),
+const acceptanceCriterionSchema = claimSchema.extend({
+  requiresProductDecision: z
+    .boolean()
+    .default(false)
+    .describe("True when the criterion encodes a product decision the context cannot establish."),
 });
-export type AcceptanceCriterion = z.infer<typeof acceptanceCriterionSchema>;
 
-export const assumptionSchema = z.object({
+const assumptionSchema = z.object({
   text: z.string().min(1),
   rationale: z.string().min(1).describe("Why this seems reasonable but cannot be established from the context."),
 });
-export type Assumption = z.infer<typeof assumptionSchema>;
 
-export const openQuestionSchema = z.object({
+const openQuestionSchema = z.object({
   question: z.string().min(1),
   impact: z.string().min(1).describe("How the answer changes scope or outcome."),
 });
-export type OpenQuestion = z.infer<typeof openQuestionSchema>;
 
 export const draftBodySchema = z.object({
   title: z.string().min(1),

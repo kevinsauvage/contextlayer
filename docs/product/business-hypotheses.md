@@ -1,3 +1,23 @@
 # Business hypotheses
 
-TODO
+Every hypothesis is stated so it can be proven wrong. Status values: **untested**, **supported**, **refuted**, **partly supported**. Evidence goes in [`validation-experiments.md`](validation-experiments.md); decisions in [`phase-0-decision.md`](phase-0-decision.md).
+
+| ID  | Hypothesis                                                                                                                            | Falsified if                                                                                                  | Status                                                                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| H1  | Vague tickets cost the target team measurable time every week (clarification meetings, rework).                                       | Interviewed leads cannot name a recent concrete case or estimate under 1 hour per week.                       | untested                                                                                      |
+| H2  | Grounding a draft in the team's own repository and Jira history produces tickets reviewers prefer over generic AI output.             | Reviewers prefer or are indifferent between the generic baseline and ContextLayer in more than 3 of 10 cases. | partly supported (automated judge only, same-model bias; see experiment E2)                   |
+| H3  | Labelling claims as verified, inferred, unknown or needs clarification, with citations, builds trust that unlabelled output does not. | Reviewers ignore the labels, or do not verify citations and still accept claims.                              | untested                                                                                      |
+| H4  | Teams will connect a GitHub App with read access to a repository and Jira write access to try the product.                            | More than half of interviewed teams refuse on security or procurement grounds.                                | untested                                                                                      |
+| H5  | A tech lead or delivery lead (not individual developers) owns the problem and the budget.                                             | Interviews show the pain and the purchase decision sit with different roles, or nobody owns it.               | untested                                                                                      |
+| H6  | Teams will pay for this separately from AI features already in Jira and their coding tools.                                           | Pilot users say the Jira or Copilot built-ins are good enough once they have tried both.                      | untested                                                                                      |
+| H7  | A single analysis costs a few cents and finishes in under two minutes, so a flat per-seat price leaves a healthy margin.              | Median cost or latency per analysis exceeds those bounds on a mid-tier model.                                 | untested (latency 8 to 20 s, tokens 1 to 3k in the first DeepSeek run; cost not yet computed) |
+| H8  | Keyword retrieval is enough for repositories up to roughly 1,000 files; embeddings are not needed for the first release.              | Recall stays under 90% on real pilot repositories after query expansion.                                      | untested (9 of 10 expected files on fixtures)                                                 |
+| H9  | The audit mode (reviewing existing tickets) is at least as valuable as creation and is a better wedge for adoption.                   | Pilot users use creation far more than audit, or find audit findings noisy.                                   | untested                                                                                      |
+
+## Pricing and packaging
+
+Not decided. Candidates to test in interviews, never as a quote: per-seat monthly, per-analysis credits, per-repository. Decide only after H5 and H6 have evidence.
+
+## Assumptions about the market
+
+Unverified and to be checked during discovery: Jira Cloud plus GitHub is the dominant stack among small agencies and product teams; Atlassian and GitHub will keep adding generic AI features; the differentiator that survives is evidence-labelled output grounded in the team's own code. Competitor facts are in [`competitor-research.md`](competitor-research.md).

@@ -19,7 +19,13 @@ function WarningList({ issues }: { issues: EvidenceIssue[] }) {
     <Alert variant="destructive">
       <AlertTitle>Evidence problems — review before publishing</AlertTitle>
       <AlertDescription>
-        <ul className="list-disc pl-4">{issues.map((i, n) => <li key={n}>{i.path}: {i.message}</li>)}</ul>
+        <ul className="list-disc pl-4">
+          {issues.map((i, n) => (
+            <li key={n}>
+              {i.path}: {i.message}
+            </li>
+          ))}
+        </ul>
       </AlertDescription>
     </Alert>
   );
@@ -39,7 +45,9 @@ function CreationView({ analysis, siteUrl }: { analysis: Analysis; siteUrl: stri
 
 function AuditView({ analysis, siteUrl }: { analysis: Analysis; siteUrl: string }) {
   const report = auditReportSchema.parse(analysis.result);
-  const proposed = ticketDraftSchema.parse(analysis.editedResult ?? { ...report.proposedTicket, evidence: report.evidence });
+  const proposed = ticketDraftSchema.parse(
+    analysis.editedResult ?? { ...report.proposedTicket, evidence: report.evidence },
+  );
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
@@ -52,7 +60,9 @@ function AuditView({ analysis, siteUrl }: { analysis: Analysis; siteUrl: string 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{finding.category.replaceAll("_", " ")}</Badge>
                 <StatusBadge status={finding.status} />
-                {finding.evidenceIds.length > 0 && <span className="text-muted-foreground">Evidence: {finding.evidenceIds.join(", ")}</span>}
+                {finding.evidenceIds.length > 0 && (
+                  <span className="text-muted-foreground">Evidence: {finding.evidenceIds.join(", ")}</span>
+                )}
               </div>
               <p>{finding.text}</p>
               {finding.suggestion && <p className="text-muted-foreground">Suggestion: {finding.suggestion}</p>}
@@ -87,11 +97,14 @@ export default async function Page({ params }: { params: Promise<{ analysisId: s
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-sm text-muted-foreground">{project.name} · {analysis.kind === "create" ? "New ticket" : "Audit"}</p>
+        <p className="text-sm text-muted-foreground">
+          {project.name} · {analysis.kind === "create" ? "New ticket" : "Audit"}
+        </p>
         <h1 className="text-2xl font-semibold">{input.title ?? input.issueKey}</h1>
         {analysis.status === "completed" && (
           <p className="text-xs text-muted-foreground">
-            {analysis.model} · {((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s · {analysis.inputTokens ?? 0} in / {analysis.outputTokens ?? 0} out tokens
+            {analysis.model} · {((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s · {analysis.inputTokens ?? 0} in /{" "}
+            {analysis.outputTokens ?? 0} out tokens
           </p>
         )}
       </div>
@@ -101,11 +114,17 @@ export default async function Page({ params }: { params: Promise<{ analysisId: s
           <AlertDescription>{analysis.error}</AlertDescription>
         </Alert>
       )}
-      {analysis.status === "running" && <p className="text-muted-foreground">This analysis is still running. Refresh in a moment.</p>}
+      {analysis.status === "running" && (
+        <p className="text-muted-foreground">This analysis is still running. Refresh in a moment.</p>
+      )}
       {analysis.status === "completed" && (
         <>
           <WarningList issues={(analysis.evidenceIssues ?? []) as EvidenceIssue[]} />
-          {analysis.kind === "create" ? <CreationView analysis={analysis} siteUrl={siteUrl} /> : <AuditView analysis={analysis} siteUrl={siteUrl} />}
+          {analysis.kind === "create" ? (
+            <CreationView analysis={analysis} siteUrl={siteUrl} />
+          ) : (
+            <AuditView analysis={analysis} siteUrl={siteUrl} />
+          )}
         </>
       )}
     </div>

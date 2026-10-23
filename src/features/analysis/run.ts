@@ -6,6 +6,7 @@ import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis } from "@/infrastructure/db/schema";
 import { getEnv } from "@/infrastructure/env";
+import { first } from "@/lib/first";
 
 type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage };
 
@@ -18,10 +19,18 @@ export async function runAnalysis(args: {
   execute: () => Promise<Outcome>;
 }): Promise<string> {
   const { db } = args;
-  const [row] = await db
-    .insert(analysis)
-    .values({ projectId: args.project.id, createdByUserId: args.userId, kind: args.kind, input: args.input, model: getEnv().AI_MODEL })
-    .returning({ id: analysis.id });
+  const row = first(
+    await db
+      .insert(analysis)
+      .values({
+        projectId: args.project.id,
+        createdByUserId: args.userId,
+        kind: args.kind,
+        input: args.input,
+        model: getEnv().AI_MODEL,
+      })
+      .returning({ id: analysis.id }),
+  );
 
   const startedAt = Date.now();
   try {
@@ -40,7 +49,11 @@ export async function runAnalysis(args: {
   } catch (error) {
     await db
       .update(analysis)
-      .set({ status: "failed", error: error instanceof Error ? error.message : String(error), latencyMs: Date.now() - startedAt })
+      .set({
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+        latencyMs: Date.now() - startedAt,
+      })
       .where(eq(analysis.id, row.id));
   }
   return row.id;
