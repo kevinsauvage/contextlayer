@@ -2,7 +2,7 @@
 
 Turns a plain-language request (a line or a few paragraphs) into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. Every claim is labelled **verified**, **inferred**, **unknown** or **needs clarification**; `verified` requires cited evidence, and nothing is written to Jira without explicit approval.
 
-**Status:** private prototype. The end-to-end flow works (sign up → connect GitHub and Jira → analyze → review → publish). Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
+**Status:** private prototype. The end-to-end flow works: sign up → create or join an organization → connect GitHub and Jira → create a project → describe a request → answer the draft's questions → preview → publish. Code hosts and trackers sit behind a provider registry, so others can be added. Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
 
 Stack: Next.js (App Router), strict TypeScript, Tailwind, shadcn/ui, Zod, Drizzle + Postgres, Better Auth, Vercel AI SDK, Vitest.
 
@@ -40,9 +40,9 @@ Sign-up works right away. Analyses need an AI provider and the GitHub and Jira c
 ```
 src/app              routes and API route handlers (thin)
 src/components       UI (shadcn/ui in components/ui)
-src/features         use cases: projects, ticket-creation, ticket-audit, analysis, integrations
+src/features         use cases: projects, organizations, integrations, ticket-creation, ticket-audit, analysis
 src/core             pure logic: analysis, audit, context, evidence, requirements
-src/integrations     github, jira, ai, filesystem (implement interfaces defined in core)
+src/integrations     provider registry; github, jira, ai, filesystem (implement interfaces defined in core)
 src/infrastructure   env, db (Drizzle), auth (Better Auth), crypto, signed state
 src/lib              small dependency-free helpers
 tests/               unit, integration (PGlite), evaluation, fixtures

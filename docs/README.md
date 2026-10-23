@@ -9,7 +9,7 @@
 |              | [`product/competitor-research.md`](product/competitor-research.md)         | Sourced first-pass landscape                                  |
 |              | [`product/evaluation-rubric.md`](product/evaluation-rubric.md)             | How drafts are scored; latest results                         |
 |              | [`product/phase-0-decision.md`](product/phase-0-decision.md)               | Go / pivot / stop criteria and decision log                   |
-| Architecture | [`architecture/overview.md`](architecture/overview.md)                     | Layers, pipeline, data model, security model, testing         |
+| Architecture | [`architecture/overview.md`](architecture/overview.md)                     | Layers, pipeline, integrations, data model, security, testing |
 | Engineering  | [`engineering/development.md`](engineering/development.md)                 | Setup, daily workflow, quality gates, troubleshooting         |
 |              | [`engineering/integrations-setup.md`](engineering/integrations-setup.md)   | GitHub App, Atlassian OAuth, AI provider configuration        |
 |              | [`engineering/phase-0-feasibility.md`](engineering/phase-0-feasibility.md) | Permissions, limits, retrieval, runtime and provider findings |

@@ -11,15 +11,15 @@ app ─▶ features ─▶ core ◀─ integrations
 components ─▶ features (actions), core (types), infrastructure/auth/client
 ```
 
-| Layer            | Contains                                                                    | May import                                      |
-| ---------------- | --------------------------------------------------------------------------- | ----------------------------------------------- |
-| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces      | `core`, `zod` only                              |
-| `features`       | Use cases: server actions, queries, orchestration                           | `core`, `infrastructure`, `integrations`, `lib` |
-| `integrations`   | GitHub, Jira, AI SDK and filesystem adapters implementing `core` interfaces | `core`, `infrastructure`, `lib`                 |
-| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                  | `infrastructure`, `lib`                         |
-| `app`            | Routes, layouts, thin API handlers                                          | anything below                                  |
-| `components`     | UI; calls feature actions, uses the browser auth client                     | `features`, `core`, `components`, `lib`         |
-| `lib`            | Dependency-free helpers (`first`, `formString`, `firstIssueMessage`)        | nothing                                         |
+| Layer            | Contains                                                                                       | May import                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces                         | `core`, `zod` only                              |
+| `features`       | Use cases: server actions, queries, orchestration                                              | `core`, `infrastructure`, `integrations`, `lib` |
+| `integrations`   | Provider registry; GitHub, Jira, AI SDK and filesystem adapters implementing `core` interfaces | `core`, `infrastructure`, `lib`                 |
+| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                                     | `infrastructure`, `lib`                         |
+| `app`            | Routes, layouts, thin API handlers                                                             | anything below                                  |
+| `components`     | UI; calls feature actions, uses the browser auth client                                        | `features`, `core`, `components`, `lib`         |
+| `lib`            | Dependency-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)     | nothing                                         |
 
 `eslint.config.mjs` enforces these rules with `no-restricted-imports`, plus `import/no-cycle`. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator.
 
@@ -27,18 +27,21 @@ components ─▶ features (actions), core (types), infrastructure/auth/client
 
 Two use cases share one pipeline (`src/core/analysis/analyze.ts`):
 
-1. **Create** (`draftTicket`): request (one line to a few paragraphs) → candidates → draft. The drafted ticket gets its own concise title.
+1. **Create** (`draftTicket`): request (one line to a few paragraphs) plus any answers to earlier questions → candidates → draft. The drafted ticket gets its own concise title.
 2. **Audit** (`auditIssue`): Jira issue key → fetch issue → candidates → report with findings and a proposed ticket.
 
 ```
 input ─▶ extractTerms ─▶ gatherContext ─▶ generator ─▶ attach evidence ─▶ validate references
-              (≤ 8 terms)   files + related issues   (LLM, Zod-typed)    (cited ids only)    (EvidenceIssue[])
+         (≤ 10 terms + synonyms) files + imports +   (LLM, Zod-typed)  (cited ids only)  (EvidenceIssue[])
+                                 related issues
 ```
 
-- **Retrieval** (`src/core/context/retrieve.ts`): path scoring (weight 3) plus content scoring over a `ContextSource`, optional provider search (GitHub code search, best effort), read the top 20, rescore, keep 60-line windows. Related Jira issues come from `IssueTracker.searchRelated`. Every candidate gets an id `e1…eN`.
+- **Terms** (`extractTerms`): quoted text (the requested new value) is ignored, accents are folded, stopwords and edit verbs are dropped, and a small UI synonym map adds terms ("banner" → hero, header).
+- **Retrieval** (`src/core/context/retrieve.ts`): path scoring (weight 3) plus content scoring over a `ContextSource`, optional provider search (GitHub code search, best effort), read the top 20, rescore, keep 60-line windows. The top three files' local imports are followed one hop (through barrel `index` files) because copy and config usually live in an imported module. Related Jira issues come from `IssueTracker.searchRelated`. Every candidate gets an id `e1…eN`.
 - **Generation** (`src/integrations/ai`): the model receives the candidates and returns a body that cites candidate ids. It never writes evidence. The pipeline attaches the real excerpts for the ids that were cited, which prevents fabricated sources.
 - **Validation** (`src/core/evidence/validate.ts`): a schema-valid draft can still cite nothing, cite unknown ids, or mark a claim `verified` without evidence. Those become `EvidenceIssue`s, stored with the analysis and shown in the review UI.
-- **Approval**: the user edits the draft; `parseApprovedDraft` re-validates schema and evidence before anything is published. Jira writes happen only from the publish and apply actions.
+- **Clarification**: open questions are answered on the draft page; answers are stored in `analysis.input.answers`, merged across rounds, and the draft is regenerated in place. Blank answers stay as open questions.
+- **Approval**: the user reviews a preview rendered from `ticketSections` (the same structure sent to the tracker) and can edit the draft; `parseApprovedDraft` re-validates schema and evidence before anything is published. Tracker writes happen only from the publish and apply actions.
 
 ## Claims and evidence
 
@@ -46,13 +49,13 @@ Every statement in a draft is a claim with a status: `verified | inferred | unkn
 
 ## Data model
 
-Better Auth owns users, sessions and organizations (`src/infrastructure/db/schema/auth.ts`). The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
+Better Auth owns users, sessions, organizations, members and invitations (`src/infrastructure/db/schema/auth.ts`). Users switch organizations from the header; invitations are shared as links (`/invitations/<id>`) until an email provider exists. The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
 
-| Table                    | Purpose                                                                                                                                        |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent |
-| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                        |
-| `analysis`               | Input, AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL                              |
+| Table                    | Purpose                                                                                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent        |
+| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                               |
+| `analysis`               | Input (request and answers, or issue key), AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL |
 
 ## Integrations
 
@@ -78,8 +81,8 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 
 ## Testing strategy
 
-| Kind        | Location            | Runs in `pnpm check` | Notes                                                                    |
-| ----------- | ------------------- | -------------------- | ------------------------------------------------------------------------ |
-| Unit        | `tests/unit`        | yes                  | Pure logic with fake generator, source and tracker                       |
-| Integration | `tests/integration` | yes                  | PGlite with the real Drizzle migrations; tenant isolation                |
-| Evaluation  | `tests/evaluation`  | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison |
+| Kind        | Location            | Runs in `pnpm check` | Notes                                                                                                      |
+| ----------- | ------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Unit        | `tests/unit`        | yes                  | Pure logic with fake generator, source and tracker                                                         |
+| Integration | `tests/integration` | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
+| Evaluation  | `tests/evaluation`  | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |

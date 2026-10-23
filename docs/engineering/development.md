@@ -16,7 +16,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env.local` count as unset, so the app starts without GitHub, Jira or AI credentials; the features that need them fail with a clear `Missing environment variables` message. To enable them: [`integrations-setup.md`](integrations-setup.md).
+Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env.local` count as unset, so the app starts without GitHub, Jira or AI credentials: an unconfigured provider shows as "Not configured" on the Integrations page, and analyses fail with a clear `Missing environment variables` message until an AI provider is set. To enable them: [`integrations-setup.md`](integrations-setup.md).
 
 ## Daily workflow
 
@@ -67,3 +67,5 @@ Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`
 | `response_format type is unavailable` during `pnpm eval` | The endpoint rejects `json_schema`: set `AI_STRUCTURED_OUTPUTS=false`.                                                      |
 | `Too Many Requests` during `pnpm eval`                   | Free-tier rate limit. Run one case (`-t <case-id>`) or use another provider.                                                |
 | Types out of date after adding a route                   | `pnpm typecheck` regenerates route types (`next typegen`).                                                                  |
+| Dev server serves old server code (hydration mismatch)   | `pnpm build` or `pnpm check` ran while `pnpm dev` was running. Restart `pnpm dev`.                                          |
+| OAuth callback returns "redirect_uri mismatch"           | Callbacks are `{BASE}/api/integrations/<provider>/callback`; update the GitHub App or Atlassian app settings.               |
