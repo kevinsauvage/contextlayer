@@ -9,7 +9,7 @@ import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
-import { failStaleAnalyses, getProject, listAnalyses } from "@/features/projects/queries";
+import { getProject, listAnalyses } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
 import { createAuditAnalysis } from "@/features/ticket-audit/actions";
 import { createTicketAnalysis } from "@/features/ticket-creation/actions";
@@ -26,7 +26,6 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
   if (!project) notFound();
-  await failStaleAnalyses(db, project.id);
   const [analyses, integrations] = await Promise.all([listAnalyses(db, project.id), projectIntegrations(db, project)]);
 
   return (

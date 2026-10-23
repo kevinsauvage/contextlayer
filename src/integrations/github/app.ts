@@ -1,5 +1,5 @@
 import "server-only";
-import { App } from "octokit";
+import { App, RequestError } from "octokit";
 import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const APP_KEYS = [
@@ -44,6 +44,21 @@ export async function listInstallationRepos(installationId: number): Promise<Rep
   const octokit = await getGithubApp().getInstallationOctokit(installationId);
   const repos = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 });
   return repos.map((repo) => ({ owner: repo.owner.login, name: repo.name }));
+}
+
+export async function getInstallationRepo(
+  installationId: number,
+  owner: string,
+  name: string,
+): Promise<RepoRef | null> {
+  const octokit = await getGithubApp().getInstallationOctokit(installationId);
+  try {
+    const { data } = await octokit.rest.repos.get({ owner, repo: name });
+    return { owner: data.owner.login, name: data.name };
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export type GithubAccount = { installationId: number; accountLogin: string };

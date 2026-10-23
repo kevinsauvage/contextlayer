@@ -16,6 +16,7 @@ const issueSchema = z.object({
 const searchSchema = z.object({ issues: z.array(issueSchema) });
 const projectsSchema = z.object({ values: z.array(z.object({ key: z.string(), name: z.string() })) });
 const projectSchema = z.object({ issueTypes: z.array(z.object({ name: z.string(), subtask: z.boolean() })) });
+const projectDetailSchema = z.object({ key: z.string(), name: z.string() });
 const createdSchema = z.object({ key: z.string() });
 
 const ISSUE_FIELDS = ["summary", "description", "status"];
@@ -53,6 +54,25 @@ export async function listJiraProjects(site: Site, accessToken: string): Promise
   return projectsSchema.parse(await jiraRequest(site, accessToken, "/project/search?maxResults=100")).values;
 }
 
+export async function getJiraProject(
+  site: Site,
+  accessToken: string,
+  projectKey: string,
+): Promise<{ key: string; name: string } | null> {
+  try {
+    const project = projectDetailSchema.parse(
+      await jiraRequest(site, accessToken, `/project/${encodeURIComponent(projectKey)}`),
+    );
+    return { key: project.key, name: project.name };
+  } catch (error) {
+    if (error instanceof JiraApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+// JQL string literal: escape backslashes before quotes so a term cannot break out of the value.
+export const jqlString = (value: string) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
 export class JiraClient implements IssueTracker {
   constructor(
     private readonly site: Site,
@@ -61,8 +81,8 @@ export class JiraClient implements IssueTracker {
   ) {}
 
   async searchRelated(terms: string[], limit: number): Promise<Issue[]> {
-    const text = terms.map((term) => `text ~ "${term}"`).join(" OR ");
-    const jql = `project = "${this.projectKey}" AND (${text}) ORDER BY updated DESC`;
+    const text = terms.map((term) => `text ~ ${jqlString(term)}`).join(" OR ");
+    const jql = `project = ${jqlString(this.projectKey)} AND (${text}) ORDER BY updated DESC`;
     const result = await this.call("/search/jql", {
       method: "POST",
       body: { jql, fields: ISSUE_FIELDS, maxResults: limit },

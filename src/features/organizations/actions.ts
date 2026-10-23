@@ -3,6 +3,7 @@
 import { APIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { INVITABLE_ROLES } from "@/core/organizations/roles";
 import { toActionError } from "@/features/errors";
 import { getAuth } from "@/infrastructure/auth/auth";
 import { getSession, requireOrgAdmin } from "@/infrastructure/auth/session";
@@ -18,7 +19,7 @@ const nameSchema = z
   .min(2, "Enter a name of at least 2 characters")
   .max(100, "Keep the name under 100 characters");
 const emailSchema = z.email("Enter a valid email address");
-const roleSchema = z.enum(["member", "admin"]);
+const roleSchema = z.enum(INVITABLE_ROLES);
 const idSchema = z.string().min(1, "Choose an entry");
 
 // Better Auth throws APIError with a message meant for the person; anything else is logged and replaced.

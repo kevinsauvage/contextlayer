@@ -1,5 +1,6 @@
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { STALE_ANALYSIS_ERROR, isStale } from "@/features/analysis/stale";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis, integrationConnection, project } from "@/infrastructure/db/schema";
 import { isUuid } from "@/lib/uuid";
@@ -7,11 +8,12 @@ import { isUuid } from "@/lib/uuid";
 export type Project = typeof project.$inferSelect;
 export type Analysis = typeof analysis.$inferSelect;
 
-// A killed or timed-out request never reaches the execute-and-record step, so old "running" rows are failed on read.
-const STALE_ANALYSIS_MS = 10 * 60 * 1000;
-
 const sourceConnection = alias(integrationConnection, "source_connection");
 const trackerConnection = alias(integrationConnection, "tracker_connection");
+
+// The row is left untouched; a stale run reads as failed until it is re-run or cleaned up.
+const displayed = (row: Analysis): Analysis =>
+  isStale(row) ? { ...row, status: "failed", error: STALE_ANALYSIS_ERROR } : row;
 
 export const listProjects = (db: Database, organizationId: string) =>
   db
@@ -35,21 +37,15 @@ export async function getProject(db: Database, organizationId: string, projectId
   return row ?? null;
 }
 
-export async function failStaleAnalyses(db: Database, projectId: string) {
-  await db
-    .update(analysis)
-    .set({ status: "failed", error: "The analysis did not finish in time. Try again." })
-    .where(
-      and(
-        eq(analysis.projectId, projectId),
-        eq(analysis.status, "running"),
-        lt(analysis.createdAt, new Date(Date.now() - STALE_ANALYSIS_MS)),
-      ),
-    );
+export async function listAnalyses(db: Database, projectId: string): Promise<Analysis[]> {
+  const rows = await db
+    .select()
+    .from(analysis)
+    .where(eq(analysis.projectId, projectId))
+    .orderBy(desc(analysis.createdAt))
+    .limit(50);
+  return rows.map(displayed);
 }
-
-export const listAnalyses = (db: Database, projectId: string) =>
-  db.select().from(analysis).where(eq(analysis.projectId, projectId)).orderBy(desc(analysis.createdAt)).limit(50);
 
 export async function getAnalysis(
   db: Database,
@@ -62,5 +58,5 @@ export async function getAnalysis(
     .from(analysis)
     .innerJoin(project, eq(analysis.projectId, project.id))
     .where(and(eq(analysis.id, analysisId), eq(project.organizationId, organizationId)));
-  return row ?? null;
+  return row ? { ...row, analysis: displayed(row.analysis) } : null;
 }

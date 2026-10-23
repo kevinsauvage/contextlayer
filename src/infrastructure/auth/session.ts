@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { ForbiddenError } from "@/core/errors";
+import { isAdminRole } from "@/core/organizations/roles";
 import { getAuth } from "./auth";
 
 export type OrgContext = {
@@ -12,8 +13,6 @@ export type OrgContext = {
   isAdmin: boolean;
   user: { name: string; email: string };
 };
-
-const ADMIN_ROLES = new Set(["owner", "admin"]);
 
 // Layouts and pages both ask for the session; cache() keeps it to one lookup per request.
 export const getSession = cache(async () => getAuth().api.getSession({ headers: await headers() }));
@@ -31,7 +30,7 @@ export const requireOrgContext = cache(async (): Promise<OrgContext> => {
     userId: session.user.id,
     organizationId,
     role: member.role,
-    isAdmin: ADMIN_ROLES.has(member.role),
+    isAdmin: isAdminRole(member.role),
     user: { name: session.user.name, email: session.user.email },
   };
 });

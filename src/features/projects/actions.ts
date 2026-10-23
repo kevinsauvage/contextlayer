@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Resource } from "@/core/integrations/provider";
+import type { ConnectionContext, IntegrationProvider, Resource } from "@/core/integrations/provider";
 import { withActionErrors } from "@/features/errors";
 import { resolveSource, resolveTracker } from "@/features/integrations/resolve";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
@@ -21,7 +21,16 @@ const projectInputSchema = z.object({
   trackerResourceId: z.string().min(1, "Choose a project or board"),
 });
 
-const findResource = (resources: Resource[], id: string) => resources.find((resource) => resource.id === id);
+// Ask for the one id the form submitted instead of paging through every resource the account can see.
+async function resolveResource(
+  provider: IntegrationProvider,
+  ctx: ConnectionContext,
+  id: string,
+): Promise<Resource | null> {
+  if (provider.getResource) return provider.getResource(ctx, id);
+  const resources = await provider.listResources(ctx);
+  return resources.find((resource) => resource.id === id) ?? null;
+}
 
 export async function createProject(_: ActionState, formData: FormData): Promise<ActionState> {
   return withActionErrors(async () => {
@@ -34,12 +43,10 @@ export async function createProject(_: ActionState, formData: FormData): Promise
       resolveSource(db, organizationId, input.data.sourceConnectionId),
       resolveTracker(db, organizationId, input.data.trackerConnectionId),
     ]);
-    const [sources, trackers] = await Promise.all([
-      source.provider.listResources(source.context),
-      tracker.provider.listResources(tracker.context),
+    const [repository, board] = await Promise.all([
+      resolveResource(source.provider, source.context, input.data.sourceResourceId),
+      resolveResource(tracker.provider, tracker.context, input.data.trackerResourceId),
     ]);
-    const repository = findResource(sources, input.data.sourceResourceId);
-    const board = findResource(trackers, input.data.trackerResourceId);
     if (!repository)
       return { error: `That ${source.provider.resourceNoun} is not accessible to ${source.provider.name}` };
     if (!board) return { error: `That ${tracker.provider.resourceNoun} was not found in ${tracker.provider.name}` };

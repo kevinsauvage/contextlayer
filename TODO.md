@@ -1,6 +1,6 @@
 # TODO
 
-Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. Markers: `[ ]` open, `[~]` partly done (the remaining scope is described). Each item says why it matters (**Context**) and how to close it (**Fix**). Architecture and code-quality debt lives in [`TODO-CODE-QUALITY.md`](TODO-CODE-QUALITY.md).
+Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. Markers: `[ ]` open, `[~]` partly done (the remaining scope is described). Each item says why it matters (**Context**) and how to close it (**Fix**).
 
 ## P0: Decide whether to build (Phase 0)
 

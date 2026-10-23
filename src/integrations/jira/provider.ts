@@ -1,6 +1,6 @@
 import "server-only";
 import type { TrackerProvider } from "@/core/integrations/provider";
-import { JiraClient, listJiraProjects } from "./client";
+import { JiraClient, getJiraProject, listJiraProjects } from "./client";
 import { exchangeJiraCode, isJiraConfigured, jiraAuthorizeUrl, listJiraSites, refreshJiraTokens } from "./oauth";
 
 const siteOf = (metadata: Record<string, string>, cloudId: string) => ({ cloudId, siteUrl: metadata.siteUrl ?? "" });
@@ -47,6 +47,11 @@ export const jiraProvider: TrackerProvider = {
   async listResources(ctx) {
     const projects = await listJiraProjects(siteOf(ctx.metadata, ctx.externalId), await ctx.accessToken());
     return projects.map((project) => ({ id: project.key, label: `${project.key} · ${project.name}` }));
+  },
+
+  async getResource(ctx, projectKey) {
+    const project = await getJiraProject(siteOf(ctx.metadata, ctx.externalId), await ctx.accessToken(), projectKey);
+    return project ? { id: project.key, label: `${project.key} · ${project.name}` } : null;
   },
 
   openTracker: (ctx, resourceId) => new JiraClient(siteOf(ctx.metadata, ctx.externalId), resourceId, ctx.accessToken),

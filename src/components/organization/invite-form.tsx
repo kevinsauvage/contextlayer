@@ -8,12 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useMutation } from "@/components/use-mutation";
+import { ADMIN_ROLE, MEMBER_ROLE, isInvitableRole } from "@/core/organizations/roles";
 import { inviteMember } from "@/features/organizations/actions";
 import { formString } from "@/lib/form";
-
-const ROLES = ["member", "admin"] as const;
-type Role = (typeof ROLES)[number];
-const isRole = (value: string): value is Role => (ROLES as readonly string[]).includes(value);
 
 export function InviteForm() {
   const [invitation, setInvitation] = useState<{ id: string; email: string }>();
@@ -24,7 +21,7 @@ export function InviteForm() {
     const email = formString(formData, "email").trim();
     const role = formString(formData, "role");
     run(async () => {
-      const result = await inviteMember(email, isRole(role) ? role : "member");
+      const result = await inviteMember(email, isInvitableRole(role) ? role : MEMBER_ROLE);
       if (result.invitationId) setInvitation({ id: result.invitationId, email: result.email ?? email });
       return result;
     });
@@ -39,9 +36,9 @@ export function InviteForm() {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="invite-role">Role</Label>
-          <NativeSelect id="invite-role" name="role" defaultValue="member">
-            <NativeSelectOption value="member">Member: analyze and publish</NativeSelectOption>
-            <NativeSelectOption value="admin">Admin: also manage integrations</NativeSelectOption>
+          <NativeSelect id="invite-role" name="role" defaultValue={MEMBER_ROLE}>
+            <NativeSelectOption value={MEMBER_ROLE}>Member: analyze and publish</NativeSelectOption>
+            <NativeSelectOption value={ADMIN_ROLE}>Admin: also manage integrations</NativeSelectOption>
           </NativeSelect>
         </div>
         <Button type="submit" disabled={pending}>

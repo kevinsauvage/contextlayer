@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { firstLine, requestOf } from "@/features/analysis/input";
 import { readAnalysis } from "@/features/analysis/read";
-import { failStaleAnalyses, getAnalysis } from "@/features/projects/queries";
+import { getAnalysis } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
@@ -22,12 +22,8 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   const { analysisId } = await params;
   const { organizationId } = await requireOrgContext();
   const db = getDb();
-  let found = await getAnalysis(db, organizationId, analysisId);
+  const found = await getAnalysis(db, organizationId, analysisId);
   if (!found) notFound();
-  if (found.analysis.status === "running") {
-    await failStaleAnalyses(db, found.project.id);
-    found = (await getAnalysis(db, organizationId, analysisId)) ?? found;
-  }
   const { analysis, project } = found;
   const content = readAnalysis(analysis);
   const { trackerName } = await projectIntegrations(db, project);

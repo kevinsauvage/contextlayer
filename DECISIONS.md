@@ -73,7 +73,7 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - A connection used by a project cannot be disconnected; the UI names the projects · avoids dangling foreign keys without cascading deletes of analysis history.
 - Organization switcher in the header, `/organizations/new`, and `/settings/organization` (rename, members, invites) use the Better Auth organization client · permissions stay enforced by Better Auth.
 - Invites are copyable links (`/invitations/<id>`) because no email provider exists yet; the invitee must sign in with the invited email. Without email verification, the link is the secret · revisit with email verification (P3).
-- Analyses still `running` 10 minutes after creation are marked failed when read · a killed request never reaches the execute-and-record step.
+- A run still `running` 10 minutes after creation reads as failed (status and error are derived, the row is untouched) and a re-run may replace it · a killed request never reaches the execute-and-record step, and rendering a page should not write.
 - `requireOrgContext` and `getSession` are wrapped in React `cache()` · layout and page shared one request but did two auth lookups.
 
 ## Retrieval and draft size (2026-10-23)
@@ -99,3 +99,10 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Organization writes (create, rename, invite, remove, cancel, accept, reject) run as server actions in `src/features/organizations/actions.ts`; components keep `authClient` only for sign-in, sign-out and `setActive`, and organization slugs are generated server-side with a UUID suffix and a retry on collision · permissions stay enforced by Better Auth, these paths get the same error mapping as other actions, and the browser no longer chooses a slug.
 - `analysis.input` is typed as a stored union (create request and answers, audit issue key, legacy `title`) with `$type` on the column; `readAnalysis` tags it with the row's kind and parses input, draft and audit report once for the page · three call sites parsed the JSON differently and a legacy row could crash the view.
 - `runAnalysis` is split into `startAnalysis` and `restartAnalysis`, which share the execute-and-record step; `deleteProject` is typed `Promise<never>` because it only redirects · the optional `rerunId` hid two different row lifecycles, and the old return type promised a value that a redirect never produces.
+
+## Performance and hygiene P3 (2026-10-23)
+
+- Publishing opens only the tracker (`buildProjectTracker`); drafting and auditing still open both providers · publishing used to call `GithubSource.connect` just to reach Jira, an extra API call per approval.
+- Providers may implement `getResource(ctx, id)`; project creation asks for the submitted id and falls back to `listResources` only without it · validating a choice used to page through every repository and project on the account.
+- JQL values go through `jqlString`, which escapes backslashes before quotes · retrieval terms are currently `[a-z0-9]`, but the query must not depend on that staying true.
+- Organization role names live in `src/core/organizations/roles.ts` rather than `src/features` · `src/infrastructure/auth/session.ts` enforces the admin check, and infrastructure may not import features.

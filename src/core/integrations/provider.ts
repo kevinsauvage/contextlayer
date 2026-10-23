@@ -54,6 +54,8 @@ type BaseProvider = {
   complete(input: { query: URLSearchParams; state: string; redirectUri: string }): Promise<CompleteResult>;
   refresh?: (refreshToken: string) => Promise<OAuthTokens>;
   listResources(ctx: ConnectionContext): Promise<Resource[]>;
+  // Optional single lookup; callers fall back to listing when a provider does not implement it.
+  getResource?(ctx: ConnectionContext, id: string): Promise<Resource | null>;
 };
 
 export type SourceProvider = BaseProvider & {
@@ -78,7 +80,7 @@ export class InvalidGrantError extends Error {}
 
 export class ReconnectRequiredError extends Error {
   constructor(readonly connectionLabel: string) {
-    super(`The connection to ${connectionLabel} expired. An admin needs to reconnect it in Integrations.`);
+    super(`The connection to ${connectionLabel} expired.`);
   }
 }
 

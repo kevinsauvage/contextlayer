@@ -8,7 +8,7 @@ import { clarificationSchema, type Clarification } from "@/core/requirements/sch
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
-import { buildProjectContext } from "@/features/analysis/project-context";
+import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
@@ -117,7 +117,8 @@ export async function publishTicket(analysisId: string, draftInput: unknown): Pr
   });
   if ("error" in loaded) return loaded;
 
-  return publishApproved(loaded.db, analysisId, approved.draft, async () =>
-    (await buildProjectContext(loaded.db, loaded.project)).tracker.createIssue(approved.draft),
-  );
+  return publishApproved(loaded.db, analysisId, approved.draft, async () => {
+    const tracker = await buildProjectTracker(loaded.db, loaded.project);
+    return tracker.createIssue(approved.draft);
+  });
 }

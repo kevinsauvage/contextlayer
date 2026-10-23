@@ -16,3 +16,9 @@ export async function buildProjectContext(db: Database, project: Project): Promi
     tracker: tracker.provider.openTracker(tracker.context, project.trackerResourceId),
   };
 }
+
+// Publishing only needs the tracker; opening the source would cost a GitHub API call for nothing.
+export async function buildProjectTracker(db: Database, project: Project): Promise<IssueTracker> {
+  const tracker = await resolveTracker(db, project.organizationId, project.trackerConnectionId);
+  return tracker.provider.openTracker(tracker.context, project.trackerResourceId);
+}

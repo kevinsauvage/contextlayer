@@ -7,8 +7,9 @@ import type { ActionState } from "@/lib/action-state";
 export function toActionError(error: unknown): { error: string } | null {
   if (error instanceof ForbiddenError) return { error: "Only organization owners and admins can do this" };
   if (error instanceof AnalysisAlreadyRunningError) return { error: "This analysis is already running" };
-  if (error instanceof ReconnectRequiredError || error instanceof ConnectionMissingError)
-    return { error: error.message };
+  if (error instanceof ReconnectRequiredError)
+    return { error: `${error.message} An admin needs to reconnect it in Integrations.` };
+  if (error instanceof ConnectionMissingError) return { error: error.message };
   return null;
 }
 

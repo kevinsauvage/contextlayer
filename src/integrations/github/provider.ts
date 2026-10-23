@@ -1,6 +1,7 @@
 import "server-only";
 import type { CompleteResult, SourceProvider } from "@/core/integrations/provider";
 import {
+  getInstallationRepo,
   githubAccountsForUser,
   githubAuthorizeUrl,
   githubInstallUrl,
@@ -68,6 +69,13 @@ export const githubProvider: SourceProvider = {
     return repos
       .map((repo) => ({ id: `${repo.owner}/${repo.name}`, label: `${repo.owner}/${repo.name}` }))
       .sort((a, b) => a.label.localeCompare(b.label));
+  },
+
+  async getResource(ctx, resourceId) {
+    const { owner, name } = parseRepo(resourceId);
+    if (!owner || !name) return null;
+    const repo = await getInstallationRepo(Number(ctx.externalId), owner, name);
+    return repo ? { id: `${repo.owner}/${repo.name}`, label: `${repo.owner}/${repo.name}` } : null;
   },
 
   openSource: (ctx, resourceId) => GithubSource.connect(Number(ctx.externalId), parseRepo(resourceId)),

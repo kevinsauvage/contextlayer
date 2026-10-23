@@ -5,7 +5,7 @@ import { auditIssue } from "@/core/analysis/analyze";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { readAnalysisInput } from "@/features/analysis/input";
-import { buildProjectContext } from "@/features/analysis/project-context";
+import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
 import { startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
@@ -55,7 +55,8 @@ export async function applyAuditToTracker(analysisId: string, draftInput: unknow
 
   const input = readAnalysisInput(loaded.analysis);
   if (input?.kind !== "audit") return { error: "Analysis input is invalid" };
-  return publishApproved(loaded.db, analysisId, approved.draft, async () =>
-    (await buildProjectContext(loaded.db, loaded.project)).tracker.updateIssue(input.issueKey, approved.draft),
-  );
+  return publishApproved(loaded.db, analysisId, approved.draft, async () => {
+    const tracker = await buildProjectTracker(loaded.db, loaded.project);
+    return tracker.updateIssue(input.issueKey, approved.draft);
+  });
 }

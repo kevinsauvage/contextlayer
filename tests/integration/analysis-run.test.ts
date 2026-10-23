@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
+import { STALE_ANALYSIS_ERROR } from "@/features/analysis/stale";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -89,5 +90,38 @@ describe("running an analysis", () => {
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
     expect(rejected?.reason).toBeInstanceOf(AnalysisAlreadyRunningError);
+  });
+
+  it("reports a stale running row as failed without writing", async () => {
+    const id = await start("vague", async () => {
+      throw new Error("model timed out");
+    });
+    await db
+      .update(schema.analysis)
+      .set({ status: "running", createdAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .where(eq(schema.analysis.id, id));
+
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      error: STALE_ANALYSIS_ERROR,
+    });
+    const [row] = await db.select().from(schema.analysis).where(eq(schema.analysis.id, id));
+    expect(row?.status).toBe("running");
+  });
+
+  it("re-runs a stale running row", async () => {
+    const id = await start("vague", async () => {
+      throw new Error("model timed out");
+    });
+    await db
+      .update(schema.analysis)
+      .set({ status: "running", createdAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .where(eq(schema.analysis.id, id));
+
+    await expect(restart("fresh", async () => ({ result: {}, issues: [] }), id)).resolves.toBe(id);
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "completed",
+      input: { request: "fresh" },
+    });
   });
 });

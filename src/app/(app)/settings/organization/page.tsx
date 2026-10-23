@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrganization, listMembers, listPendingInvitations } from "@/features/organizations/queries";
+import { MEMBER_ROLE, OWNER_ROLE, isAdminRole } from "@/core/organizations/roles";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
@@ -54,10 +55,10 @@ export default async function Page() {
                   </span>
                   <span className="truncate text-xs text-muted-foreground">{m.email}</span>
                 </div>
-                <Badge variant={m.role === "member" ? "outline" : "secondary"} className="capitalize">
+                <Badge variant={isAdminRole(m.role) ? "secondary" : "outline"} className="capitalize">
                   {m.role}
                 </Badge>
-                {isAdmin && m.userId !== userId && m.role !== "owner" && <RemoveMemberButton memberId={m.id} />}
+                {isAdmin && m.userId !== userId && m.role !== OWNER_ROLE && <RemoveMemberButton memberId={m.id} />}
               </li>
             ))}
           </ul>
@@ -78,7 +79,7 @@ export default async function Page() {
                         </span>
                       </div>
                       <Badge variant="outline" className="capitalize">
-                        {invitation.role ?? "member"}
+                        {invitation.role ?? MEMBER_ROLE}
                       </Badge>
                       <CopyLinkButton path={`/invitations/${invitation.id}`} />
                       <CancelInvitationButton invitationId={invitation.id} />
