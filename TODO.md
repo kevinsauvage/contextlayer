@@ -23,7 +23,7 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
 
 - [ ] Exercise the full flow with real credentials: create the Atlassian dev OAuth app and a Jira dev site, connect GitHub and Jira, create a project, analyze, publish, audit (the dev GitHub App already exists)
 - [~] Authorization and failure tests: tenant isolation is covered. Add integration-failure tests (GitHub and Jira errors, expired tokens, revoked installation), the Jira refresh-token race, and removed-project and removed-connection paths
-- [ ] Disconnect flows for GitHub and Jira, and member invites (the `invitation` table exists, no UI)
+- [ ] Organization switcher, disconnect flows for GitHub and Jira, and member invites (the `invitation` table exists, no UI)
 - [ ] Mark analyses stuck in `running` as failed (a killed or timed-out request never reaches the `catch` in `runAnalysis`)
 - [ ] First CI run on GitHub: confirm the workflow passes (pnpm setup, build env) and enable it as a required check
 - [ ] Choose hosting and document the deploy: production env vars, running migrations on deploy, managed Postgres

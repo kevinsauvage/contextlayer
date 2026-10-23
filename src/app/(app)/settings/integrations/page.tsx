@@ -9,6 +9,7 @@ const NOTICES: Record<string, string> = {
   "github=connected": "GitHub connected.",
   "github=invalid": "The GitHub connection request expired or was invalid. Try again.",
   "github=forbidden": "Your GitHub account does not have access to that installation.",
+  "github=taken": "That GitHub installation is already connected to another organization.",
   "github=unconfigured": "GitHub App is not configured on the server. See docs/engineering/integrations-setup.md.",
   "jira=unconfigured": "Atlassian OAuth is not configured on the server. See docs/engineering/integrations-setup.md.",
   "jira=connected": "Jira connected.",
@@ -52,9 +53,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
             {!installations.length && <li className="text-muted-foreground">Not connected.</li>}
           </ul>
           {isAdmin && (
-            <a href="/api/github/install" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
-              {installations.length ? "Add another account" : "Connect GitHub"}
-            </a>
+            <div className="flex gap-2">
+              <a href="/api/github/install" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
+                {installations.length ? "Sync from GitHub" : "Connect GitHub"}
+              </a>
+              <a href="/api/github/install?add" className={cn(buttonVariants({ variant: "ghost" }), "w-fit")}>
+                Install on another account
+              </a>
+            </div>
           )}
         </CardContent>
       </Card>

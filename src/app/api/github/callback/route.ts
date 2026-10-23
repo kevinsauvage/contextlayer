@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { connectGithub } from "@/features/integrations/github-link";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
-import { githubInstallation } from "@/infrastructure/db/schema";
 import { getEnv } from "@/infrastructure/env";
-import { verifyState } from "@/infrastructure/signed-state";
-import { installationAccountForUser } from "@/integrations/github/app";
+import { signState, verifyState } from "@/infrastructure/signed-state";
+import { githubAccountsForUser, githubInstallUrl } from "@/integrations/github/app";
 
 const done = (query: string) =>
   NextResponse.redirect(new URL(`/settings/integrations?${query}`, getEnv().BETTER_AUTH_URL));
@@ -14,23 +14,25 @@ export async function GET(request: Request) {
   const { userId, organizationId } = await requireOrgAdmin();
 
   const state = verifyState(params.get("state"));
-  const installationId = Number(params.get("installation_id"));
   const code = params.get("code");
+  const installationParam = params.get("installation_id");
+  const installationId = installationParam === null ? undefined : Number(installationParam);
   if (
     state?.userId !== userId ||
     state.organizationId !== organizationId ||
-    !Number.isInteger(installationId) ||
-    !code
+    !code ||
+    (installationId !== undefined && !Number.isInteger(installationId))
   ) {
     return done("github=invalid");
   }
 
-  const accountLogin = await installationAccountForUser(code, installationId);
-  if (!accountLogin) return done("github=forbidden");
-
-  await getDb()
-    .insert(githubInstallation)
-    .values({ id: installationId, organizationId, accountLogin })
-    .onConflictDoNothing();
-  return done("github=connected");
+  const outcome = await connectGithub(getDb(), {
+    organizationId,
+    installationId,
+    accounts: await githubAccountsForUser(code),
+  });
+  if (outcome === "needs_install") {
+    return NextResponse.redirect(githubInstallUrl(signState({ userId, organizationId })));
+  }
+  return done(`github=${outcome}`);
 }

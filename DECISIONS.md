@@ -53,3 +53,5 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Pre-commit runs lint-staged (simple-git-hooks); CI runs the same gates as `pnpm check` plus coverage with a 40% floor (current coverage is about 44%; ratchet it up as tests are added).
 - `typedRoutes` enabled and baseline security headers (`nosniff`, `X-Frame-Options: DENY`, referrer and permissions policies) set in `next.config.ts`; CSP deferred.
 - Dependabot weekly, minor and patch grouped.
+- A new session defaults its active organization to the user's oldest membership (Better Auth `session.create.before` hook) · without it every sign-in landed on onboarding and created another organization.
+- Linking a GitHub installation that already belongs to another organization is refused (`github=taken`) instead of silently doing nothing.

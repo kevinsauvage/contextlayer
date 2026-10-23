@@ -7,8 +7,10 @@ import {
   getGithubInstallation,
   getJiraConnection,
   getProject,
+  listGithubInstallations,
   listProjects,
 } from "@/features/projects/queries";
+import { connectGithub } from "@/features/integrations/github-link";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
 import { first } from "@/lib/first";
@@ -80,5 +82,34 @@ describe("tenant isolation", () => {
     expect(await getGithubInstallation(db, "orgB", 42)).toBeNull();
     expect(await getJiraConnection(db, "orgB", ids.connection)).toBeNull();
     expect(await listProjects(db, "orgB")).toEqual([]);
+  });
+});
+
+describe("connecting GitHub", () => {
+  const accounts = [
+    { installationId: 99, accountLogin: "acme" },
+    { installationId: 100, accountLogin: "acme-org" },
+  ];
+  const connect = (organizationId: string, installationId?: number, available = accounts) =>
+    connectGithub(db, { organizationId, accounts: available, installationId });
+
+  it("links every installation the user has when none is specified, and is idempotent", async () => {
+    expect(await connect("orgA")).toBe("connected");
+    expect(await connect("orgA")).toBe("connected");
+    expect((await listGithubInstallations(db, "orgA")).map((i) => i.id)).toEqual(expect.arrayContaining([99, 100]));
+  });
+
+  it("refuses installations that belong to another organization", async () => {
+    expect(await connect("orgB")).toBe("taken");
+    expect(await listGithubInstallations(db, "orgB")).toEqual([]);
+  });
+
+  it("links only the requested installation and rejects ids the user cannot access", async () => {
+    expect(await connect("orgB", 555, [{ installationId: 555, accountLogin: "solo" }])).toBe("connected");
+    expect(await connect("orgB", 12345, accounts)).toBe("forbidden");
+  });
+
+  it("asks for an installation when the user has none", async () => {
+    expect(await connect("orgB", undefined, [])).toBe("needs_install");
   });
 });

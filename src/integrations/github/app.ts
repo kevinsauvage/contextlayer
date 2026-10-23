@@ -24,6 +24,16 @@ export function getGithubApp(): App {
 export const githubInstallUrl = (state: string) =>
   `https://github.com/apps/${requireEnv("GITHUB_APP_SLUG").GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(state)}`;
 
+export function githubAuthorizeUrl(state: string): string {
+  const env = requireEnv("GITHUB_APP_CLIENT_ID", "BETTER_AUTH_URL");
+  const params = new URLSearchParams({
+    client_id: env.GITHUB_APP_CLIENT_ID,
+    redirect_uri: new URL("/api/github/callback", env.BETTER_AUTH_URL).toString(),
+    state,
+  });
+  return `https://github.com/login/oauth/authorize?${params}`;
+}
+
 export type RepoRef = { owner: string; name: string };
 
 export async function listInstallationRepos(installationId: number): Promise<RepoRef[]> {
@@ -32,15 +42,20 @@ export async function listInstallationRepos(installationId: number): Promise<Rep
   return repos.map((repo) => ({ owner: repo.owner.login, name: repo.name }));
 }
 
-// Proves the signed-in GitHub user actually has access to the installation they claim,
-// since installation_id in the callback URL is attacker-controllable.
-export async function installationAccountForUser(code: string, installationId: number): Promise<string | null> {
+export type GithubAccount = { installationId: number; accountLogin: string };
+
+// Installations of this app that the signed-in GitHub user can access. Installation ids in callback URLs
+// are attacker-controllable, so only ids returned here may be linked.
+export async function githubAccountsForUser(code: string): Promise<GithubAccount[]> {
   const app = getGithubApp();
   const { authentication } = await app.oauth.createToken({ code });
   const userOctokit = await app.oauth.getUserOctokit({ token: authentication.token });
   const installations = await userOctokit.paginate(userOctokit.rest.apps.listInstallationsForAuthenticatedUser, {
     per_page: 100,
   });
-  const match = installations.find((installation) => installation.id === installationId);
-  return match?.account && "login" in match.account ? match.account.login : null;
+  return installations.flatMap((installation) =>
+    installation.account && "login" in installation.account
+      ? [{ installationId: installation.id, accountLogin: installation.account.login }]
+      : [],
+  );
 }
