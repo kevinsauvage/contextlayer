@@ -27,7 +27,7 @@ components ─▶ features (actions), core (types), infrastructure/auth/client
 
 Two use cases share one pipeline (`src/core/analysis/analyze.ts`):
 
-1. **Create** (`analyzeTitle`): title → candidates → draft.
+1. **Create** (`draftTicket`): request (one line to a few paragraphs) → candidates → draft. The drafted ticket gets its own concise title.
 2. **Audit** (`auditIssue`): Jira issue key → fetch issue → candidates → report with findings and a proposed ticket.
 
 ```
@@ -46,21 +46,30 @@ Every statement in a draft is a claim with a status: `verified | inferred | unkn
 
 ## Data model
 
-Better Auth owns users, sessions and organizations (`src/infrastructure/db/schema/auth.ts`). The organization is the tenant boundary: every query in `src/features/projects/queries.ts` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
+Better Auth owns users, sessions and organizations (`src/infrastructure/db/schema/auth.ts`). The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
 
-| Table                 | Purpose                                                                                                   |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `github_installation` | GitHub App installations an organization linked                                                           |
-| `jira_connection`     | Atlassian site per organization; access and refresh tokens AES-256-GCM encrypted                          |
-| `project`             | Links one repository to one Jira project                                                                  |
-| `analysis`            | Input, AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key |
+| Table                    | Purpose                                                                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent |
+| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                        |
+| `analysis`               | Input, AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL                              |
+
+## Integrations
+
+Providers live behind two `core` contracts (`src/core/integrations/provider.ts`): a `SourceProvider` opens a `ContextSource` for a resource, a `TrackerProvider` opens an `IssueTracker` and parses issue keys. Both share the connect flow (`authorizeUrl`, `complete`, optional `refresh`) and `listResources`. `src/integrations/registry.ts` lists the providers; everything else is generic:
+
+- Routes: `/api/integrations/[provider]/connect`, `/api/integrations/[provider]/callback` and `/api/integrations/connections/[id]/resources`.
+- `src/features/integrations`: storing accounts (`connections.ts`), the OAuth flow with provider-bound, return-path-carrying state (`oauth-flow.ts`), token access with a grant-level row lock so rotating refresh tokens are never used twice (`access.ts`), and resolving a project's connections (`resolve.ts`).
+- UI: the integrations page and the new-project wizard render from `integrationsOverview`, so a new provider appears without UI changes.
+
+To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `SourceProvider` or `TrackerProvider` in `src/integrations/<name>/provider.ts`, add it to the registry, add its env vars to `src/infrastructure/env.ts` and `.env.example`, and register `{BASE}/api/integrations/<id>/callback` with the provider.
 
 ## Security model
 
 - **Untrusted content**: repository files, docs and Jira text are data. They reach the model only as quoted candidates, the system prompt states they cannot change rules, and the approval step is independent of model output.
-- **Secrets**: integration tokens are encrypted at rest (`ENCRYPTION_KEY`); OAuth `state` is HMAC-signed, bound to user and organization, valid 10 minutes; the GitHub install callback exchanges the OAuth `code` because `installation_id` in the URL is attacker-controlled.
+- **Secrets**: integration tokens are encrypted at rest (`ENCRYPTION_KEY`); OAuth `state` is HMAC-signed, bound to user, organization and provider, carries a same-origin return path, and is valid 10 minutes; a connection whose refresh is rejected is marked `needs_reconnect`; the GitHub install callback exchanges the OAuth `code` because `installation_id` in the URL is attacker-controlled.
 - **Source code handling**: files are read on demand through the GitHub API and sent to the configured AI provider. They are not stored; only evidence excerpts cited by a draft are kept.
-- **Access**: `src/proxy.ts` redirects unauthenticated requests; `requireOrgContext` and `requireOrgAdmin` guard actions; project creation needs an owner or admin.
+- **Access**: `src/proxy.ts` redirects unauthenticated requests; `requireOrgContext` and `requireOrgAdmin` guard actions; creating projects, managing integrations and inviting members need an owner or admin. An exclusive account (a GitHub installation) can belong to one organization only.
 - **Headers**: `next.config.ts` sets `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy and a restrictive permissions policy. A Content Security Policy is open work ([`TODO.md`](../../TODO.md)).
 
 ## AI provider seam

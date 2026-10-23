@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
-import { requireEnv } from "@/infrastructure/env";
+import { InvalidGrantError, type OAuthTokens } from "@/core/integrations/provider";
+import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const SCOPES = ["read:jira-work", "write:jira-work", "offline_access"];
 
@@ -9,12 +10,11 @@ const tokenSchema = z.object({
   refresh_token: z.string(),
   expires_in: z.number(),
 });
-export type JiraTokens = { accessToken: string; refreshToken: string; expiresAt: Date };
 
 const resourcesSchema = z.array(z.object({ id: z.string(), url: z.string(), name: z.string() }));
-export type JiraSite = z.infer<typeof resourcesSchema>[number];
+type JiraSite = z.infer<typeof resourcesSchema>[number];
 
-export const jiraRedirectUri = (baseUrl: string) => `${baseUrl}/api/jira/callback`;
+export const isJiraConfigured = () => hasEnv("JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET");
 
 export function jiraAuthorizeUrl(state: string, redirectUri: string): string {
   const params = new URLSearchParams({
@@ -29,13 +29,16 @@ export function jiraAuthorizeUrl(state: string, redirectUri: string): string {
   return `https://auth.atlassian.com/authorize?${params}`;
 }
 
-async function requestTokens(body: Record<string, string>): Promise<JiraTokens> {
+async function requestTokens(body: Record<string, string>): Promise<OAuthTokens> {
   const { JIRA_CLIENT_ID, JIRA_CLIENT_SECRET } = requireEnv("JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET");
   const response = await fetch("https://auth.atlassian.com/oauth/token", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: JIRA_CLIENT_ID, client_secret: JIRA_CLIENT_SECRET, ...body }),
   });
+  if (response.status === 400 || response.status === 401 || response.status === 403) {
+    throw new InvalidGrantError(`Atlassian rejected the token request (${response.status})`);
+  }
   if (!response.ok) throw new Error(`Atlassian token request failed (${response.status})`);
   const tokens = tokenSchema.parse(await response.json());
   return {

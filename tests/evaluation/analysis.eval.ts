@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { analyzeTitle } from "@/core/analysis/analyze";
+import { draftTicket } from "@/core/analysis/analyze";
 import { AiGenerator } from "@/integrations/ai/generator";
 import { DirectorySource } from "@/integrations/filesystem/directory-source";
 import { getEnv } from "@/infrastructure/env";
@@ -14,8 +14,8 @@ const generator = new AiGenerator(getEnv().AI_MODEL);
 describe.skipIf(!process.env.AI_GATEWAY_API_KEY && !process.env.AI_BASE_URL)("analysis evaluation", () => {
   it.each(loadEvaluationCases().map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const startedAt = Date.now();
-    const result = await analyzeTitle({
-      title: c.title,
+    const result = await draftTicket({
+      request: c.title,
       source: new DirectorySource(c.repoDir),
       tracker: noIssues,
       generator,

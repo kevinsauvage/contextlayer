@@ -16,8 +16,8 @@ export const withSchemaInstruction = (text: string, schema: z.ZodType) =>
 export class AiGenerator implements DraftGenerator, AuditGenerator {
   constructor(private readonly modelId: string) {}
 
-  generate({ title, candidates }: Parameters<DraftGenerator["generate"]>[0]) {
-    return this.run(CREATE_SYSTEM_PROMPT, buildCreatePrompt(title, candidates), draftBodySchema);
+  generate({ request, candidates }: Parameters<DraftGenerator["generate"]>[0]) {
+    return this.run(CREATE_SYSTEM_PROMPT, buildCreatePrompt(request, candidates), draftBodySchema);
   }
 
   audit({ issue, candidates }: Parameters<AuditGenerator["audit"]>[0]) {

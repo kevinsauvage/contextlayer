@@ -1,31 +1,26 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { jiraAccessToken } from "@/features/integrations/jira-access";
-import type { ActionState } from "@/features/ticket-creation/actions";
+import { ReconnectRequiredError, type Resource } from "@/core/integrations/provider";
+import { ConnectionMissingError, resolveSource, resolveTracker } from "@/features/integrations/resolve";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 import { project } from "@/infrastructure/db/schema";
-import { listInstallationRepos } from "@/integrations/github/app";
-import { listJiraProjects } from "@/integrations/jira/client";
+import type { ActionState } from "@/lib/action-state";
 import { first } from "@/lib/first";
 import { firstIssueMessage } from "@/lib/zod";
-import { getGithubInstallation, getJiraConnection } from "./queries";
 
 const projectInputSchema = z.object({
-  name: z.string().trim().min(2, "Enter a project name").max(100),
-  installationId: z.coerce.number().int().positive(),
-  repo: z
-    .string()
-    .regex(/^[\w.-]+\/[\w.-]+$/, "Choose a repository")
-    .transform((value) => {
-      const [owner = "", name = ""] = value.split("/");
-      return { owner, name };
-    }),
-  connectionId: z.uuid("Choose a Jira site"),
-  jiraProjectKey: z.string().min(1, "Choose a Jira project"),
+  name: z.string().trim().min(2, "Enter a project name of at least 2 characters").max(100),
+  sourceConnectionId: z.uuid("Choose where the code lives"),
+  sourceResourceId: z.string().min(1, "Choose a repository"),
+  trackerConnectionId: z.uuid("Choose where tickets live"),
+  trackerResourceId: z.string().min(1, "Choose a project or board"),
 });
+
+const findResource = (resources: Resource[], id: string) => resources.find((resource) => resource.id === id);
 
 export async function createProject(_: ActionState, formData: FormData): Promise<ActionState> {
   const input = projectInputSchema.safeParse(Object.fromEntries(formData));
@@ -33,34 +28,49 @@ export async function createProject(_: ActionState, formData: FormData): Promise
 
   const { organizationId } = await requireOrgAdmin();
   const db = getDb();
-  const [installation, connection] = await Promise.all([
-    getGithubInstallation(db, organizationId, input.data.installationId),
-    getJiraConnection(db, organizationId, input.data.connectionId),
-  ]);
-  if (!installation || !connection) return { error: "Integration not found" };
+  let created: { id: string };
+  try {
+    const [source, tracker] = await Promise.all([
+      resolveSource(db, organizationId, input.data.sourceConnectionId),
+      resolveTracker(db, organizationId, input.data.trackerConnectionId),
+    ]);
+    const [sources, trackers] = await Promise.all([
+      source.provider.listResources(source.context),
+      tracker.provider.listResources(tracker.context),
+    ]);
+    const repository = findResource(sources, input.data.sourceResourceId);
+    const board = findResource(trackers, input.data.trackerResourceId);
+    if (!repository)
+      return { error: `That ${source.provider.resourceNoun} is not accessible to ${source.provider.name}` };
+    if (!board) return { error: `That ${tracker.provider.resourceNoun} was not found in ${tracker.provider.name}` };
 
-  const { owner, name } = input.data.repo;
-  const [repos, jiraProjects] = await Promise.all([
-    listInstallationRepos(installation.id),
-    jiraAccessToken(db, connection).then((token) => listJiraProjects(connection, token)),
-  ]);
-  if (!repos.some((repo) => repo.owner === owner && repo.name === name))
-    return { error: "Repository is not accessible to the GitHub App" };
-  if (!jiraProjects.some((p) => p.key === input.data.jiraProjectKey)) return { error: "Jira project not found" };
-
-  const created = first(
-    await db
-      .insert(project)
-      .values({
-        organizationId,
-        name: input.data.name,
-        githubInstallationId: installation.id,
-        repoOwner: owner,
-        repoName: name,
-        jiraConnectionId: connection.id,
-        jiraProjectKey: input.data.jiraProjectKey,
-      })
-      .returning({ id: project.id }),
-  );
+    created = first(
+      await db
+        .insert(project)
+        .values({
+          organizationId,
+          name: input.data.name,
+          sourceConnectionId: source.connection.id,
+          sourceResourceId: repository.id,
+          sourceResourceLabel: repository.label,
+          trackerConnectionId: tracker.connection.id,
+          trackerResourceId: board.id,
+          trackerResourceLabel: board.label,
+        })
+        .returning({ id: project.id }),
+    );
+  } catch (error) {
+    if (error instanceof ReconnectRequiredError || error instanceof ConnectionMissingError)
+      return { error: error.message };
+    throw error;
+  }
   redirect(`/projects/${created.id}`);
+}
+
+export async function deleteProject(projectId: string): Promise<ActionState> {
+  const { organizationId } = await requireOrgAdmin();
+  await getDb()
+    .delete(project)
+    .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
+  redirect("/projects");
 }

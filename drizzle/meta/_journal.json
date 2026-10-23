@@ -15,6 +15,20 @@
       "when": 1792654370052,
       "tag": "0001_absent_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792778525878,
+      "tag": "0002_integration_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792779165833,
+      "tag": "0003_integration_backfill",
+      "breakpoints": true
     }
   ]
 }

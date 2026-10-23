@@ -1,53 +1,39 @@
 import { relations } from "drizzle-orm";
-import {
-  bigint,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth";
 
 export const analysisKind = pgEnum("analysis_kind", ["create", "audit"]);
 export const analysisStatus = pgEnum("analysis_status", ["running", "completed", "failed"]);
+export const connectionStatus = pgEnum("connection_status", ["active", "needs_reconnect"]);
 
-export const githubInstallation = pgTable(
-  "github_installation",
-  {
-    id: bigint("id", { mode: "number" }).primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    accountLogin: text("account_login").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (t) => [index("github_installation_org_idx").on(t.organizationId)],
-);
-
-export const jiraConnection = pgTable(
-  "jira_connection",
+export const integrationConnection = pgTable(
+  "integration_connection",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    cloudId: text("cloud_id").notNull(),
-    siteUrl: text("site_url").notNull(),
-    siteName: text("site_name").notNull(),
-    accessTokenEnc: text("access_token_enc").notNull(),
-    refreshTokenEnc: text("refresh_token_enc").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    label: text("label").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, string>>().notNull().default({}),
+    status: connectionStatus("status").notNull().default("active"),
+    accessTokenEnc: text("access_token_enc"),
+    refreshTokenEnc: text("refresh_token_enc"),
+    // Connections created by one OAuth consent share tokens; a refresh rotates them for the whole grant.
+    grantId: uuid("grant_id"),
+    tokenExpiresAt: timestamp("token_expires_at"),
     connectedByUserId: text("connected_by_user_id")
       .notNull()
       .references(() => user.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("jira_connection_org_cloud_idx").on(t.organizationId, t.cloudId)],
+  (t) => [
+    uniqueIndex("integration_connection_org_provider_external_idx").on(t.organizationId, t.provider, t.externalId),
+    index("integration_connection_org_idx").on(t.organizationId),
+    index("integration_connection_grant_idx").on(t.grantId),
+  ],
 );
 
 export const project = pgTable(
@@ -58,18 +44,23 @@ export const project = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    githubInstallationId: bigint("github_installation_id", { mode: "number" })
+    sourceConnectionId: uuid("source_connection_id")
       .notNull()
-      .references(() => githubInstallation.id),
-    repoOwner: text("repo_owner").notNull(),
-    repoName: text("repo_name").notNull(),
-    jiraConnectionId: uuid("jira_connection_id")
+      .references(() => integrationConnection.id),
+    sourceResourceId: text("source_resource_id").notNull(),
+    sourceResourceLabel: text("source_resource_label").notNull(),
+    trackerConnectionId: uuid("tracker_connection_id")
       .notNull()
-      .references(() => jiraConnection.id),
-    jiraProjectKey: text("jira_project_key").notNull(),
+      .references(() => integrationConnection.id),
+    trackerResourceId: text("tracker_resource_id").notNull(),
+    trackerResourceLabel: text("tracker_resource_label").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [index("project_org_idx").on(t.organizationId)],
+  (t) => [
+    index("project_org_idx").on(t.organizationId),
+    index("project_source_connection_idx").on(t.sourceConnectionId),
+    index("project_tracker_connection_idx").on(t.trackerConnectionId),
+  ],
 );
 
 export const analysis = pgTable(
@@ -94,13 +85,13 @@ export const analysis = pgTable(
     latencyMs: integer("latency_ms"),
     error: text("error"),
     publishedIssueKey: text("published_issue_key"),
+    publishedIssueUrl: text("published_issue_url"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("analysis_project_created_idx").on(t.projectId, t.createdAt)],
 );
 
-export const projectRelations = relations(project, ({ one, many }) => ({
-  jiraConnection: one(jiraConnection, { fields: [project.jiraConnectionId], references: [jiraConnection.id] }),
+export const projectRelations = relations(project, ({ many }) => ({
   analyses: many(analysis),
 }));
 

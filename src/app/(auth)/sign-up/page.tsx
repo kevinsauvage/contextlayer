@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
+import { CenteredShell } from "@/components/centered-shell";
 
-export default function Page() {
+export const metadata: Metadata = { title: "Create your account" };
+
+export default async function Page({ searchParams }: PageProps<"/sign-up">) {
+  const { next } = await searchParams;
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 px-4">
-      <h1 className="text-2xl font-semibold">Create your account</h1>
-      <AuthForm mode="sign-up" />
-    </main>
+    <CenteredShell title="Create your account" description="Then connect a repository and a ticket project.">
+      <AuthForm mode="sign-up" next={typeof next === "string" ? next : undefined} />
+    </CenteredShell>
   );
 }

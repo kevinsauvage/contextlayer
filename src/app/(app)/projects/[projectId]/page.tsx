@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
+import { AnalysisStatus } from "@/components/analysis-status";
+import { DeleteProjectButton } from "@/components/delete-project-button";
+import { PageHeader } from "@/components/page-header";
+import { ProviderIcon } from "@/components/provider-icon";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { getProject, listAnalyses } from "@/features/projects/queries";
+import { analysisRequest, firstLine } from "@/features/analysis/input";
+import { failStaleAnalyses, getProject, listAnalyses } from "@/features/projects/queries";
+import { projectIntegrations } from "@/features/projects/view";
 import { createAuditAnalysis } from "@/features/ticket-audit/actions";
 import { createTicketAnalysis } from "@/features/ticket-creation/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
@@ -10,65 +18,115 @@ import { getDb } from "@/infrastructure/db/client";
 
 export const maxDuration = 300;
 
-export default async function Page({ params }: { params: Promise<{ projectId: string }> }) {
+export const metadata: Metadata = { title: "Project" };
+
+export default async function Page({ params }: PageProps<"/projects/[projectId]">) {
   const { projectId } = await params;
-  const { organizationId } = await requireOrgContext();
+  const { organizationId, isAdmin } = await requireOrgContext();
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
   if (!project) notFound();
-  const analyses = await listAnalyses(db, project.id);
+  await failStaleAnalyses(db, project.id);
+  const [analyses, integrations] = await Promise.all([listAnalyses(db, project.id), projectIntegrations(db, project)]);
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{project.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {project.repoOwner}/{project.repoName} · Jira {project.jiraProjectKey}
-        </p>
+      <PageHeader
+        eyebrow={<Link href="/projects">Projects</Link>}
+        title={project.name}
+        description={
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            <span className="flex items-center gap-1.5">
+              <ProviderIcon kind="source" className="size-3.5" />
+              {integrations.sourceName} · {project.sourceResourceLabel}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ProviderIcon kind="tracker" className="size-3.5" />
+              {integrations.trackerName} · {project.trackerResourceLabel}
+            </span>
+          </span>
+        }
+      />
+
+      {integrations.needsReconnect && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            A connection used by this project expired.{" "}
+            {isAdmin ? (
+              <Link href="/settings/integrations" className="underline">
+                Reconnect it in Integrations
+              </Link>
+            ) : (
+              "Ask an organization admin to reconnect it."
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid items-start gap-4 md:grid-cols-[3fr_2fr]">
+        <ActionForm
+          action={createTicketAnalysis.bind(null, project.id)}
+          name="request"
+          title="Draft a ticket"
+          description="Describe what you need, in a line or a few paragraphs: what should change, where, why, and any constraints. ContextLayer finds evidence in the code and drafts the ticket."
+          placeholder={
+            'Change the home page hero heading to "Hello, I\'m Kévin".\nKeep the gradient on the second line.'
+          }
+          multiline
+          submitLabel="Investigate"
+          pendingLabel="Investigating…"
+        />
+        <ActionForm
+          action={createAuditAnalysis.bind(null, project.id)}
+          name="issueKey"
+          title="Audit a ticket"
+          description={`Check an existing ${integrations.trackerName} ticket against the code. Paste its key or link.`}
+          placeholder={integrations.issueKeyExample}
+          submitLabel="Audit"
+          pendingLabel="Auditing…"
+        />
       </div>
 
-      <ActionForm
-        action={createTicketAnalysis.bind(null, project.id)}
-        name="title"
-        label="Create a ticket from a title"
-        placeholder="Improve checkout accessibility"
-        submitLabel="Investigate"
-        pendingLabel="Investigating…"
-      />
-      <ActionForm
-        action={createAuditAnalysis.bind(null, project.id)}
-        name="issueKey"
-        label="Audit an existing Jira ticket"
-        placeholder={`${project.jiraProjectKey}-123`}
-        submitLabel="Audit"
-        pendingLabel="Auditing…"
-      />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-medium">History</h2>
-        {analyses.length === 0 && <p className="text-sm text-muted-foreground">Nothing analyzed yet.</p>}
-        <ul className="flex flex-col divide-y rounded-lg border">
-          {analyses.map((a) => (
-            <li key={a.id}>
-              <Link
-                href={`/projects/${project.id}/analyses/${a.id}`}
-                className="flex items-center gap-3 p-3 text-sm hover:bg-muted/50"
-              >
-                <Badge variant="outline">{a.kind === "create" ? "Create" : "Audit"}</Badge>
-                <span className="flex-1 truncate">
-                  {(a.input as { title?: string; issueKey?: string }).title ??
-                    (a.input as { issueKey?: string }).issueKey}
-                </span>
-                {a.publishedIssueKey && <Badge>{a.publishedIssueKey}</Badge>}
-                {a.status === "failed" && <Badge variant="destructive">Failed</Badge>}
-                <time className="text-muted-foreground" dateTime={a.createdAt.toISOString()}>
-                  {a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
-                </time>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <section className="flex flex-col gap-3" aria-labelledby="history-heading">
+        <h2 id="history-heading" className="font-medium">
+          History
+        </h2>
+        {analyses.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No analyses yet. Draft or audit a ticket above to get started.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {analyses.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/projects/${project.id}/analyses/${a.id}`}
+                  className="flex items-center gap-3 p-3 text-sm hover:bg-muted/50"
+                >
+                  <Badge variant="outline" className="w-14">
+                    {a.kind === "create" ? "Draft" : "Audit"}
+                  </Badge>
+                  <span className="flex-1 truncate">{firstLine(analysisRequest(a.input)) || "Untitled"}</span>
+                  <AnalysisStatus analysis={a} />
+                  <time className="hidden text-muted-foreground sm:inline" dateTime={a.createdAt.toISOString()}>
+                    {a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
+                  </time>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
+
+      {isAdmin && (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-destructive/30 p-4">
+          <div>
+            <h2 className="font-medium">Delete project</h2>
+            <p className="text-sm text-muted-foreground">Removes the project and its analysis history.</p>
+          </div>
+          <DeleteProjectButton projectId={project.id} name={project.name} />
+        </section>
+      )}
     </div>
   );
 }

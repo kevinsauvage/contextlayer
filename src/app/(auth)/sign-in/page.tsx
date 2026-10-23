@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
+import { CenteredShell } from "@/components/centered-shell";
 
-export default function Page() {
+export const metadata: Metadata = { title: "Sign in" };
+
+export default async function Page({ searchParams }: PageProps<"/sign-in">) {
+  const { next } = await searchParams;
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 px-4">
-      <h1 className="text-2xl font-semibold">Sign in</h1>
-      <AuthForm mode="sign-in" />
-    </main>
+    <CenteredShell title="Sign in" description="Evidence-backed tickets from your code.">
+      <AuthForm mode="sign-in" next={typeof next === "string" ? next : undefined} />
+    </CenteredShell>
   );
 }

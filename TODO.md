@@ -22,9 +22,10 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
 ## P2: Connect and deliver
 
 - [ ] Exercise the full flow with real credentials: create the Atlassian dev OAuth app and a Jira dev site, connect GitHub and Jira, create a project, analyze, publish, audit (the dev GitHub App already exists)
-- [~] Authorization and failure tests: tenant isolation is covered. Add integration-failure tests (GitHub and Jira errors, expired tokens, revoked installation), the Jira refresh-token race, and removed-project and removed-connection paths
-- [ ] Organization switcher, disconnect flows for GitHub and Jira, and member invites (the `invitation` table exists, no UI)
-- [ ] Mark analyses stuck in `running` as failed (a killed or timed-out request never reaches the `catch` in `runAnalysis`)
+- [~] Authorization and failure tests: tenant isolation, the refresh-token race, rejected refresh tokens and connections in use are covered. Add GitHub and Jira API error tests (revoked installation, 401 on a fresh token) and feature-action tests
+- [ ] Member role changes (invite, remove and rename exist), and invitation emails once an email provider exists
+- [ ] Second providers to prove the seam: GitLab (`SourceProvider`) and Linear (`TrackerProvider`)
+- [ ] Edit a project (change repository or tracker project) without recreating it
 - [ ] First CI run on GitHub: confirm the workflow passes (pnpm setup, build env) and enable it as a required check
 - [ ] Choose hosting and document the deploy: production env vars, running migrations on deploy, managed Postgres
 

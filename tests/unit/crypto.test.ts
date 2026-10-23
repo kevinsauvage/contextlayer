@@ -22,7 +22,7 @@ describe("encrypt/decrypt", () => {
 });
 
 describe("signed state", () => {
-  const payload = { userId: "u1", organizationId: "o1" };
+  const payload = { userId: "u1", organizationId: "o1", provider: "jira", returnTo: "/projects/new" };
 
   it("verifies its own tokens", () => expect(verifyState(signState(payload))).toMatchObject(payload));
 

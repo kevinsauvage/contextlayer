@@ -1,126 +1,183 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { useActionState, useState } from "react";
+import { ProviderIcon } from "@/components/provider-icon";
+import { ResourcePicker } from "@/components/resource-picker";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ProviderKind, Resource } from "@/core/integrations/provider";
+import { connectHref } from "@/features/integrations/notices";
+import type { ProviderOverview } from "@/features/integrations/overview";
 import { createProject } from "@/features/projects/actions";
 
-type Option = { id: string | number; label: string };
-type Choice = { value: string; label: string };
+const RETURN_TO = "/projects/new";
 
-async function fetchChoices(url: string, parse: (json: unknown) => Choice[]): Promise<Choice[]> {
-  const response = await fetch(url);
-  return response.ok ? parse(await response.json()) : [];
-}
+type StepProps = {
+  step: number;
+  kind: ProviderKind;
+  title: string;
+  description: string;
+  providers: ProviderOverview[];
+  onResource: (resource: Resource) => void;
+};
 
-function useRemoteChoices(url: string | null, parse: (json: unknown) => Choice[]) {
-  const [loaded, setLoaded] = useState<{ url: string; choices: Choice[] }>();
-  useEffect(() => {
-    if (!url) return;
-    let cancelled = false;
-    void fetchChoices(url, parse)
-      .catch(() => [])
-      .then((choices) => {
-        if (!cancelled) setLoaded({ url, choices });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [url, parse]);
-  const ready = loaded?.url === url;
-  return { choices: ready ? loaded.choices : [], loading: Boolean(url) && !ready };
-}
-
-const repoSchema = z.array(z.object({ owner: z.string(), name: z.string() }));
-const jiraProjectSchema = z.array(z.object({ key: z.string(), name: z.string() }));
-
-const parseRepos = (json: unknown): Choice[] =>
-  repoSchema.parse(json).map((repo) => ({ value: `${repo.owner}/${repo.name}`, label: `${repo.owner}/${repo.name}` }));
-const parseJiraProjects = (json: unknown): Choice[] =>
-  jiraProjectSchema.parse(json).map((project) => ({ value: project.key, label: `${project.key} — ${project.name}` }));
-
-function Select({
-  id,
-  label,
-  options,
-  loading,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  options: Choice[];
-  loading?: boolean;
-  onChange?: (value: string) => void;
-}) {
+function ConnectLinks({ providers }: { providers: ProviderOverview[] }) {
+  const links = providers
+    .filter((provider) => provider.configured && (provider.canAddAccount || !provider.connections.length))
+    .map((provider) => {
+      const add = provider.connections.length > 0;
+      return {
+        id: provider.id,
+        href: connectHref(provider.id, { add, returnTo: RETURN_TO }),
+        label: add ? `Add a ${provider.name} ${provider.accountNoun}` : `Connect ${provider.name}`,
+      };
+    });
+  if (!links.length) return null;
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        name={id}
-        required
-        defaultValue=""
-        onChange={(e) => onChange?.(e.target.value)}
-        className="h-9 rounded-lg border bg-background px-2 text-sm"
-      >
-        <option value="" disabled>
-          {loading ? "Loading…" : "Select…"}
-        </option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-wrap gap-2">
+      {links.map((link) => (
+        <a key={link.id} href={link.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Plus /> {link.label}
+        </a>
+      ))}
     </div>
   );
 }
 
-export function ProjectForm({ installations, connections }: { installations: Option[]; connections: Option[] }) {
+function ConnectionStep({ step, kind, title, description, providers, onResource }: StepProps) {
+  const options = providers.flatMap((provider) =>
+    provider.connections.map((connection) => ({ ...connection, provider })),
+  );
+  const [connectionId, setConnectionId] = useState(
+    (options.find((option) => option.status === "active") ?? options[0])?.id,
+  );
+  const current = options.find((option) => option.id === connectionId);
+  const field = kind === "source" ? "source" : "tracker";
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border p-4" aria-labelledby={`${field}-step`}>
+      <div className="flex items-start gap-3">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+          {step}
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <h2 id={`${field}-step`} className="font-medium">
+            {title}
+          </h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+
+      {!current ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4 text-sm">
+          <p className="text-muted-foreground">
+            Nothing connected yet. Connect one to continue; you will come back here.
+          </p>
+          <ConnectLinks providers={providers} />
+          {!providers.some((provider) => provider.configured) && (
+            <p className="text-xs text-muted-foreground">No provider is configured on this server yet.</p>
+          )}
+        </div>
+      ) : (
+        <>
+          {options.length > 1 ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`${field}ConnectionId`}>Account</Label>
+              <select
+                id={`${field}ConnectionId`}
+                name={`${field}ConnectionId`}
+                value={connectionId}
+                onChange={(e) => setConnectionId(e.target.value)}
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.provider.name} · {option.label}
+                    {option.status === "needs_reconnect" ? " (reconnect required)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="flex items-center gap-2 text-sm">
+              <ProviderIcon kind={kind} className="size-4 text-muted-foreground" />
+              {current.provider.name} · <span className="font-medium">{current.label}</span>
+              <input type="hidden" name={`${field}ConnectionId`} value={current.id} />
+            </p>
+          )}
+          <ResourcePicker
+            key={current.id}
+            connectionId={current.id}
+            name={`${field}ResourceId`}
+            noun={current.provider.resourceNoun}
+            emptyHint={`No ${current.provider.resourceNoun} is visible to this ${current.provider.name} ${current.provider.accountNoun}. Grant access in ${current.provider.name}, then reload.`}
+            onSelect={onResource}
+          />
+          <ConnectLinks providers={providers} />
+        </>
+      )}
+    </section>
+  );
+}
+
+// The project name follows the chosen repository until the user types their own.
+const nameFromResource = (resource: Resource) => resource.label.split("/").at(-1) ?? resource.label;
+
+export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]; trackers: ProviderOverview[] }) {
   const [state, action, pending] = useActionState(createProject, {});
-  const [installationId, setInstallationId] = useState<string>();
-  const [connectionId, setConnectionId] = useState<string>();
-  const repos = useRemoteChoices(
-    installationId ? `/api/github/repos?installationId=${installationId}` : null,
-    parseRepos,
-  );
-  const jiraProjects = useRemoteChoices(
-    connectionId ? `/api/jira/projects?connectionId=${connectionId}` : null,
-    parseJiraProjects,
-  );
-  const toChoices = (options: Option[]) => options.map((o) => ({ value: String(o.id), label: o.label }));
+  const [name, setName] = useState("");
+  const [nameEdited, setNameEdited] = useState(false);
+  const ready = [sources, trackers].every((providers) => providers.some((p) => p.connections.length > 0));
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <ConnectionStep
+        step={1}
+        kind="source"
+        title="Code"
+        description="The repository ContextLayer reads for evidence."
+        providers={sources}
+        onResource={(resource) => {
+          if (!nameEdited) setName(nameFromResource(resource));
+        }}
+      />
+      <ConnectionStep
+        step={2}
+        kind="tracker"
+        title="Tickets"
+        description="Where related issues are searched and approved tickets are written."
+        providers={trackers}
+        onResource={() => undefined}
+      />
+      <section className="flex flex-col gap-2 rounded-xl border p-4">
         <Label htmlFor="name">Project name</Label>
-        <Input id="name" name="name" required />
-      </div>
-      <Select
-        id="installationId"
-        label="GitHub account"
-        options={toChoices(installations)}
-        onChange={setInstallationId}
-      />
-      <Select key={installationId} id="repo" label="Repository" options={repos.choices} loading={repos.loading} />
-      <Select id="connectionId" label="Jira site" options={toChoices(connections)} onChange={setConnectionId} />
-      <Select
-        key={connectionId}
-        id="jiraProjectKey"
-        label="Jira project"
-        options={jiraProjects.choices}
-        loading={jiraProjects.loading}
-      />
+        <Input
+          id="name"
+          name="name"
+          required
+          minLength={2}
+          maxLength={100}
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameEdited(true);
+          }}
+          placeholder="Checkout web app"
+        />
+      </section>
       {state.error && (
         <p role="alert" className="text-sm text-destructive">
           {state.error}
         </p>
       )}
-      <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Creating…" : "Create project"}
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button type="submit" size="lg" disabled={pending || !ready}>
+          {pending ? "Creating…" : "Create project"}
+        </Button>
+        {!ready && <p className="text-sm text-muted-foreground">Connect your code and your tickets first.</p>}
+      </div>
     </form>
   );
 }

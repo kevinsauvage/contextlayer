@@ -17,11 +17,11 @@ const citedBy = (candidates: Evidence[], claimLists: { evidenceIds: string[] }[]
   return candidates.filter((candidate) => ids.has(candidate.id));
 };
 
-export async function analyzeTitle(
-  input: Deps & { title: string; generator: DraftGenerator },
+export async function draftTicket(
+  input: Deps & { request: string; generator: DraftGenerator },
 ): Promise<CreationResult> {
-  const candidates = await gatherContext({ query: input.title, ...input });
-  const { body, usage } = await input.generator.generate({ title: input.title, candidates });
+  const candidates = await gatherContext({ query: input.request, ...input });
+  const { body, usage } = await input.generator.generate({ request: input.request, candidates });
 
   const draft: TicketDraft = { ...body, evidence: citedBy(candidates, Object.values(draftSections(body))) };
   return { draft, candidates, issues: validateEvidenceReferences(draft.evidence, draftSections(draft)), usage };

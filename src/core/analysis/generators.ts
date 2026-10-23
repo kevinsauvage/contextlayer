@@ -7,7 +7,7 @@ export type TokenUsage = { inputTokens: number; outputTokens: number };
 export type GeneratorResult<T> = { body: T; usage?: TokenUsage };
 
 export type DraftGenerator = {
-  generate(input: { title: string; candidates: Evidence[] }): Promise<GeneratorResult<DraftBody>>;
+  generate(input: { request: string; candidates: Evidence[] }): Promise<GeneratorResult<DraftBody>>;
 };
 
 export type AuditGenerator = {

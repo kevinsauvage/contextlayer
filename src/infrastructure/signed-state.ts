@@ -5,7 +5,13 @@ import { getEnv } from "@/infrastructure/env";
 
 const TTL_MS = 10 * 60 * 1000;
 
-const payloadSchema = z.object({ userId: z.string(), organizationId: z.string(), expiresAt: z.number() });
+const payloadSchema = z.object({
+  userId: z.string(),
+  organizationId: z.string(),
+  provider: z.string(),
+  returnTo: z.string(),
+  expiresAt: z.number(),
+});
 export type StatePayload = Omit<z.infer<typeof payloadSchema>, "expiresAt">;
 
 const mac = (body: string) => createHmac("sha256", getEnv().BETTER_AUTH_SECRET).update(body).digest("base64url");

@@ -9,14 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ClaimStatus } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
-
-export type PublishResult = { error?: string; issueKey?: string; issueUrl?: string };
+import type { PublishResult } from "@/features/analysis/publish";
 
 type Props = {
   initial: TicketDraft;
   publish: (draft: TicketDraft) => Promise<PublishResult>;
   publishLabel: string;
-  publishedUrl?: string | null;
+  trackerName: string;
+  published: { key: string | null; url: string | null };
 };
 
 const STATUSES: ClaimStatus[] = ["verified", "inferred", "unknown", "needs_clarification"];
@@ -38,9 +38,11 @@ function StatusSelect({ value, onChange }: { value: ClaimStatus; onChange: (stat
   );
 }
 
-export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Props) {
+export function DraftEditor({ initial, publish, publishLabel, trackerName, published: initialPublished }: Props) {
   const [draft, setDraft] = useState(initial);
-  const [result, setResult] = useState<PublishResult>(publishedUrl ? { issueUrl: publishedUrl } : {});
+  const [result, setResult] = useState<PublishResult>(
+    initialPublished.url ? { issueUrl: initialPublished.url, issueKey: initialPublished.key ?? undefined } : {},
+  );
   const [pending, startTransition] = useTransition();
   const patch = (changes: Partial<TicketDraft>) => setDraft((current) => ({ ...current, ...changes }));
   const published = Boolean(result.issueUrl);
@@ -61,7 +63,7 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
 
       <EditableList
         title="Description"
-        hint="Anything not verified is labelled in Jira."
+        hint={`Anything not verified is labelled in ${trackerName}.`}
         items={draft.description}
         minItems={1}
         onChange={(description) => patch({ description })}
@@ -169,7 +171,7 @@ export function DraftEditor({ initial, publish, publishLabel, publishedUrl }: Pr
       )}
       {published ? (
         <Alert>
-          <AlertTitle>Published to Jira</AlertTitle>
+          <AlertTitle>Published to {trackerName}</AlertTitle>
           <AlertDescription>
             <a href={result.issueUrl} target="_blank" rel="noreferrer" className="underline">
               {result.issueKey ?? result.issueUrl}

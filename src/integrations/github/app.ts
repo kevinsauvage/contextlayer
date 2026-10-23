@@ -1,17 +1,22 @@
 import "server-only";
 import { App } from "octokit";
-import { requireEnv } from "@/infrastructure/env";
+import { hasEnv, requireEnv } from "@/infrastructure/env";
+
+const APP_KEYS = [
+  "GITHUB_APP_ID",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_APP_SLUG",
+  "GITHUB_APP_CLIENT_ID",
+  "GITHUB_APP_CLIENT_SECRET",
+] as const;
 
 let cached: App | undefined;
 
+export const isGithubConfigured = () => hasEnv(...APP_KEYS);
+
 export function getGithubApp(): App {
   if (!cached) {
-    const env = requireEnv(
-      "GITHUB_APP_ID",
-      "GITHUB_APP_PRIVATE_KEY",
-      "GITHUB_APP_CLIENT_ID",
-      "GITHUB_APP_CLIENT_SECRET",
-    );
+    const env = requireEnv(...APP_KEYS);
     cached = new App({
       appId: env.GITHUB_APP_ID,
       privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -24,11 +29,10 @@ export function getGithubApp(): App {
 export const githubInstallUrl = (state: string) =>
   `https://github.com/apps/${requireEnv("GITHUB_APP_SLUG").GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(state)}`;
 
-export function githubAuthorizeUrl(state: string): string {
-  const env = requireEnv("GITHUB_APP_CLIENT_ID", "BETTER_AUTH_URL");
+export function githubAuthorizeUrl(state: string, redirectUri: string): string {
   const params = new URLSearchParams({
-    client_id: env.GITHUB_APP_CLIENT_ID,
-    redirect_uri: new URL("/api/github/callback", env.BETTER_AUTH_URL).toString(),
+    client_id: requireEnv("GITHUB_APP_CLIENT_ID").GITHUB_APP_CLIENT_ID,
+    redirect_uri: redirectUri,
     state,
   });
   return `https://github.com/login/oauth/authorize?${params}`;

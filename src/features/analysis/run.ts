@@ -10,15 +10,39 @@ import { first } from "@/lib/first";
 
 type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage };
 
-export async function runAnalysis(args: {
+type RunArgs = {
   db: Database;
   project: Project;
   userId: string;
   kind: "create" | "audit";
   input: Record<string, string>;
   execute: () => Promise<Outcome>;
-}): Promise<string> {
+  // Re-running replaces the row's draft in place; createdAt moves to the new run.
+  rerunId?: string;
+};
+
+async function startRow(args: RunArgs): Promise<string> {
   const { db } = args;
+  if (args.rerunId) {
+    await db
+      .update(analysis)
+      .set({
+        status: "running",
+        input: args.input,
+        createdByUserId: args.userId,
+        model: getEnv().AI_MODEL,
+        result: null,
+        editedResult: null,
+        evidenceIssues: null,
+        inputTokens: null,
+        outputTokens: null,
+        latencyMs: null,
+        error: null,
+        createdAt: new Date(),
+      })
+      .where(eq(analysis.id, args.rerunId));
+    return args.rerunId;
+  }
   const row = first(
     await db
       .insert(analysis)
@@ -31,6 +55,12 @@ export async function runAnalysis(args: {
       })
       .returning({ id: analysis.id }),
   );
+  return row.id;
+}
+
+export async function runAnalysis(args: RunArgs): Promise<string> {
+  const { db } = args;
+  const id = await startRow(args);
 
   const startedAt = Date.now();
   try {
@@ -45,7 +75,7 @@ export async function runAnalysis(args: {
         outputTokens: usage?.outputTokens,
         latencyMs: Date.now() - startedAt,
       })
-      .where(eq(analysis.id, row.id));
+      .where(eq(analysis.id, id));
   } catch (error) {
     await db
       .update(analysis)
@@ -54,7 +84,7 @@ export async function runAnalysis(args: {
         error: error instanceof Error ? error.message : String(error),
         latencyMs: Date.now() - startedAt,
       })
-      .where(eq(analysis.id, row.id));
+      .where(eq(analysis.id, id));
   }
-  return row.id;
+  return id;
 }

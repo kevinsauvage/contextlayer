@@ -1,91 +1,44 @@
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { listGithubInstallations, listJiraConnections } from "@/features/projects/queries";
+import type { Metadata } from "next";
+import { ConnectNotice } from "@/components/connect-notice";
+import { PageHeader } from "@/components/page-header";
+import { ProviderCard } from "@/components/provider-card";
+import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
-import { cn } from "@/lib/utils";
 
-const NOTICES: Record<string, string> = {
-  "github=connected": "GitHub connected.",
-  "github=invalid": "The GitHub connection request expired or was invalid. Try again.",
-  "github=forbidden": "Your GitHub account does not have access to that installation.",
-  "github=taken": "That GitHub installation is already connected to another organization.",
-  "github=unconfigured": "GitHub App is not configured on the server. See docs/engineering/integrations-setup.md.",
-  "jira=unconfigured": "Atlassian OAuth is not configured on the server. See docs/engineering/integrations-setup.md.",
-  "jira=connected": "Jira connected.",
-  "jira=invalid": "The Jira connection request expired or was invalid. Try again.",
-};
+export const metadata: Metadata = { title: "Integrations" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
-  const { organizationId, role } = await requireOrgContext();
-  const db = getDb();
-  const [installations, connections, params] = await Promise.all([
-    listGithubInstallations(db, organizationId),
-    listJiraConnections(db, organizationId),
-    searchParams,
-  ]);
-  const isAdmin = role === "owner" || role === "admin";
-  const notice = Object.entries(params)
-    .map(([k, v]) => NOTICES[`${k}=${v}`])
-    .find(Boolean);
+const SECTIONS = [
+  { kind: "source", title: "Code sources", description: "Where ContextLayer reads code to find evidence." },
+  { kind: "tracker", title: "Issue trackers", description: "Where tickets are read, created and updated." },
+] as const;
+
+export default async function Page({ searchParams }: PageProps<"/settings/integrations">) {
+  const { organizationId, isAdmin } = await requireOrgContext();
+  const [overview, params] = await Promise.all([integrationsOverview(getDb(), organizationId), searchParams]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Integrations</h1>
-      {notice && (
-        <p role="status" className="rounded-lg border bg-muted p-3 text-sm">
-          {notice}
-        </p>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>GitHub</CardTitle>
-          <CardDescription>
-            Read-only access to the repositories you choose, through the ContextLayer GitHub App.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <ul className="text-sm">
-            {installations.map((i) => (
-              <li key={i.id}>{i.accountLogin}</li>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Integrations"
+        description="Connect where your code lives and where your tickets live. Code is only read; tickets are written only after you approve a draft."
+      />
+      <ConnectNotice params={params} providerNames={providerNames(overview)} />
+      {SECTIONS.map((section) => (
+        <section key={section.kind} className="flex flex-col gap-3" aria-labelledby={`${section.kind}-heading`}>
+          <div>
+            <h2 id={`${section.kind}-heading`} className="font-medium">
+              {section.title}
+            </h2>
+            <p className="text-sm text-muted-foreground">{section.description}</p>
+          </div>
+          <div className="grid gap-4">
+            {ofKind(overview, section.kind).map((provider) => (
+              <ProviderCard key={provider.id} provider={provider} isAdmin={isAdmin} />
             ))}
-            {!installations.length && <li className="text-muted-foreground">Not connected.</li>}
-          </ul>
-          {isAdmin && (
-            <div className="flex gap-2">
-              <a href="/api/github/install" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
-                {installations.length ? "Sync from GitHub" : "Connect GitHub"}
-              </a>
-              <a href="/api/github/install?add" className={cn(buttonVariants({ variant: "ghost" }), "w-fit")}>
-                Install on another account
-              </a>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Jira Cloud</CardTitle>
-          <CardDescription>Reads related issues and creates or updates issues only after you approve.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <ul className="text-sm">
-            {connections.map((c) => (
-              <li key={c.id}>
-                {c.siteName} <span className="text-muted-foreground">{c.siteUrl}</span>
-              </li>
-            ))}
-            {!connections.length && <li className="text-muted-foreground">Not connected.</li>}
-          </ul>
-          {isAdmin && (
-            <a href="/api/jira/connect" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
-              {connections.length ? "Reconnect Jira" : "Connect Jira"}
-            </a>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -8,12 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
+import { safePath } from "@/lib/safe-path";
 
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
   const signingUp = mode === "sign-up";
+  const destination = safePath(next, "/projects") as Route;
+  const otherMode = `${signingUp ? "/sign-in" : "/sign-up"}${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   function submit(formData: FormData) {
     const email = formString(formData, "email");
@@ -26,7 +30,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setError(error.message ?? "Something went wrong");
         return;
       }
-      router.push("/projects");
+      router.push(destination);
       router.refresh();
     });
   }
@@ -36,12 +40,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       {signingUp && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Name</Label>
-          <Input id="name" name="name" autoComplete="name" required />
+          <Input id="name" name="name" autoComplete="name" required autoFocus />
         </div>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input id="email" name="email" type="email" autoComplete="email" required autoFocus={!signingUp} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
@@ -51,8 +55,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           type="password"
           minLength={10}
           autoComplete={signingUp ? "new-password" : "current-password"}
+          aria-describedby={signingUp ? "password-hint" : undefined}
           required
         />
+        {signingUp && (
+          <p id="password-hint" className="text-xs text-muted-foreground">
+            At least 10 characters.
+          </p>
+        )}
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -60,11 +70,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </p>
       )}
       <Button type="submit" disabled={pending}>
-        {signingUp ? "Create account" : "Sign in"}
+        {pending ? "Please wait…" : signingUp ? "Create account" : "Sign in"}
       </Button>
       <p className="text-sm text-muted-foreground">
         {signingUp ? "Already have an account? " : "No account yet? "}
-        <Link href={signingUp ? "/sign-in" : "/sign-up"} className="underline">
+        <Link href={otherMode as Route} className="underline">
           {signingUp ? "Sign in" : "Sign up"}
         </Link>
       </p>

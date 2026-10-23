@@ -1,6 +1,6 @@
 # ContextLayer
 
-Turns a vague ticket title into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. Every claim is labelled **verified**, **inferred**, **unknown** or **needs clarification**; `verified` requires cited evidence, and nothing is written to Jira without explicit approval.
+Turns a plain-language request (a line or a few paragraphs) into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. Every claim is labelled **verified**, **inferred**, **unknown** or **needs clarification**; `verified` requires cited evidence, and nothing is written to Jira without explicit approval.
 
 **Status:** private prototype. The end-to-end flow works (sign up → connect GitHub and Jira → analyze → review → publish). Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
 

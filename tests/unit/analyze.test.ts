@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeTitle, auditIssue } from "@/core/analysis/analyze";
+import { auditIssue, draftTicket } from "@/core/analysis/analyze";
 import type { AuditGenerator, DraftGenerator } from "@/core/analysis/generators";
 import type { AuditBody } from "@/core/audit/schemas";
 import type { ContextSource, IssueTracker } from "@/core/context/source";
@@ -41,8 +41,8 @@ const body = (evidenceIds: string[]): DraftBody => ({
 
 const drafting = (b: DraftBody): DraftGenerator => ({ generate: async () => ({ body: b }) });
 
-describe("analyzeTitle", () => {
-  const run = (b: DraftBody) => analyzeTitle({ title: "checkout button", source, tracker, generator: drafting(b) });
+describe("draftTicket", () => {
+  const run = (b: DraftBody) => draftTicket({ request: "checkout button", source, tracker, generator: drafting(b) });
 
   it("attaches only cited candidates as evidence", async () => {
     const result = await run(body(["e1"]));

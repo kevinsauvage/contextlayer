@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # ContextLayer
 
-AI ticket creation and QA: turns a vague title into an evidence-backed Jira ticket and audits existing tickets. Plan and principles: `docs/product/`. Backlog: `TODO.md`. Decisions: `DECISIONS.md`.
+AI ticket creation and QA: turns a plain-language request into an evidence-backed Jira ticket and audits existing tickets. Plan and principles: `docs/product/`. Backlog: `TODO.md`. Decisions: `DECISIONS.md`.
 
 ## Commands
 

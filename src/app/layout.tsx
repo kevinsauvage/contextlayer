@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ContextLayer",
-  description: "Evidence-backed Jira tickets from a title.",
+  title: { default: "ContextLayer", template: "%s · ContextLayer" },
+  description: "Evidence-backed tickets from a plain-language request, grounded in your code.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

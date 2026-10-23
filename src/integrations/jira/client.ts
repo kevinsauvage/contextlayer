@@ -30,7 +30,7 @@ class JiraApiError extends Error {
   }
 }
 
-export type JiraProject = z.infer<typeof projectsSchema>["values"][number];
+type JiraProject = z.infer<typeof projectsSchema>["values"][number];
 
 type Site = { cloudId: string; siteUrl: string };
 type JiraRequest = { method?: string; body?: unknown };
