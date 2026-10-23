@@ -8,6 +8,8 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   ENCRYPTION_KEY: z.string().refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 bytes, base64-encoded"),
   AI_MODEL: z.string().min(1).default("anthropic/claude-sonnet-5.5"),
+  AI_BASE_URL: z.url().optional(),
+  AI_API_KEY: z.string().optional(),
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   GITHUB_APP_SLUG: z.string().optional(),

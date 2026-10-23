@@ -10,7 +10,7 @@
 - [ ] Competitor research and customer discovery (`docs/product/*`)
 
 ## P1 — Prove the product
-- [x] Title-first analysis pipeline (`src/core/analysis`) with fake-generator tests; real-model run pending an `AI_GATEWAY_API_KEY` (`pnpm eval`)
+- [x] Title-first analysis pipeline (`src/core/analysis`) with fake-generator tests; real-model eval 4/4 green on Gemini 3.8 Flash (free tier via `AI_BASE_URL`/`AI_API_KEY`, `pnpm eval`)
 - [x] Keyword retrieval v1 (9/10 expected fixture files; misses `mail/send.ts` for "Add password reset"). Next: LLM query expansion, line-window excerpts
 - [x] Structured draft generation (AI SDK `Output.object`, evidence ids resolved against retrieved candidates)
 - [ ] Baseline comparison (original ticket vs generic AI); measure quality, latency, cost
@@ -18,6 +18,7 @@
 
 ## P2 — Connect and deliver
 - [x] GitHub App, Jira Cloud connection, project↔repo mapping (needs real credentials to exercise; see `docs/engineering/integrations-setup.md`)
+- [x] Dev GitHub App `contextlayer-dev` created on github.com (Contents + Metadata read-only, OAuth on install, no webhook); ID/slug/client credentials and private key in `.env.local`
 - [x] Review/edit UI, approval, Jira publishing
 - [x] Existing-ticket audit
 - [~] Authorization tests (tenant isolation done); integration-failure tests, disconnect flows, member invites, Jira refresh race

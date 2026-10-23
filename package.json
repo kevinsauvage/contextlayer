@@ -17,6 +17,7 @@
     "db:studio": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.75",
     "@base-ui/react": "^1.9.0",
     "ai": "^7.0.148",
     "better-auth": "^1.7.12",

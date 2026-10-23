@@ -15,6 +15,7 @@ Format: date · decision · why.
 - 2026-10-22 · TypeScript stays on 5.x (7.x not supported by typescript-eslint yet), ESLint on 9.x (follows eslint-config-next), `@types/node` on 24 (matches Node 24 runtime). Revisit when the tooling catches up.
 
 - 2026-10-22 · AI via AI SDK 7 + Vercel AI Gateway (`AI_MODEL` provider/model string, default `anthropic/claude-sonnet-5.5`) · swappable models for the cost/quality comparison; no provider package.
+- 2026-10-22 · `AI_BASE_URL` + `AI_API_KEY` route the same code to any OpenAI-compatible endpoint (Gemini free tier, Groq, OpenRouter, Ollama); gateway stays the default when `AI_BASE_URL` is unset.
 - 2026-10-22 · The model cites candidate evidence ids and never writes evidence itself; the pipeline attaches the real excerpts · prevents fabricated sources.
 - 2026-10-22 · Retrieval v1 is keyword scoring (path ×3 + content) over a `ContextSource`; no embeddings until recall measurements justify them.
 

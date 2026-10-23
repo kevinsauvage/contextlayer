@@ -11,7 +11,7 @@ import { loadEvaluationCases } from "./fixtures";
 const RESULTS_DIR = path.join(import.meta.dirname, "results");
 const generator = new AiGenerator(getEnv().AI_MODEL);
 
-describe.skipIf(!process.env.AI_GATEWAY_API_KEY)("analysis evaluation", () => {
+describe.skipIf(!process.env.AI_GATEWAY_API_KEY && !process.env.AI_BASE_URL)("analysis evaluation", () => {
   it.each(loadEvaluationCases().map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const startedAt = Date.now();
     const result = await analyzeTitle({ title: c.title, source: new DirectorySource(c.repoDir), tracker: noIssues, generator });

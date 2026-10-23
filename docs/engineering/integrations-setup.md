@@ -43,7 +43,25 @@ Tokens are encrypted at rest with `ENCRYPTION_KEY` (AES-256-GCM). Atlassian rota
 
 ## AI
 
-`AI_GATEWAY_API_KEY` from the Vercel AI Gateway; `AI_MODEL` is any `provider/model` it serves.
+Set either an OpenAI-compatible endpoint or the Vercel AI Gateway.
+
+**Free tier (default for local experiments)** — Google AI Studio key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey), `GEMINI_API_KEY` equivalent:
+
+```
+AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+AI_API_KEY=              # Google AI Studio key
+AI_MODEL=gemini-2.5-flash
+```
+
+The same two variables point at any OpenAI-compatible provider — Groq
+(`https://api.groq.com/openai/v1`), OpenRouter (`https://openrouter.ai/api/v1`),
+or local Ollama (`http://localhost:11434/v1`, any `AI_API_KEY` value). The
+endpoint must support structured outputs (`response_format: json_schema`),
+which Gemini, Groq and Ollama do; free models that only emit loose JSON fail
+draft validation.
+
+**Vercel AI Gateway** — leave `AI_BASE_URL` unset and set `AI_GATEWAY_API_KEY`;
+`AI_MODEL` is then any `provider/model` the gateway serves.
 
 ## Local database
 

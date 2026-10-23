@@ -36,6 +36,6 @@ docs/                product, engineering
 ## Running the evaluation
 
 ```bash
-cp .env.example .env.local   # set AI_GATEWAY_API_KEY
+cp .env.example .env.local   # set AI_API_KEY (free Google AI Studio key)
 pnpm eval                    # writes tests/evaluation/results/<case>.json (draft, recall, latency, tokens)
 ```
