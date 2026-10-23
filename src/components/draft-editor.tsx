@@ -1,22 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { EditableList } from "@/components/editable-list";
 import { EvidenceList } from "@/components/evidence-list";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ClaimStatus } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
-import type { PublishResult } from "@/features/analysis/publish";
 
 type Props = {
-  initial: TicketDraft;
-  publish: (draft: TicketDraft) => Promise<PublishResult>;
-  publishLabel: string;
+  draft: TicketDraft;
+  onChange: (draft: TicketDraft) => void;
+  disabled: boolean;
   trackerName: string;
-  published: { key: string | null; url: string | null };
 };
 
 const STATUSES: ClaimStatus[] = ["verified", "inferred", "unknown", "needs_clarification"];
@@ -38,14 +33,8 @@ function StatusSelect({ value, onChange }: { value: ClaimStatus; onChange: (stat
   );
 }
 
-export function DraftEditor({ initial, publish, publishLabel, trackerName, published: initialPublished }: Props) {
-  const [draft, setDraft] = useState(initial);
-  const [result, setResult] = useState<PublishResult>(
-    initialPublished.url ? { issueUrl: initialPublished.url, issueKey: initialPublished.key ?? undefined } : {},
-  );
-  const [pending, startTransition] = useTransition();
-  const patch = (changes: Partial<TicketDraft>) => setDraft((current) => ({ ...current, ...changes }));
-  const published = Boolean(result.issueUrl);
+export function DraftEditor({ draft, onChange, disabled: published, trackerName }: Props) {
+  const patch = (changes: Partial<TicketDraft>) => onChange({ ...draft, ...changes });
 
   return (
     <div className="flex flex-col gap-6">
@@ -162,31 +151,6 @@ export function DraftEditor({ initial, publish, publishLabel, trackerName, publi
         <h3 className="font-medium">Evidence</h3>
         <EvidenceList evidence={draft.evidence} />
       </section>
-
-      {result.error && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not publish</AlertTitle>
-          <AlertDescription>{result.error}</AlertDescription>
-        </Alert>
-      )}
-      {published ? (
-        <Alert>
-          <AlertTitle>Published to {trackerName}</AlertTitle>
-          <AlertDescription>
-            <a href={result.issueUrl} target="_blank" rel="noreferrer" className="underline">
-              {result.issueKey ?? result.issueUrl}
-            </a>
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <Button
-          className="self-start"
-          disabled={pending}
-          onClick={() => startTransition(async () => setResult(await publish(draft)))}
-        >
-          {pending ? "Publishing…" : publishLabel}
-        </Button>
-      )}
     </div>
   );
 }

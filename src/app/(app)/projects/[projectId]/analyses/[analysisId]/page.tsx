@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { DraftEditor } from "@/components/draft-editor";
+import { ClarifyQuestions } from "@/components/clarify-questions";
+import { DraftWorkspace } from "@/components/draft-workspace";
 import { EvidenceList } from "@/components/evidence-list";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,11 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { auditReportSchema } from "@/core/audit/schemas";
 import { ticketDraftSchema } from "@/core/requirements/schemas";
 import { PageHeader } from "@/components/page-header";
-import { analysisRequest, firstLine } from "@/features/analysis/input";
+import { analysisAnswers, analysisRequest, firstLine } from "@/features/analysis/input";
 import { failStaleAnalyses, getAnalysis, type Analysis } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
-import { publishTicket, rerunTicketAnalysis } from "@/features/ticket-creation/actions";
+import { answerQuestions, publishTicket, rerunTicketAnalysis } from "@/features/ticket-creation/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 import type { EvidenceIssue } from "@/core/evidence/validate";
@@ -37,66 +38,82 @@ function WarningList({ issues }: { issues: EvidenceIssue[] }) {
   );
 }
 
-type ViewProps = { analysis: Analysis; trackerName: string };
+type ViewProps = { analysis: Analysis; trackerName: string; trackerKey: string };
 
 const publishedOf = (analysis: Analysis) => ({ key: analysis.publishedIssueKey, url: analysis.publishedIssueUrl });
 
-type Draft = ReturnType<typeof ticketDraftSchema.parse>;
-
-function RequestText({ request }: { request: string }) {
+function RequestPanel({ analysis, trackerName, editable }: Omit<ViewProps, "trackerKey"> & { editable: boolean }) {
+  const request = analysisRequest(analysis.input);
+  const answered = analysisAnswers(analysis.input).filter((pair) => pair.answer);
   return (
-    <section className="flex flex-col gap-1 rounded-lg border bg-muted/40 p-3 text-sm">
-      <h2 className="text-xs font-medium text-muted-foreground">Request</h2>
+    <section
+      className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-4 text-sm"
+      aria-labelledby="request-heading"
+    >
+      <h2 id="request-heading" className="text-xs font-medium text-muted-foreground">
+        Your request
+      </h2>
       <p className="whitespace-pre-wrap">{request}</p>
+      {answered.length > 0 && (
+        <dl className="flex flex-col gap-2 border-t pt-3">
+          {answered.map((pair) => (
+            <div key={pair.question}>
+              <dt className="text-muted-foreground">{pair.question}</dt>
+              <dd className="whitespace-pre-wrap">{pair.answer}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {editable && (
+        <details className="group" open={analysis.status === "failed"}>
+          <summary className="cursor-pointer text-sm font-medium text-primary">Edit request</summary>
+          <div className="mt-3">
+            <ActionForm
+              key={analysis.createdAt.toISOString()}
+              action={rerunTicketAnalysis.bind(null, analysis.id)}
+              name="request"
+              title="Edit the request"
+              description={`Add or change detail and run it again. Your answers are kept. This replaces the draft; nothing is sent to ${trackerName} until you approve.`}
+              placeholder="Describe what should change, where, and why"
+              defaultValue={request}
+              multiline
+              submitLabel="Run again"
+              pendingLabel="Investigating…"
+            />
+          </div>
+        </details>
+      )}
     </section>
   );
 }
 
-const needsClarification = (draft: Draft) =>
-  draft.openQuestions.length > 0 || draft.description.some((claim) => claim.status === "needs_clarification");
-
-function refineHint(analysis: Analysis, trackerName: string): string {
-  const replaces = `This replaces the draft; nothing is sent to ${trackerName} until you approve.`;
-  if (analysis.status === "failed")
-    return `Add detail to the request, for example the page or component and what exactly should change, and run it again. ${replaces}`;
-  const draft = ticketDraftSchema.safeParse(analysis.result);
-  if (draft.success && needsClarification(draft.data))
-    return `The draft has open questions. Answer them in the request (which page or component, what exactly, any constraints) and run it again. ${replaces}`;
-  return `Not quite right? Edit the request and run it again. ${replaces}`;
-}
-
-function RefineRequest({ analysis, trackerName, request }: ViewProps & { request: string }) {
-  return (
-    <ActionForm
-      key={analysis.createdAt.toISOString()}
-      action={rerunTicketAnalysis.bind(null, analysis.id)}
-      name="request"
-      title="Refine the request"
-      description={refineHint(analysis, trackerName)}
-      placeholder="Describe what should change, where, and why"
-      defaultValue={request}
-      multiline
-      submitLabel="Run again"
-      pendingLabel="Investigating…"
-    />
-  );
-}
-
-function CreationView({ analysis, trackerName }: ViewProps) {
+function CreationView({ analysis, trackerName, trackerKey }: ViewProps) {
   const draft = ticketDraftSchema.parse(analysis.editedResult ?? analysis.result);
+  const runKey = analysis.createdAt.toISOString();
   return (
-    <DraftEditor
-      key={analysis.createdAt.toISOString()}
-      initial={draft}
-      publish={publishTicket.bind(null, analysis.id)}
-      publishLabel={`Approve & create in ${trackerName}`}
-      trackerName={trackerName}
-      published={publishedOf(analysis)}
-    />
+    <>
+      {!analysis.publishedIssueKey && draft.openQuestions.length > 0 && (
+        <ClarifyQuestions
+          key={`questions-${runKey}`}
+          questions={draft.openQuestions}
+          trackerName={trackerName}
+          answer={answerQuestions.bind(null, analysis.id)}
+        />
+      )}
+      <DraftWorkspace
+        key={runKey}
+        initial={draft}
+        publish={publishTicket.bind(null, analysis.id)}
+        publishLabel={`Approve & create in ${trackerName}`}
+        trackerName={trackerName}
+        projectLabel={trackerKey}
+        published={publishedOf(analysis)}
+      />
+    </>
   );
 }
 
-function AuditView({ analysis, trackerName }: ViewProps) {
+function AuditView({ analysis, trackerName, trackerKey }: ViewProps) {
   const report = auditReportSchema.parse(analysis.result);
   const proposed = ticketDraftSchema.parse(
     analysis.editedResult ?? { ...report.proposedTicket, evidence: report.evidence },
@@ -126,11 +143,13 @@ function AuditView({ analysis, trackerName }: ViewProps) {
       </section>
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">Proposed ticket</h2>
-        <DraftEditor
+        <DraftWorkspace
           initial={proposed}
           publish={applyAuditToTracker.bind(null, analysis.id)}
           publishLabel={`Approve & update the ${trackerName} ticket`}
           trackerName={trackerName}
+          projectLabel={trackerKey}
+          existingKey={analysisRequest(analysis.input)}
           published={publishedOf(analysis)}
         />
       </section>
@@ -179,10 +198,8 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           <AlertDescription>{analysis.error}</AlertDescription>
         </Alert>
       )}
-      {canRefine ? (
-        <RefineRequest analysis={analysis} trackerName={trackerName} request={request} />
-      ) : (
-        analysis.kind === "create" && <RequestText request={request} />
+      {analysis.kind === "create" && (
+        <RequestPanel analysis={analysis} trackerName={trackerName} editable={canRefine} />
       )}
       {analysis.status === "running" && (
         <p className="text-muted-foreground" role="status">
@@ -193,9 +210,9 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
         <>
           <WarningList issues={(analysis.evidenceIssues ?? []) as EvidenceIssue[]} />
           {analysis.kind === "create" ? (
-            <CreationView analysis={analysis} trackerName={trackerName} />
+            <CreationView analysis={analysis} trackerName={trackerName} trackerKey={project.trackerResourceId} />
           ) : (
-            <AuditView analysis={analysis} trackerName={trackerName} />
+            <AuditView analysis={analysis} trackerName={trackerName} trackerKey={project.trackerResourceId} />
           )}
         </>
       )}

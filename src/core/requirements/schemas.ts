@@ -27,6 +27,13 @@ export const draftBodySchema = z.object({
 });
 export type DraftBody = z.infer<typeof draftBodySchema>;
 
+// The requester's answer to a question from an earlier draft; an empty answer leaves the question open.
+export const clarificationSchema = z.object({
+  question: z.string().trim().min(1).max(1000),
+  answer: z.string().trim().max(4000),
+});
+export type Clarification = z.infer<typeof clarificationSchema>;
+
 export const ticketDraftSchema = draftBodySchema.extend({ evidence: z.array(evidenceSchema) });
 export type TicketDraft = z.infer<typeof ticketDraftSchema>;
 

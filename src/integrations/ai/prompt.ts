@@ -1,5 +1,6 @@
 import type { Issue } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
+import type { Clarification } from "@/core/requirements/schemas";
 
 const SHARED_RULES = `- Use only the provided context. Never invent requirements, numbers, deadlines, or business intent.
 - Mark every claim with a status: verified (cite evidence ids), inferred, unknown, or needs_clarification.
@@ -19,7 +20,8 @@ ${SHARED_RULES}
 - Write a concise ticket title (under 80 characters) that keeps the requester's intent. Name a specific file or component only when the context clearly shows it is the one meant.
 - Carry every need and constraint the request states into the ticket; do not drop details, and do not turn them into questions.
 - If no source in the context clearly matches what the request refers to, say so in a needs_clarification claim and ask which part is meant. Do not build the ticket around a merely similar-sounding component.
-- Quoted text in the request is a requested value; reproduce it exactly.`;
+- Quoted text in the request is a requested value; reproduce it exactly.
+- <answers> holds the requester's answers to questions from an earlier draft. Treat each answer as part of the request, and never ask an answered question again. A question without an answer stays in openQuestions unless the context now answers it.`;
 
 export const AUDIT_SYSTEM_PROMPT = `You audit an existing software ticket against project context.
 
@@ -35,8 +37,13 @@ const contextBlock = (candidates: Evidence[]) =>
     .map((c) => `<source id="${c.id}" kind="${c.kind}" path="${c.reference}">\n${c.excerpt}\n</source>`)
     .join("\n") || "(no relevant context found)";
 
-export const buildCreatePrompt = (request: string, candidates: Evidence[]) =>
-  `<request>\n${request}\n</request>\n\n<context>\n${contextBlock(candidates)}\n</context>`;
+const answersBlock = (answers: Clarification[]) =>
+  answers.length
+    ? `\n\n<answers>\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer || "(no answer yet; keep this question open)"}`).join("\n\n")}\n</answers>`
+    : "";
+
+export const buildCreatePrompt = (request: string, answers: Clarification[], candidates: Evidence[]) =>
+  `<request>\n${request}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>
   `<ticket key="${issue.key}" status="${issue.status}">\nTitle: ${issue.summary}\n\n${issue.description || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;

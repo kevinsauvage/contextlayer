@@ -15,7 +15,7 @@ type RunArgs = {
   project: Project;
   userId: string;
   kind: "create" | "audit";
-  input: Record<string, string>;
+  input: Record<string, unknown>;
   execute: () => Promise<Outcome>;
   // Re-running replaces the row's draft in place; createdAt moves to the new run.
   rerunId?: string;
