@@ -56,6 +56,11 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - A new session defaults its active organization to the user's oldest membership (Better Auth `session.create.before` hook) · without it every sign-in landed on onboarding and created another organization.
 - Linking a GitHub installation that already belongs to another organization is refused (`github=taken`) instead of silently doing nothing.
 
+## Evaluation (2026-10-23)
+
+- The evaluation judge is configured separately (`AI_JUDGE_MODEL`, `AI_JUDGE_BASE_URL`, `AI_JUDGE_API_KEY`, `AI_JUDGE_STRUCTURED_OUTPUTS`), each falling back to its `AI_*` counterpart · a judge must not grade its own output, and a DeepSeek-only base URL cannot serve a second provider. Results record `judgeModel` and `judgeIsGenerator`; the run warns when they match, so a same-model run cannot pass as clean.
+- Human scoring uses packets generated from the last eval run (`pnpm review:export`), with a stable per-case A/B/C rotation and the mapping in a gitignored `blind-key.json` · the reviewer scores blind, and `pnpm review:report` writes `docs/product/e3-blind-review.md` so the evidence and the judge comparison are committed.
+
 ## Integrations, organizations and UX (2026-10-23)
 
 - One `integration_connection` table plus a provider registry replace `github_installation` and `jira_connection` · adding a code host or tracker is one `SourceProvider`/`TrackerProvider` implementation; routes, storage, token refresh and UI stay generic. Migration `0003` backfills existing rows and projects before dropping the old tables.

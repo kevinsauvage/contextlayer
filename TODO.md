@@ -20,8 +20,9 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
 ## P1: Prove the product
 
 - [~] **Baseline comparison: unbiased judge and blind human scoring** (E2, E3)
-  - Context: `tests/evaluation/baseline.eval.ts` scores original vs generic AI vs ContextLayer, but the judge is the generating model, so results are directional only.
-  - Fix: add an `AI_JUDGE_MODEL` env var used only by the judge, rerun E2, then export the 12 drafts without labels and have a developer score them with the rubric (E3).
+  - Context: `tests/evaluation/baseline.eval.ts` scores original vs generic AI vs ContextLayer. The judge seam and the blind packet tooling now exist; the current E2 numbers still come from a run where one model did both jobs.
+  - Done: `AI_JUDGE_MODEL` (plus `AI_JUDGE_BASE_URL`, `AI_JUDGE_API_KEY`, `AI_JUDGE_STRUCTURED_OUTPUTS`) is read by `resolveJudgeModel`; results record `judgeModel` / `judgeIsGenerator` and the run warns when the judge is the generator. `pnpm review:export` writes A/B/C packets and a score template; `pnpm review:report` writes `docs/product/e3-blind-review.md` from the filled scores.
+  - Fix: set `AI_JUDGE_MODEL` to a different model (own base URL if the provider differs) and rerun `pnpm eval tests/evaluation/baseline.eval.ts`; then score the four packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`.
 - [ ] **Grow the fixtures from 4 to 8–10**
   - Context: `tests/fixtures/` has four miniature repositories; C3 asks for 8 to 10, and there is no case with a Jira issue or a duplicate ticket.
   - Fix: add `case.json` plus `repo/` for a Jira-issue audit, a duplicate-ticket case, the "banner title" miss (copy in an imported content module), a multi-paragraph request, and a prompt-injection file. `tests/unit/fixtures.test.ts` validates the shape.

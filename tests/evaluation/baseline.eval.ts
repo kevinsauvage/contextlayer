@@ -4,7 +4,7 @@ import { generateText, Output } from "ai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { withSchemaInstruction } from "@/integrations/ai/generator";
-import { resolveModel } from "@/integrations/ai/model";
+import { resolveJudgeModel, resolveModel } from "@/integrations/ai/model";
 import { getEnv } from "@/infrastructure/env";
 import { loadEvaluationCases, type LoadedCase } from "./fixtures";
 import { analysisResultSchema } from "./results";
@@ -12,6 +12,11 @@ import { analysisResultSchema } from "./results";
 const RESULTS_DIR = path.join(import.meta.dirname, "results");
 const modelId = getEnv().AI_MODEL;
 const model = resolveModel(modelId);
+const judge = resolveJudgeModel();
+
+if (judge.isGenerator) {
+  console.warn(`AI_JUDGE_MODEL is unset or equals AI_MODEL (${modelId}): the judge grades its own drafts.`);
+}
 
 const BASELINE_SYSTEM_PROMPT =
   "You are a product engineer. Turn the ticket title into a complete Jira ticket with a description and acceptance criteria.";
@@ -53,8 +58,12 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
     const baselineLatencyMs = Date.now() - startedAt;
 
     const { output: judgment } = await generateText({
-      model,
-      prompt: withSchemaInstruction(buildJudgePrompt(c, text, contextlayer.draft), judgmentSchema),
+      model: judge.model,
+      prompt: withSchemaInstruction(
+        buildJudgePrompt(c, text, contextlayer.draft),
+        judgmentSchema,
+        judge.structuredOutputs,
+      ),
       output: Output.object({ schema: judgmentSchema }),
     });
 
@@ -63,6 +72,8 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
       JSON.stringify(
         {
           model: modelId,
+          judgeModel: judge.modelId,
+          judgeIsGenerator: judge.isGenerator,
           baseline: {
             latencyMs: baselineLatencyMs,
             usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 },

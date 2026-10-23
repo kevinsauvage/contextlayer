@@ -32,6 +32,7 @@ Sign-up works right away. Analyses need an AI provider and the GitHub and Jira c
 | `pnpm knip`                                     | Unused files, exports and dependencies                                     |
 | `pnpm test` / `test:watch` / `test:coverage`    | Vitest (unit + PGlite integration)                                         |
 | `pnpm eval`                                     | Real-model evaluation on the fixtures (needs an AI provider, costs tokens) |
+| `pnpm review:export` / `review:report`          | Blind scoring packets from the last eval run; report from filled scores    |
 | `pnpm db:up` / `db:down`                        | Start / stop local Postgres                                                |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle migrations and studio                                              |
 
@@ -57,4 +58,6 @@ Dependencies point inward (`app` → `features` → `core`) and ESLint enforces 
 
 ## Evaluation
 
-`tests/fixtures/<case>/` holds a `case.json` (title, expected relevant files, verified facts, facts that must stay uncertain, forbidden invented claims) and a miniature `repo/`. `pnpm eval` runs the analysis pipeline and the baseline comparison against a real model and writes results to `tests/evaluation/results/` (gitignored). Rubric and latest numbers: [`docs/product/evaluation-rubric.md`](docs/product/evaluation-rubric.md).
+`tests/fixtures/<case>/` holds a `case.json` (title, expected relevant files, verified facts, facts that must stay uncertain, forbidden invented claims) and a miniature `repo/`. `pnpm eval` runs the analysis pipeline and the baseline comparison against a real model and writes results to `tests/evaluation/results/` (gitignored). The judge is `AI_JUDGE_MODEL`; set it to a different model so the generator does not grade itself. Rubric and latest numbers: [`docs/product/evaluation-rubric.md`](docs/product/evaluation-rubric.md).
+
+`pnpm review:export` turns the last baseline run into blind A/B/C packets under `tests/evaluation/review/` (gitignored) plus a `scores.json` template. A developer scores them, then `pnpm review:report` writes `docs/product/e3-blind-review.md` with the human result next to the judge's.

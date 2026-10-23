@@ -10,8 +10,11 @@ import { AUDIT_SYSTEM_PROMPT, buildAuditPrompt, buildCreatePrompt, CREATE_SYSTEM
 const jsonSchemaInstruction = (schema: z.ZodType) =>
   `Respond with a single JSON object that matches this JSON Schema:\n${JSON.stringify(z.toJSONSchema(schema))}`;
 
-export const withSchemaInstruction = (text: string, schema: z.ZodType) =>
-  getEnv().AI_STRUCTURED_OUTPUTS ? text : `${text}\n\n${jsonSchemaInstruction(schema)}`;
+export const withSchemaInstruction = (
+  text: string,
+  schema: z.ZodType,
+  structuredOutputs = getEnv().AI_STRUCTURED_OUTPUTS,
+) => (structuredOutputs ? text : `${text}\n\n${jsonSchemaInstruction(schema)}`);
 
 export class AiGenerator implements DraftGenerator, AuditGenerator {
   constructor(private readonly modelId: string) {}

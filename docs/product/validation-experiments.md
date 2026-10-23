@@ -9,11 +9,11 @@ Each experiment tests one or more hypotheses from [`business-hypotheses.md`](bus
 - **Result (2026-10-22):** 4 of 4 drafts passed evidence-reference validation (forbidden claims are not checked automatically yet); keyword retrieval found 9 of 10 expected files (misses `mail/send.ts` for "Add password reset").
 - **Limit:** 4 fixtures written by the builder; not representative.
 
-## E2: Baseline comparison (done, directional)
+## E2: Baseline comparison (running)
 
 - **Tests:** H2, H7.
-- **Method:** `tests/evaluation/baseline.eval.ts` scores three versions of each ticket (the original title, a generic AI answer from the title alone, the ContextLayer draft) 0 to 2 on six rubric criteria (max 12), using an LLM judge with the fixture ground truth. Model: DeepSeek (`deepseek-flash`), JSON mode.
-- **Result (2026-10-23):**
+- **Method:** `tests/evaluation/baseline.eval.ts` scores three versions of each ticket (the original title, a generic AI answer from the title alone, the ContextLayer draft) 0 to 2 on six rubric criteria (max 12), using an LLM judge with the fixture ground truth. Generation by `AI_MODEL`; the judge is `AI_JUDGE_MODEL` (its own endpoint when needed), falling back to `AI_MODEL` with a warning and `judgeIsGenerator: true` in the result file.
+- **Result (2026-10-23, same-model judge, directional):**
 
 | Case                   | Original | Generic AI | ContextLayer |
 | ---------------------- | -------- | ---------- | ------------ |
@@ -24,13 +24,13 @@ Each experiment tests one or more hypotheses from [`business-hypotheses.md`](bus
 
 Latency 8 to 20 s for both approaches; output tokens 1.1 to 2.8k for both.
 
-- **Limits:** the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
-- **To finish:** (1) judge with a different model, (2) a developer scores the 12 drafts blind to the source, (3) grow to 8 to 10 fixtures including a Jira-issue and a duplicate-ticket case.
+- **Limits:** the table above comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
+- **To finish:** (1) set `AI_JUDGE_MODEL` to a different model and rerun `pnpm eval`; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) grow to 8 to 10 fixtures including a Jira-issue and a duplicate-ticket case.
 
 ## E3: Blind reviewer comparison (planned)
 
 - **Tests:** H2, H3.
-- **Method:** 3 developers or tech leads each receive 10 anonymised tickets (original, generic AI, ContextLayer) for repositories they know, rank them, mark any claim they believe is wrong, and say which they would start work from.
+- **Method:** 3 developers or tech leads each receive 10 anonymised tickets (original, generic AI, ContextLayer) for repositories they know, rank them, mark any claim they believe is wrong, and say which they would start work from. `pnpm review:export` builds the packets from the last `pnpm eval` run with A/B/C labels and keeps the mapping in `tests/evaluation/results/blind-key.json`; `pnpm review:report` writes the scoring table to `e3-blind-review.md`.
 - **Success:** ContextLayer ranked first in at least 7 of 10 cases and at most one wrong claim per 10 drafts.
 - **Kill:** generic AI ranked first or tied in more than 3 of 10.
 

@@ -22,6 +22,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "eval": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts",
+    "review:export": "node scripts/blind-review.mjs export",
+    "review:report": "node scripts/blind-review.mjs report",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm build",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",

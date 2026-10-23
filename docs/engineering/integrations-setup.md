@@ -61,6 +61,8 @@ Pick one route. Both are read in `src/integrations/ai/model.ts`.
 
 `AI_STRUCTURED_OUTPUTS=true` (default) sends `response_format: json_schema`. Endpoints that reject it (DeepSeek: "This response_format type is unavailable now") need `false`: the schema is then appended to the instructions and the model answers in JSON mode. Zod validates the result either way, and weaker models fail validation more often.
 
+**Evaluation judge**: `pnpm eval` scores drafts with a second model so the generator does not grade its own output. Set `AI_JUDGE_MODEL` to a different model id. If the judge lives on another endpoint (a gateway key cannot be combined with a DeepSeek-only base URL), set `AI_JUDGE_BASE_URL` and `AI_JUDGE_API_KEY` too; `AI_JUDGE_STRUCTURED_OUTPUTS` follows that endpoint's capabilities. Every unset judge variable falls back to its `AI_*` counterpart, and the run warns and records `judgeIsGenerator` when the judge is the generator. Example: generator DeepSeek, judge `gemini-3.8-flash` with the Google AI Studio base URL above and `AI_JUDGE_STRUCTURED_OUTPUTS=true`.
+
 Do not point the app at an OpenCode Go key. Go is licensed for coding-agent traffic and requires an `x-opencode-session` header, which a ticket-drafting service does not fit. OpenCode Zen (pay-as-you-go) has no such restriction.
 
 Source code and Jira text are sent to the configured provider. Choose one whose data policy fits your customers.

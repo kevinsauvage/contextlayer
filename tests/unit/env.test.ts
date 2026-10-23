@@ -24,6 +24,21 @@ describe("parseEnv", () => {
   it("reads AI_STRUCTURED_OUTPUTS=false", () =>
     expect(parseEnv({ ...required, AI_STRUCTURED_OUTPUTS: "false" }).AI_STRUCTURED_OUTPUTS).toBe(false));
 
+  it("leaves the judge unset so it falls back to the generator", () =>
+    expect(parseEnv(required).AI_JUDGE_MODEL).toBeUndefined());
+
+  it("reads a judge model and endpoint", () => {
+    const env = parseEnv({
+      ...required,
+      AI_JUDGE_MODEL: "gemini-3.8-flash",
+      AI_JUDGE_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      AI_JUDGE_STRUCTURED_OUTPUTS: "false",
+    });
+    expect(env.AI_JUDGE_MODEL).toBe("gemini-3.8-flash");
+    expect(env.AI_JUDGE_BASE_URL).toBe("https://generativelanguage.googleapis.com/v1beta/openai");
+    expect(env.AI_JUDGE_STRUCTURED_OUTPUTS).toBe(false);
+  });
+
   it("rejects a blank required secret", () =>
     expect(() => parseEnv({ ...required, BETTER_AUTH_SECRET: "" })).toThrow());
 

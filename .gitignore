@@ -11,6 +11,7 @@
 # testing
 /coverage
 /tests/evaluation/results
+/tests/evaluation/review
 
 # env files (the example is the only one committed)
 .env*
