@@ -20,8 +20,8 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | Priority | Goal                                                              | Bug | Feature | Quality | Non-code |
 | -------- | ----------------------------------------------------------------- | --: | ------: | ------: | -------: |
 | P0       | Decide whether to build (evidence for the go / pivot / stop rule) |   0 |       0 |       0 |        3 |
-| P1       | Prove the product (quality, retrieval, cost)                      |   0 |       4 |       0 |        2 |
-| P2       | Connect and deliver (real teams, real credentials)                |   0 |       5 |       0 |        2 |
-| P3       | Harden and validate (security, operations, pilot)                 |   0 |       6 |       0 |        5 |
+| P1       | Prove the product (quality, retrieval, cost)                      |   5 |       4 |       2 |        2 |
+| P2       | Connect and deliver (real teams, real credentials)                |   4 |       5 |       1 |        2 |
+| P3       | Harden and validate (security, operations, pilot)                 |   2 |       6 |       2 |        5 |
 
 **Phase 0 unblockers:** C1 ← E4 interviews · C2 ← E3 blind scoring · C3 ← fixtures and forbidden-claim checks.
