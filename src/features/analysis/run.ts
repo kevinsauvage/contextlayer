@@ -4,7 +4,7 @@ import type { TokenUsage } from "@/core/analysis/generators";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
-import { STALE_ANALYSIS_MS } from "@/features/analysis/stale";
+import { STALE_ANALYSIS_MS } from "@/core/analysis/stale";
 import { toActionError } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";

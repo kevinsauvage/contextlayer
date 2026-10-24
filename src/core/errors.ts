@@ -13,3 +13,11 @@ export class AnalysisAlreadyRunningError extends Error {
     this.name = "AnalysisAlreadyRunningError";
   }
 }
+
+// The project points at an integration account that was deleted or disconnected since it was created.
+export class ConnectionMissingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConnectionMissingError";
+  }
+}

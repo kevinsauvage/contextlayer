@@ -5,6 +5,7 @@ import type {
   SourceProvider,
   TrackerProvider,
 } from "@/core/integrations/provider";
+import { ConnectionMissingError } from "@/core/errors";
 import type { Database } from "@/infrastructure/db/client";
 import { findProvider } from "@/integrations/registry";
 import { connectionContext } from "./access";
@@ -12,7 +13,8 @@ import { getConnection, type Connection } from "./connections";
 
 type Resolved<P extends IntegrationProvider> = { connection: Connection; provider: P; context: ConnectionContext };
 
-export class ConnectionMissingError extends Error {}
+// Routes and features resolve a provider through this seam instead of importing the adapter registry.
+export const providerById = (id: string): IntegrationProvider | undefined => findProvider(id);
 
 export async function resolveConnection(
   db: Database,

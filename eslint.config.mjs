@@ -9,6 +9,22 @@ const forbidLayers = (message, ...groups) => ({
 
 const appLayers = (...names) => names.flatMap((name) => [`@/${name}`, `@/${name}/**`]);
 
+// Packages that only belong outside core and lib: frameworks, I/O and auth.
+const FRAMEWORK_PACKAGES = [
+  "next",
+  "react",
+  "react-dom",
+  "server-only",
+  "drizzle-orm",
+  "postgres",
+  "octokit",
+  "ai",
+  "better-auth",
+  "@ai-sdk",
+];
+
+const frameworkPatterns = FRAMEWORK_PACKAGES.flatMap((name) => [`${name}`, `${name}/**`]);
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -55,6 +71,13 @@ const eslintConfig = defineConfig([
   {
     files: ["src/core/**"],
     rules: {
+      "no-restricted-globals": [
+        "error",
+        { name: "fetch", message: "core is pure: network I/O belongs in an integration." },
+        { name: "process", message: "core is pure: configuration belongs in infrastructure." },
+        { name: "Buffer", message: "core is pure: no Node I/O belongs here." },
+        { name: "setTimeout", message: "core is pure: timing belongs in the caller." },
+      ],
       "no-restricted-imports": [
         "error",
         {
@@ -64,23 +87,22 @@ const eslintConfig = defineConfig([
               message: "core is pure: it may only import from core.",
             },
             {
-              group: [
-                "next",
-                "react",
-                "react-dom",
-                "server-only",
-                "drizzle-orm",
-                "postgres",
-                "octokit",
-                "ai",
-                "better-auth",
-              ].flatMap((name) => [name, `${name}/**`]),
+              group: ["node:*"],
+              message: "core is pure: no filesystem, crypto or other Node I/O belongs here.",
+            },
+            {
+              group: frameworkPatterns,
               message: "core is pure: framework and I/O packages belong in features, infrastructure or integrations.",
             },
           ],
         },
       ],
     },
+  },
+  // The app wires use cases: pages render components and features, and never reach for an adapter.
+  {
+    files: ["src/app/**"],
+    rules: forbidLayers("app wires features; providers and adapters stay behind them.", appLayers("integrations")),
   },
   {
     files: ["src/features/**"],
@@ -109,7 +131,8 @@ const eslintConfig = defineConfig([
           patterns: [
             {
               group: appLayers("app", "integrations"),
-              message: "components talk to features (actions) and core types only.",
+              message:
+                "components render features (actions, queries), core types and lib; adapters stay behind features.",
             },
             {
               regex: "^@/infrastructure/(?!auth/client$)",
@@ -122,10 +145,23 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/lib/**"],
-    rules: forbidLayers(
-      "lib is a leaf: it must not import from application layers.",
-      appLayers("app", "components", "core", "features", "infrastructure", "integrations"),
-    ),
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: appLayers("app", "components", "core", "features", "infrastructure", "integrations"),
+              message: "lib is a leaf: it must not import from application layers.",
+            },
+            {
+              group: frameworkPatterns,
+              message: "lib holds framework-free helpers; a Next, database or provider package belongs in a layer.",
+            },
+          ],
+        },
+      ],
+    },
   },
 ]);
 

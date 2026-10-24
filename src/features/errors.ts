@@ -1,7 +1,6 @@
 import "server-only";
-import { AnalysisAlreadyRunningError, ForbiddenError } from "@/core/errors";
+import { AnalysisAlreadyRunningError, ConnectionMissingError, ForbiddenError } from "@/core/errors";
 import { ReconnectRequiredError } from "@/core/integrations/provider";
-import { ConnectionMissingError } from "@/features/integrations/resolve";
 import type { ActionState } from "@/lib/action-state";
 
 export function toActionError(error: unknown): { error: string } | null {

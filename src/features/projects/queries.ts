@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { STALE_ANALYSIS_ERROR, isStale } from "@/features/analysis/stale";
+import { STALE_ANALYSIS_ERROR, isStale } from "@/core/analysis/stale";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis, integrationConnection, project } from "@/infrastructure/db/schema";
 import { isUuid } from "@/lib/uuid";

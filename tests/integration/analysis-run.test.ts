@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
-import { STALE_ANALYSIS_ERROR } from "@/features/analysis/stale";
+import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";

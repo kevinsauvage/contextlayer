@@ -11,17 +11,17 @@ app ─▶ features ─▶ core ◀─ integrations
 components ─▶ features (actions), core (types), infrastructure/auth/client
 ```
 
-| Layer            | Contains                                                                                       | May import                                      |
-| ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces                         | `core`, `zod` only                              |
-| `features`       | Use cases: server actions, queries, orchestration                                              | `core`, `infrastructure`, `integrations`, `lib` |
-| `integrations`   | Provider registry; GitHub, Jira, AI SDK and filesystem adapters implementing `core` interfaces | `core`, `infrastructure`, `lib`                 |
-| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                                     | `infrastructure`, `lib`                         |
-| `app`            | Routes, layouts, thin API handlers                                                             | anything below                                  |
-| `components`     | UI; calls feature actions, uses the browser auth client                                        | `features`, `core`, `components`, `lib`         |
-| `lib`            | Dependency-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)     | nothing                                         |
+| Layer            | Contains                                                                                       | May import                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces                         | `core`, `zod` only                                                    |
+| `features`       | Use cases: server actions, queries, orchestration                                              | `core`, `infrastructure`, `integrations`, `lib`                       |
+| `integrations`   | Provider registry; GitHub, Jira, AI SDK and filesystem adapters implementing `core` interfaces | `core`, `infrastructure`, `lib`                                       |
+| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                                     | `core` (types), `infrastructure`, `lib`                               |
+| `app`            | Routes, layouts, thin API handlers                                                             | `components`, `features`, `core`, `infrastructure`, `lib`             |
+| `components`     | UI; calls feature actions, uses the browser auth client                                        | `components`, `core`, `features`, `lib`, `infrastructure/auth/client` |
+| `lib`            | Framework-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)      | `lib` only (`cn` and a type-only `zod` are the allowed packages)      |
 
-`eslint.config.mjs` enforces these rules with `no-restricted-imports`, plus `import/no-cycle`. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator.
+`eslint.config.mjs` enforces these rules with `no-restricted-imports`, plus `import/no-cycle`; `tests/unit/architecture.test.ts` asserts the same matrix from the real import graph, so a weakened ESLint rule still fails CI. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator. `app` never imports a provider or adapter: server actions and the two OAuth routes resolve one through `providerById` in `src/features/integrations/resolve.ts`, which is also the seam tests replace.
 
 ## The analysis pipeline
 
@@ -81,8 +81,9 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 
 ## Testing strategy
 
-| Kind        | Location            | Runs in `pnpm check` | Notes                                                                                                      |
-| ----------- | ------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Unit        | `tests/unit`        | yes                  | Pure logic with fake generator, source and tracker                                                         |
-| Integration | `tests/integration` | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
-| Evaluation  | `tests/evaluation`  | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |
+| Kind         | Location                          | Runs in `pnpm check` | Notes                                                                                                      |
+| ------------ | --------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Unit         | `tests/unit`                      | yes                  | Pure logic with fake generator, source and tracker                                                         |
+| Architecture | `tests/unit/architecture.test.ts` | yes                  | Recomputes the layer matrix from the real `src` imports, so a weakened ESLint rule still fails CI          |
+| Integration  | `tests/integration`               | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
+| Evaluation   | `tests/evaluation`                | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |
