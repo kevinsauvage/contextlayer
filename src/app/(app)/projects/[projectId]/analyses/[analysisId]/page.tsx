@@ -34,7 +34,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow={
+        breadcrumb={
           <Link href={`/projects/${project.id}`}>
             {project.name} · {analysis.kind === "create" ? "New ticket" : "Audit"}
           </Link>

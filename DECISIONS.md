@@ -120,3 +120,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 
 - Generator `deepseek-flash` (DeepSeek-V4.1-Flash), judge `deepseek-v4-pro` (DeepSeek-V4-Pro) · on the four fixtures Flash scored 45/48 and Pro 44/48 as generators, with Flash 3 to 4 times faster and about half the output tokens. The judge should be at least as strong as the generator. Both are one vendor; a cross-vendor judge is open work.
 - The baseline judge reads the fixture repository as the source of truth and treats `verifiedFacts` as guidance, and drafts are regenerated in the same run (`tests/evaluation/draft-case.ts`) · judged on `verifiedFacts` alone, it marked a correct claim wrong, and it was scoring drafts from an older pipeline.
+
+## Visual refinement (2026-10-24)
+
+- Neutrals carry a faint cool tint (hue 265), the app canvas sits one step below white so cards read as layers, and one brand hue (`--brand`) marks only identity and current location: the logo, the active nav underline, the next setup step, focus, selection and caret. Buttons stay ink · the stock shadcn look was kept on purpose; color is reserved so it keeps meaning.
+- Claim and connection states use semantic tokens (`--success`, `--info`, `--warning`) through `Badge` variants instead of raw Tailwind palette classes · "needs clarification" was shown as destructive, which reads as an error rather than a question.

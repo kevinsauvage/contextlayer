@@ -11,8 +11,8 @@ type Props = { provider: ProviderOverview; isAdmin: boolean };
 function ConnectionStatusBadge({ provider }: { provider: ProviderOverview }) {
   if (!provider.configured) return <Badge variant="outline">Not configured</Badge>;
   if (provider.connections.some((c) => c.status === "needs_reconnect"))
-    return <Badge variant="destructive">Needs attention</Badge>;
-  if (provider.connections.length) return <Badge variant="secondary">Connected</Badge>;
+    return <Badge variant="warning">Needs attention</Badge>;
+  if (provider.connections.length) return <Badge variant="success">Connected</Badge>;
   return <Badge variant="outline">Not connected</Badge>;
 }
 

@@ -26,7 +26,7 @@ export default async function Page({ searchParams }: PageProps<"/projects/new">)
   return (
     <div className="flex max-w-2xl flex-col gap-6">
       <PageHeader
-        eyebrow={<Link href="/projects">Projects</Link>}
+        breadcrumb={<Link href="/projects">Projects</Link>}
         title="New project"
         description="A project pairs one repository with one issue tracker project. Analyses use both."
       />

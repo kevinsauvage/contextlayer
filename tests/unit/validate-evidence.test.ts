@@ -17,11 +17,13 @@ describe("validateEvidenceReferences", () => {
   it("flags unknown evidence ids", () => expect(validate(claim({ evidenceIds: ["missing"] }))).toHaveLength(1));
 
   it("flags verified claims without evidence", () =>
-    expect(validate(claim({ evidenceIds: [] }))[0]?.message).toMatch(/no evidence/));
+    expect(validate(claim({ evidenceIds: [] }))[0]?.message).toBe(
+      "Description paragraph 1 is marked Verified but cites no evidence.",
+    ));
 
   it("allows inferred claims without evidence", () =>
     expect(validate(claim({ status: "inferred", evidenceIds: [] }))).toEqual([]));
 
   it("flags duplicate evidence ids", () =>
-    expect(validate(claim({}), [...evidence, ...evidence])[0]?.message).toMatch(/duplicate/));
+    expect(validate(claim({}), [...evidence, ...evidence])[0]?.message).toMatch(/listed twice/));
 });

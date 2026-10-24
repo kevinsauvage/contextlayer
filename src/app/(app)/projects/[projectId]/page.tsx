@@ -31,7 +31,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow={<Link href="/projects">Projects</Link>}
+        breadcrumb={<Link href="/projects">Projects</Link>}
         title={project.name}
         description={
           <span className="flex flex-wrap gap-x-4 gap-y-1">

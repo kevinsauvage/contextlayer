@@ -26,12 +26,15 @@ export function SetupChecklist({ steps, isAdmin }: { steps: Step[]; isAdmin: boo
             return (
               <li
                 key={step.title}
-                className={cn("flex items-center gap-3 rounded-lg p-2", index === next && "bg-muted")}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5",
+                  index === next && "bg-brand/6 ring-1 ring-brand/15",
+                )}
                 aria-current={index === next ? "step" : undefined}
               >
                 <Icon
                   aria-hidden
-                  className={cn("size-5 shrink-0", step.done ? "text-primary" : "text-muted-foreground")}
+                  className={cn("size-5 shrink-0", step.done ? "text-success" : "text-muted-foreground")}
                 />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className={cn("font-medium", step.done && "text-muted-foreground line-through")}>

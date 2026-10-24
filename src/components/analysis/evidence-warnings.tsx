@@ -5,13 +5,12 @@ export function EvidenceWarnings({ issues }: { issues: EvidenceIssue[] }) {
   if (!issues.length) return null;
   return (
     <Alert variant="destructive">
-      <AlertTitle>Evidence problems — review before publishing</AlertTitle>
+      <AlertTitle>Some claims do not match their evidence</AlertTitle>
       <AlertDescription>
+        <p>Fix these in Edit before approving. Approval is blocked until they are resolved.</p>
         <ul className="list-disc pl-4">
           {issues.map((issue, index) => (
-            <li key={index}>
-              {issue.path}: {issue.message}
-            </li>
+            <li key={index}>{issue.message}</li>
           ))}
         </ul>
       </AlertDescription>

@@ -2,11 +2,11 @@ import type { ClaimStatus } from "@/core/evidence/schemas";
 import { CLAIM_STATUS_LABELS } from "@/core/evidence/schemas";
 import { Badge } from "@/components/ui/badge";
 
-const VARIANTS: Record<ClaimStatus, "default" | "secondary" | "outline" | "destructive"> = {
-  verified: "default",
-  inferred: "secondary",
+const VARIANTS: Record<ClaimStatus, "success" | "info" | "outline" | "warning"> = {
+  verified: "success",
+  inferred: "info",
   unknown: "outline",
-  needs_clarification: "destructive",
+  needs_clarification: "warning",
 };
 
 export const ClaimStatusBadge = ({ status }: { status: ClaimStatus }) => (

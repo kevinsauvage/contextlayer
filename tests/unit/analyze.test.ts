@@ -57,11 +57,16 @@ describe("draftTicket", () => {
 
   it("reports evidence the generator invented", async () => {
     const result = await run(body(["e99"]));
-    expect(result.issues).toEqual([{ path: "description[0]", message: 'unknown evidence id "e99"' }]);
+    expect(result.issues).toEqual([
+      {
+        path: "description[0]",
+        message: "Description paragraph 1 cites evidence e99, which is not in the evidence list.",
+      },
+    ]);
   });
 
   it("flags a verified claim that cites nothing", async () => {
-    expect((await run(body([]))).issues[0]?.message).toMatch(/no evidence/);
+    expect((await run(body([]))).issues[0]?.message).toMatch(/cites no evidence/);
   });
 });
 
@@ -95,7 +100,7 @@ describe("auditIssue", () => {
   it("validates finding evidence", async () => {
     expect((await run(auditBody([]))).issues[0]).toEqual({
       path: "findings[0]",
-      message: "verified claim has no evidence",
+      message: "Finding 1 is marked Verified but cites no evidence.",
     });
   });
 });

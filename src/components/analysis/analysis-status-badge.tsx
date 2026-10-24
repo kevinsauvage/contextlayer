@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Analysis } from "@/features/projects/queries";
 
 export function AnalysisStatusBadge({ analysis }: { analysis: Pick<Analysis, "status" | "publishedIssueKey"> }) {
-  if (analysis.publishedIssueKey) return <Badge>{analysis.publishedIssueKey}</Badge>;
+  if (analysis.publishedIssueKey) return <Badge variant="success">{analysis.publishedIssueKey}</Badge>;
   switch (analysis.status) {
     case "running":
       return (
