@@ -31,11 +31,11 @@ describe("ticket rendering", () => {
 
   it("labels anything that is not verified", () => {
     expect(sections[0]?.paragraphs).toEqual([
-      { status: "verified", text: "Pay button has no accessible name." },
+      { status: "verified", text: "Pay button has no accessible name.", evidenceIds: ["e1"] },
       { status: "needs_clarification", text: "Scope is the whole checkout." },
     ]);
     expect(sections[1]?.bullets).toEqual([
-      { status: "inferred", text: "Pay button is announced as 'Pay'. (needs product decision)" },
+      { status: "inferred", text: "Pay button is announced as 'Pay'. (needs product decision)", needsDecision: true },
     ]);
   });
 
@@ -48,7 +48,7 @@ describe("ticket rendering", () => {
       "Open questions",
     ]);
     expect(sections[2]?.bullets).toEqual([
-      { text: "src/PayButton.tsx:1-9", url: "https://github.com/o/r/blob/main/src/PayButton.tsx" },
+      { evidenceId: "e1", text: "src/PayButton.tsx:1-9", url: "https://github.com/o/r/blob/main/src/PayButton.tsx" },
     ]);
   });
 });
@@ -62,8 +62,18 @@ describe("ADF", () => {
 
   it("round-trips to readable text", () => {
     const text = adfToText(sectionsToAdf(ticketSections(draft)));
-    expect(text).toContain("Pay button has no accessible name.");
+    expect(text).toContain("Pay button has no accessible name. [e1]");
+    expect(text).toContain("- [e1] src/PayButton.tsx:1-9");
     expect(text).toContain("- Inferred: Pay button is announced");
+  });
+
+  it("renders backtick spans as inline code", () => {
+    const doc = sectionsToAdf([{ paragraphs: [{ text: "Rename `PayButton` now" }] }]);
+    expect(doc.content[0]?.content).toEqual([
+      { type: "text", text: "Rename " },
+      { type: "text", text: "PayButton", marks: [{ type: "code" }] },
+      { type: "text", text: " now" },
+    ]);
   });
 
   it("tolerates empty or missing descriptions", () => {

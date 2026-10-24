@@ -1,5 +1,5 @@
 import { CLAIM_STATUS_LABELS } from "@/core/evidence/schemas";
-import type { Bullet, TicketSection } from "@/core/requirements/render";
+import { inlineSpans, type Bullet, type TicketSection } from "@/core/requirements/render";
 
 type AdfNode = { type: string; text?: string; content?: AdfNode[]; attrs?: Record<string, unknown>; marks?: unknown[] };
 
@@ -10,19 +10,28 @@ const text = (value: string, url?: string): AdfNode => ({
   ...(url ? { marks: [{ type: "link", attrs: { href: url } }] } : {}),
 });
 
-// Jira has no status pills, so unverified claims carry their status as a text prefix.
-const plainText = (bullet: Bullet) =>
-  bullet.status && bullet.status !== "verified" ? `${CLAIM_STATUS_LABELS[bullet.status]}: ${bullet.text}` : bullet.text;
+const code = (value: string): AdfNode => ({ type: "text", text: value, marks: [{ type: "code" }] });
+
+// Jira has no status pills, so unverified claims carry their status as a text prefix and citations as [e1] markers.
+function inlineNodes(bullet: Bullet): AdfNode[] {
+  const status = bullet.status && bullet.status !== "verified" ? `${CLAIM_STATUS_LABELS[bullet.status]}: ` : "";
+  const source = bullet.evidenceId ? `[${bullet.evidenceId}] ` : "";
+  const citations = bullet.evidenceIds?.length ? ` [${bullet.evidenceIds.join(", ")}]` : "";
+  const body = bullet.url
+    ? [text(bullet.text, bullet.url)]
+    : inlineSpans(bullet.text).map((span) => (span.code ? code(span.text) : text(span.text)));
+  return [...(source + status ? [text(source + status)] : []), ...body, ...(citations ? [text(citations)] : [])];
+}
 
 const bulletItem = (bullet: Bullet): AdfNode => ({
   type: "listItem",
-  content: [paragraph([text(plainText(bullet), bullet.url)])],
+  content: [paragraph(inlineNodes(bullet))],
 });
 
 export function sectionsToAdf(sections: TicketSection[]) {
   const content: AdfNode[] = sections.flatMap((section) => [
     ...(section.heading ? [{ type: "heading", attrs: { level: 3 }, content: [text(section.heading)] }] : []),
-    ...(section.paragraphs ?? []).map((p) => paragraph([text(plainText(p), p.url)])),
+    ...(section.paragraphs ?? []).map((p) => paragraph(inlineNodes(p))),
     ...(section.bullets?.length ? [{ type: "bulletList", content: section.bullets.map(bulletItem) }] : []),
   ]);
   return { type: "doc", version: 1, content };

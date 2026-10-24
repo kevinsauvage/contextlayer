@@ -16,6 +16,13 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   needs_clarification: "Needs clarification",
 };
 
+export const CLAIM_STATUS_DESCRIPTIONS: Record<ClaimStatus, string> = {
+  verified: "Backed by cited code or tickets.",
+  inferred: "Likely, but no evidence confirms it.",
+  unknown: "The code and tickets cannot establish it.",
+  needs_clarification: "A person has to decide.",
+};
+
 const evidenceKindSchema = z.enum(["code", "documentation", "decision", "jira_issue"]);
 export type EvidenceKind = z.infer<typeof evidenceKindSchema>;
 

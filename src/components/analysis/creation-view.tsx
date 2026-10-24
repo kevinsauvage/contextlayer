@@ -4,9 +4,9 @@ import { OutdatedResult } from "@/components/analysis/outdated-result";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { publishTicket } from "@/features/ticket-creation/actions";
 
-type Props = AnalysisViewProps & { draft: TicketDraft | null };
+type Props = AnalysisViewProps & { draft: TicketDraft | null; questionsAnchored: boolean };
 
-export function CreationView({ analysis, draft, trackerName, trackerKey }: Props) {
+export function CreationView({ analysis, draft, trackerName, trackerKey, questionsAnchored }: Props) {
   if (!draft) return <OutdatedResult subject="draft" action="Send a message in the conversation to run it again." />;
   return (
     <DraftWorkspace
@@ -17,6 +17,8 @@ export function CreationView({ analysis, draft, trackerName, trackerKey }: Props
       trackerName={trackerName}
       projectLabel={trackerKey}
       published={publishedOf(analysis)}
+      questionsAnchored={questionsAnchored}
+      projectId={analysis.projectId}
     />
   );
 }
