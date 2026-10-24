@@ -1,5 +1,5 @@
 import type { ContextSource } from "./source";
-import { PATH_WEIGHT, countMatches } from "./terms";
+import { PATH_WEIGHT, scoreMatches } from "./terms";
 
 export type ScoredFile = { path: string; content: string; score: number };
 
@@ -77,7 +77,7 @@ export async function followImports(
         const content = await source.readFile(path);
         const importerRank = names.get(baseName(path)) ?? IMPORT_SOURCES;
         const named = importerRank < IMPORT_SOURCES ? PATH_WEIGHT : 0;
-        return { path, content, importerRank, score: countMatches(content.toLowerCase(), terms) + named };
+        return { path, content, importerRank, score: scoreMatches(content.toLowerCase(), terms) + named };
       }),
     );
     found.push(...read.filter((file) => file.score > 0 && !isBarrel(file.path)));

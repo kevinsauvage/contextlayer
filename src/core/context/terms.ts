@@ -38,6 +38,21 @@ const STOPWORDS = new Set([
   "set",
   "show",
   "display",
+  "current",
+  "line",
+  "find",
+  "other",
+  "site",
+  "website",
+  "too",
+  "very",
+  "really",
+  "annoying",
+  "nice",
+  "good",
+  "bad",
+  "better",
+  "worse",
 ]);
 
 // Requests name UI parts loosely ("banner" for a hero section); code names them one way. Kept small and generic
@@ -57,6 +72,14 @@ const SYNONYMS: Record<string, string[]> = {
   navbar: ["nav", "navigation", "header"],
   menu: ["nav", "navigation"],
   footer: ["layout"],
+  dark: ["theme", "scheme", "color"],
+  light: ["theme", "scheme"],
+  theme: ["color", "tokens"],
+  font: ["typography"],
+  animation: ["motion", "transition"],
+  mobile: ["responsive", "viewport"],
+  slow: ["performance", "latency"],
+  fast: ["performance"],
 };
 
 // A quoted string in a request is usually the new value, which the code cannot contain yet.
@@ -70,6 +93,11 @@ const normalize = (text: string) =>
     .toLowerCase();
 
 export const countMatches = (text: string, terms: string[]) => terms.filter((term) => text.includes(term)).length;
+
+// Content is long, so repeated mentions say more than a single class name; cap each term so one word cannot dominate.
+const MAX_TERM_OCCURRENCES = 5;
+export const scoreMatches = (text: string, terms: string[]) =>
+  terms.reduce((total, term) => total + Math.min(text.split(term).length - 1, MAX_TERM_OCCURRENCES), 0);
 
 export function extractTerms(text: string, max = MAX_TERMS): string[] {
   const frequency = new Map<string, number>();

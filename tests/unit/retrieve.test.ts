@@ -25,6 +25,22 @@ describe("extractTerms", () => {
   it("keeps the most frequent terms when capped", () => {
     expect(extractTerms("alpha beta beta gamma gamma gamma", 2)).toEqual(["gamma", "beta"]);
   });
+
+  it("drops instruction words that answers tend to add", () => {
+    expect(extractTerms("find the current line, other colors")).toEqual(["colors"]);
+  });
+
+  it("expands theme and performance wording", () => {
+    expect(extractTerms("add dark mode")).toEqual(["dark", "mode", "theme", "scheme", "color"]);
+    expect(extractTerms("the site is too slow on mobile")).toEqual([
+      "slow",
+      "mobile",
+      "performance",
+      "latency",
+      "responsive",
+      "viewport",
+    ]);
+  });
 });
 
 describe("retrieveContext on fixtures", () => {
@@ -40,6 +56,41 @@ describe("retrieveContext on fixtures", () => {
   it("returns an empty list when nothing matches", async () => {
     const c = first(loadEvaluationCases(), "evaluation case");
     expect(await retrieveFileEvidence(extractTerms("zzzxqy"), new DirectorySource(c.repoDir))).toEqual([]);
+  });
+});
+
+describe("ranking search hits", () => {
+  it("reads hits in provider order and keeps the one whose content matches, not the alphabetically first", async () => {
+    const noise = Array.from({ length: 25 }, (_, i) => `src/a${i.toString().padStart(2, "0")}.ts`);
+    const target = "src/styles/globals.css";
+    const searchHits = [...noise.slice(0, 10), target, ...noise.slice(10)];
+    const files: Record<string, string> = {
+      [target]: "--color-primary-500: #22c55e;",
+      ...Object.fromEntries(noise.map((path) => [path, "export const value = 1;"])),
+    };
+    const source = {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path: string) => files[path] ?? "",
+      searchContent: async () => searchHits,
+    };
+
+    const found = await retrieveFileEvidence(["primary"], source);
+    expect(found[0]?.reference).toBe(target);
+  });
+
+  it("prefers repeated mentions over a single class name", async () => {
+    const files: Record<string, string> = {
+      "src/components/Badge.tsx": "export const Badge = () => <span className='text-primary-400' />;",
+      "src/styles/globals.css": "--color-primary-500: #22c55e;\n".repeat(5),
+    };
+    const source = {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path: string) => files[path] ?? "",
+      searchContent: async () => Object.keys(files),
+    };
+
+    const found = await retrieveFileEvidence(["primary"], source);
+    expect(found[0]?.reference).toBe("src/styles/globals.css");
   });
 });
 

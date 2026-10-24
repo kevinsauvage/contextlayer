@@ -13,9 +13,26 @@ const assumptionSchema = z.object({
   rationale: z.string().min(1).describe("Why this seems reasonable but cannot be established from the context."),
 });
 
+const answerOptionSchema = z.object({
+  text: z.string().min(1).max(300).describe("A concrete answer the requester can pick."),
+  recommended: z.boolean().default(false).describe("True for the option you recommend."),
+});
+export type AnswerOption = z.infer<typeof answerOptionSchema>;
+
 const openQuestionSchema = z.object({
   question: z.string().min(1),
   impact: z.string().min(1).describe("How the answer changes scope or outcome."),
+  options: z
+    .array(answerOptionSchema)
+    .max(4)
+    .optional()
+    .describe("Two to four concrete answers when the choice is discrete; omit when only free text fits."),
+  recommendation: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("Why the recommended option is the best choice, in one sentence."),
 });
 
 export const draftBodySchema = z.object({

@@ -20,9 +20,8 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
 ## P1: Prove the product
 
 - [~] **Baseline comparison: unbiased judge and blind human scoring** (E2, E3)
-  - Context: `tests/evaluation/baseline.eval.ts` scores original vs generic AI vs ContextLayer. The judge seam and the blind packet tooling now exist; the current E2 numbers still come from a run where one model did both jobs.
-  - Done: `AI_JUDGE_MODEL` (plus `AI_JUDGE_BASE_URL`, `AI_JUDGE_API_KEY`, `AI_JUDGE_STRUCTURED_OUTPUTS`) is read by `resolveJudgeModel`; results record `judgeModel` / `judgeIsGenerator` and the run warns when the judge is the generator. `pnpm review:export` writes A/B/C packets and a score template; `pnpm review:report` writes `docs/product/e3-blind-review.md` from the filled scores.
-  - Fix: set `AI_JUDGE_MODEL` to a different model (own base URL if the provider differs) and rerun `pnpm eval tests/evaluation/baseline.eval.ts`; then score the four packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`.
+  - Context: `tests/evaluation/baseline.eval.ts` scores original vs generic AI vs ContextLayer. The judge now reads the fixture repository as the source of truth, and drafts are regenerated in the same run (`tests/evaluation/draft-case.ts`). Result 2026-10-24: 45 vs 12 vs 11 of 48, with `deepseek-v4-pro` judging `deepseek-flash` (same vendor).
+  - Fix: optionally rerun with a judge from another vendor. Then score the four packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`.
 
 - [ ] **Grow the fixtures from 4 to 8–10**
   - Context: `tests/fixtures/` has four miniature repositories; C3 asks for 8 to 10, and there is no case with a Jira issue or a duplicate ticket.
@@ -36,9 +35,9 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Context: answers to open questions regenerate the draft (`answerQuestions`, `<answers>` in `src/integrations/ai/prompt.ts`), but nothing checks that the model applies them.
   - Fix: add eval cases with prepared answers. Assert that answered questions disappear from `openQuestions`, that the answer shows up in the description or criteria, and that a blank answer keeps its question open.
 
-- [ ] **Pick the default model**
-  - Context: only DeepSeek and Gemini free tiers have been tried; the weak model produced padded drafts that the prompt now has to correct.
-  - Fix: run `pnpm eval` on one or two paid mid-tier models (through the AI Gateway) and on DeepSeek; compare eval pass rate, judge score, latency and cost, and record the winner as the `AI_MODEL` default in `DECISIONS.md`.
+- [~] **Pick the default model**
+  - Context: DeepSeek-V4.1-Flash and DeepSeek-V4-Pro were compared on 2026-10-24 (see E2 in `validation-experiments.md`). Flash scored 45/48 against Pro's 44, at 8 to 14 s instead of 29 to 51 s and about half the output tokens. Flash is the generator and Pro the judge.
+  - Fix: compare one model from another vendor through the AI Gateway (as generator, and as judge to remove same-vendor bias); add cost per draft once prices are recorded (see "Cost per analysis").
 
 - [ ] **Cost per analysis** (H7, C5)
   - Context: the `analysis` row stores input and output tokens and the model, but no price, so H7 (a few cents per analysis) cannot be tested.

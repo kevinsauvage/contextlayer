@@ -17,3 +17,15 @@ export function loadEvaluationCases(): LoadedCase[] {
 }
 
 export const fileExists = (c: LoadedCase, relative: string) => existsSync(path.join(c.dir, relative));
+
+export type RepositoryFile = { path: string; content: string };
+
+// Fixture repositories are a few files each, so the judge can read all of them.
+export function readRepository(c: LoadedCase, dir = c.repoDir): RepositoryFile[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory()
+      ? readRepository(c, full)
+      : [{ path: path.relative(c.repoDir, full), content: readFileSync(full, "utf8") }];
+  });
+}

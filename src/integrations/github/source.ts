@@ -4,7 +4,8 @@ import type { ContextSource, LineRange } from "@/core/context/source";
 import { getGithubApp, type RepoRef } from "./app";
 
 const MAX_FILE_BYTES = 100_000;
-const MAX_SEARCH_TERMS = 5;
+const MAX_SEARCH_TERMS = 3;
+const SEARCH_RESULTS = 20;
 const TEXT_EXTENSIONS =
   /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
 const IGNORED_PATH =
@@ -47,15 +48,24 @@ export class GithubSource implements ContextSource {
     return data as unknown as string;
   }
 
-  // Code search is rate-limited and eventually consistent; path matching still works without it.
+  // A bare number or a hex colour names a value, not an identifier a text search can find.
+  // Code search has no OR: ANDing every term finds almost nothing, so run one query per term, best effort.
   async searchContent(terms: string[]): Promise<string[]> {
-    const query = `${terms.slice(0, MAX_SEARCH_TERMS).join(" OR ")} repo:${this.repo.owner}/${this.repo.name}`;
-    try {
-      const { data } = await this.octokit.rest.search.code({ q: query, per_page: 30 });
-      return data.items.map((item) => item.path);
-    } catch {
-      return [];
+    const repo = `repo:${this.repo.owner}/${this.repo.name}`;
+    const searchable = terms
+      .filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term))
+      .slice(0, MAX_SEARCH_TERMS);
+    const paths: string[] = [];
+    for (const term of searchable) {
+      try {
+        const { data } = await this.octokit.rest.search.code({ q: `${term} ${repo}`, per_page: SEARCH_RESULTS });
+        paths.push(...data.items.map((item) => item.path));
+      } catch (error) {
+        // Rate limits and unparsable terms must not fail retrieval, but silent degradation is worth a log line.
+        console.warn(`[github] code search failed for "${term}"`, error instanceof Error ? error.message : error);
+      }
     }
+    return [...new Set(paths)];
   }
 
   urlFor(path: string, lines?: LineRange): string {

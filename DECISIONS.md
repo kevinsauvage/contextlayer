@@ -79,11 +79,20 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 ## Retrieval and draft size (2026-10-23)
 
 - Quoted text in a title is excluded from search terms, accents are folded, edit verbs ("change", "update", "rename"…) are stopwords, and a small UI synonym map expands terms ("banner" → hero, header) · "Change the banner title to "Hello…"" matched only `CookieBanner` and never read `Hero.tsx`. Still a stopgap for LLM query expansion (P1).
+- GitHub code search runs one query per term (its API has no OR) and result order only decides which files to read; the shortlist is then ranked by path and content · joining terms with OR returned no hits, so a palette defined only in `src/styles/globals.css` was never read while `Overline.tsx` matched the word "line". Answer-only instruction words ("current", "line", "find", "other") are stopwords.
 - The top three files' relative and `@/`/`~/` imports are followed one hop (and through barrel `index` files); modules named after an imported identifier rank first, and up to three are kept · copy and config usually live in a module whose name shares nothing with the title (`config/content/sections.ts`).
 - The prompt scales the ticket to the change (a copy change: 1–2 claims, 1–3 criteria, usually no assumptions or questions), caps open questions at three, forbids mentioning what the context does not say, keeps the requester's wording in the title, and asks which part is meant when no source clearly matches · drafts were padded to fill every section and narrowed the target to a look-alike component.
 - The create input is a request (up to 4,000 characters, multi-line), not a title · users give context, constraints and background; the model writes the ticket's own title and must carry every stated need into the draft. Stored as `input.request`; older rows with `input.title` are still read (`readAnalysisInput`). Requests longer than a title keep up to 10 search terms.
 - Open questions are answered in place: answers are stored in `input.answers`, merged across rounds (`mergeAnswers`), fed to retrieval and to the prompt as `<answers>`, and the draft is regenerated in the same analysis. Blank answers keep the question open in the ticket · refining a whole request to answer one question was clumsy.
+- A clarification round settles the answers: the regenerated draft asks at most one genuinely new product question, and never an investigation question (where a value lives, which components use it, how to compute it, who approves it) · a second round on the primary-ramp ticket produced three such follow-ups (which generator, who approves, which components use white text) and turned the ticket into research, although the palette file was already in context. On the same input the draft now asks one real decision and drops from 16.9k to 4.1k output tokens.
+
+## Retrieval on a real repository (2026-10-24)
+
+- Content relevance counts capped term occurrences instead of term presence, test paths are penalised, and up to 10 candidates are kept · on the portfolio, "make the primary color blue" and "add a testimonial" tied every component at the same score, so `globals.css` and the testimonials content module were cut in favour of cards and test files.
+- Search stays one query per term and GitHub's order only decides what to read, but synonyms now cover theme and performance wording and generic qualifiers ("site", "too", "annoying") are stopwords · "add dark mode" on an already-dark site now finds `globals.css` and asks whether a light theme is meant, and "the site is too slow on mobile" no longer matches only the site-map route.
+- A draft never restates the request as a claim, and no question may repeat what an assumption already settles · the mobile-performance draft marked its restatement `verified` with no evidence, and the testimonial draft asked where to place an entry it had already assumed was appended.
 - The draft page defaults to a preview rendered from `ticketSections`, the same structure sent to the tracker, so what the user approves is what gets published; editing is a second tab, and publishing sits in a sticky bar.
+- Open questions can carry two to four concrete `options` with one marked `recommended` and a one-sentence `recommendation`; the client renders them as radio choices next to the free-text field · a product decision should be answerable by picking a concrete option, not by writing prose, while a quote or a name still needs free text. Options are UI aids and are not published to the tracker.
 
 ## Correctness P1 (2026-10-23)
 
@@ -106,3 +115,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Providers may implement `getResource(ctx, id)`; project creation asks for the submitted id and falls back to `listResources` only without it · validating a choice used to page through every repository and project on the account.
 - JQL values go through `jqlString`, which escapes backslashes before quotes · retrieval terms are currently `[a-z0-9]`, but the query must not depend on that staying true.
 - Organization role names live in `src/core/organizations/roles.ts` rather than `src/features` · `src/infrastructure/auth/session.ts` enforces the admin check, and infrastructure may not import features.
+
+## Model choice (2026-10-24)
+
+- Generator `deepseek-flash` (DeepSeek-V4.1-Flash), judge `deepseek-v4-pro` (DeepSeek-V4-Pro) · on the four fixtures Flash scored 45/48 and Pro 44/48 as generators, with Flash 3 to 4 times faster and about half the output tokens. The judge should be at least as strong as the generator. Both are one vendor; a cross-vendor judge is open work.
+- The baseline judge reads the fixture repository as the source of truth and treats `verifiedFacts` as guidance, and drafts are regenerated in the same run (`tests/evaluation/draft-case.ts`) · judged on `verifiedFacts` alone, it marked a correct claim wrong, and it was scoring drafts from an older pipeline.

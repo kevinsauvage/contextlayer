@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ContextSource } from "@/core/context/source";
+import { scoreMatches } from "@/core/context/terms";
 
 const IGNORED_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build"]);
 const TEXT_EXTENSIONS = new Set([
@@ -28,14 +29,18 @@ export class DirectorySource implements ContextSource {
     return readFile(path.join(this.root, relative), "utf8");
   }
 
+  // Mirrors the GitHub source's relevance order: repeated mentions first, then path order.
   async searchContent(terms: string[]): Promise<string[]> {
-    const matches = await Promise.all(
-      (await this.listFiles()).map(async (file) => {
-        const content = (await this.readFile(file)).toLowerCase();
-        return terms.some((term) => content.includes(term)) ? file : null;
-      }),
+    const scored = await Promise.all(
+      (await this.listFiles()).map(async (file) => ({
+        file,
+        score: scoreMatches((await this.readFile(file)).toLowerCase(), terms),
+      })),
     );
-    return matches.filter((file): file is string => file !== null);
+    return scored
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.file.localeCompare(b.file))
+      .map((entry) => entry.file);
   }
 
   private async walk(dir: string): Promise<string[]> {

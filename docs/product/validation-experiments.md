@@ -24,8 +24,29 @@ Each experiment tests one or more hypotheses from [`business-hypotheses.md`](bus
 
 Latency 8 to 20 s for both approaches; output tokens 1.1 to 2.8k for both.
 
-- **Limits:** the table above comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
-- **To finish:** (1) set `AI_JUDGE_MODEL` to a different model and rerun `pnpm eval`; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) grow to 8 to 10 fixtures including a Jira-issue and a duplicate-ticket case.
+- **Result (2026-10-24, separate judge reading the repository):** generator `deepseek-flash` (DeepSeek-V4.1-Flash), judge `deepseek-v4-pro` (DeepSeek-V4-Pro). The judge gets every fixture file as the source of truth, and `verifiedFacts` only as guidance; ContextLayer drafts are regenerated in the same run.
+
+| Case                   | Original | Generic AI | ContextLayer |
+| ---------------------- | -------- | ---------- | ------------ |
+| checkout-accessibility | 0        | 0          | 12           |
+| export-orders-csv      | 4        | 3          | 11           |
+| password-reset         | 4        | 5          | 10           |
+| slow-dashboard         | 3        | 4          | 12           |
+| **Total (of 48)**      | 11       | 12         | 45           |
+
+ContextLayer: 8 to 14 s, about 1.2k input and 1.2 to 2.2k output tokens per case; retrieval recall 1, 1, 0.67 (misses `mail/send.ts`) and 1. The judge names the generic drafts' errors against the files (for example "no performance budget is enforced", contradicted by `docs/performance.md`). ContextLayer's lost points are partial actionability and acceptance criteria on password-reset and partly testable criteria on export-orders-csv. An earlier run the same day, judged on `verifiedFacts` alone with stale drafts, wrongly marked down a correct claim; its numbers are superseded.
+
+- **Model comparison (2026-10-24, same fixtures and judge prompt):** each model generated with the other as judge.
+
+| Generator → judge | ContextLayer (of 48) | Generic AI | Original | ContextLayer latency | ContextLayer output tokens |
+| ----------------- | -------------------- | ---------- | -------- | -------------------- | -------------------------- |
+| Flash → Pro       | 45                   | 12         | 11       | 8 to 14 s            | 1.2k to 2.2k               |
+| Pro → Flash       | 44                   | 11         | 10       | 29 to 51 s           | 2.7k to 5.0k               |
+
+Pro is 3 to 4 times slower and writes about twice the tokens without a better score; both lose points on the same cases (password-reset actionability and criteria, where retrieval misses `mail/send.ts`). The judges differ between rows, so the gap is indicative, but nothing favours Pro as the generator.
+
+- **Limits:** the first table comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
+- **To finish:** (1) done 2026-10-24 with a repository-grounded judge, though both models are from the same vendor; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) grow to 8 to 10 fixtures including a Jira-issue and a duplicate-ticket case.
 
 ## E3: Blind reviewer comparison (planned)
 

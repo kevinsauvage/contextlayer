@@ -21,4 +21,4 @@ Score each draft 0–2 per criterion (0 = fails, 1 = partial, 2 = good). Compare
 
 ## Latest results
 
-See experiment E2 in [`validation-experiments.md`](validation-experiments.md). Automated only, same-model judge (DeepSeek), four fixtures; the separate-judge rerun and the blind human pass are pending.
+See experiment E2 in [`validation-experiments.md`](validation-experiments.md). Automated only, four fixtures. Separate-judge run (2026-10-24, `deepseek-v4-pro` judging `deepseek-flash`, judge reads the fixture repository): ContextLayer 45/48, generic AI 12/48, original 11/48. The blind human pass (E3) is pending.

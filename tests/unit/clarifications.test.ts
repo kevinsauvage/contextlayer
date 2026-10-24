@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
-import { buildCreatePrompt } from "@/integrations/ai/prompt";
+import { CREATE_SYSTEM_PROMPT, buildCreatePrompt } from "@/integrations/ai/prompt";
 
 describe("merging answers across rounds", () => {
   const previous = [
@@ -48,5 +48,11 @@ describe("create prompt", () => {
     expect(prompt).toContain("Q: Which banner?\nA: The home hero");
     expect(prompt).toContain("A: (no answer yet; keep this question open)");
     expect(buildCreatePrompt("x", [], [])).not.toContain("<answers>");
+  });
+
+  it("forbids investigation questions and caps follow-ups after an answer round", () => {
+    expect(CREATE_SYSTEM_PROMPT).toContain("never an investigation task");
+    expect(CREATE_SYSTEM_PROMPT).toContain("ask at most one genuinely new product question");
+    expect(CREATE_SYSTEM_PROMPT).toContain("mark exactly one with recommended: true");
   });
 });
