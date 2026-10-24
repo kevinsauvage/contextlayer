@@ -1,4 +1,5 @@
 import type { ContextSource } from "./source";
+import { joinPath, parseAliasConfig, resolveAlias, type AliasConfig } from "./paths";
 import { PATH_WEIGHT, scoreMatches } from "./terms";
 
 export type ScoredFile = { path: string; content: string; score: number };
@@ -8,31 +9,27 @@ const RESOLVE_SUFFIXES = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", "/index.ts",
 const IMPORT_SOURCES = 3;
 const MAX_IMPORTED = 3;
 const IMPORTED_NAMES = /\bimport\s+(?:type\s+)?\{([^}]*)\}/g;
+const TS_CONFIG = "tsconfig.json";
 
 const isBarrel = (path: string) => /(^|\/)index\.[jt]sx?$/.test(path);
 
-function joinPath(dir: string, relativePath: string): string {
-  const parts: string[] = [];
-  for (const part of `${dir}/${relativePath}`.split("/")) {
-    if (part === "..") parts.pop();
-    else if (part && part !== ".") parts.push(part);
-  }
-  return parts.join("/");
-}
-
-// Resolves relative and "@/" or "~/" alias imports against the repository's file list; packages are skipped.
-function resolveImports(from: string, content: string, paths: Set<string>): string[] {
+// Resolves relative and alias imports against the repository's file list; packages are skipped.
+function resolveImports(from: string, content: string, paths: Set<string>, aliases?: AliasConfig): string[] {
   const dir = from.split("/").slice(0, -1).join("/");
   return [...content.matchAll(IMPORT_SPECIFIER)].flatMap(([, specifier = ""]) => {
-    const alias = /^[@~]\//.exec(specifier);
-    const bases = specifier.startsWith(".")
-      ? [joinPath(dir, specifier)]
-      : alias
-        ? [`src/${specifier.slice(2)}`, specifier.slice(2)]
-        : [];
+    const bases = specifier.startsWith(".") ? [joinPath(dir, specifier)] : resolveAlias(specifier, aliases);
     const resolved = bases.flatMap((base) => RESOLVE_SUFFIXES.map((suffix) => base + suffix)).find((p) => paths.has(p));
     return resolved ? [resolved] : [];
   });
+}
+
+async function readAliases(paths: Set<string>, source: ContextSource): Promise<AliasConfig | undefined> {
+  if (!paths.has(TS_CONFIG)) return undefined;
+  try {
+    return parseAliasConfig(await source.readFile(TS_CONFIG));
+  } catch {
+    return undefined;
+  }
 }
 
 // Imported identifier → rank of the best-ranked file importing it.
@@ -62,15 +59,16 @@ export async function followImports(
   terms: string[],
 ): Promise<ImportedFile[]> {
   const known = new Set(paths);
+  const aliases = await readAliases(known, source);
   const seen = new Set(top.map((file) => file.path));
   const found: ImportedFile[] = [];
   let frontier = top.slice(0, IMPORT_SOURCES);
   // `import { sections } from "@/config/content"` points at content/sections.ts through the barrel.
   const names = importedNames(frontier);
   for (let hop = 0; hop < 2 && frontier.length; hop += 1) {
-    const next = [...new Set(frontier.flatMap((file) => resolveImports(file.path, file.content, known)))].filter(
-      (path) => !seen.has(path) && (hop === 0 || !isBarrel(path)),
-    );
+    const next = [
+      ...new Set(frontier.flatMap((file) => resolveImports(file.path, file.content, known, aliases))),
+    ].filter((path) => !seen.has(path) && (hop === 0 || !isBarrel(path)));
     next.forEach((path) => seen.add(path));
     const read = await Promise.all(
       next.map(async (path) => {

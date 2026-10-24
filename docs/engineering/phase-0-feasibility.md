@@ -8,15 +8,15 @@ Feasible with the current architecture. The open engineering risks are retrieval
 
 ## GitHub
 
-| Aspect             | Detail                                                                                                                                                                                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Mechanism          | GitHub App with installation tokens (`octokit`); users install it on their own account or organization                                                                                                |
-| Permissions        | Repository: **Contents: read-only**, **Metadata: read-only**. No write access, no webhooks                                                                                                            |
-| Install flow       | OAuth during installation is required; the callback exchanges the `code` and checks the user's installations, because `installation_id` in the URL is attacker-controlled                             |
-| What is read       | Repository metadata, the default-branch file tree, and file contents on demand through the API                                                                                                        |
-| Limits in the code | Files over 100 KB skipped; text extensions only; `node_modules`, build output and lockfiles ignored; at most 5 terms sent to code search; top 20 files read                                           |
-| Not stored         | File contents. Only evidence excerpts cited in a draft are saved with the analysis                                                                                                                    |
-| Open items         | Behaviour on very large repositories (the recursive tree API can truncate) is not measured; code search is rate limited separately and used best effort; monorepo subdirectory scoping does not exist |
+| Aspect             | Detail                                                                                                                                                                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mechanism          | GitHub App with installation tokens (`octokit`); users install it on their own account or organization                                                                                                                                       |
+| Permissions        | Repository: **Contents: read-only**, **Metadata: read-only**. No write access, no webhooks                                                                                                                                                   |
+| Install flow       | OAuth during installation is required; the callback exchanges the `code` and checks the user's installations, because `installation_id` in the URL is attacker-controlled                                                                    |
+| What is read       | Repository metadata, the default-branch file tree, and file contents on demand through the API                                                                                                                                               |
+| Limits in the code | Files over 100 KB skipped; text extensions only; `node_modules`, build output and lockfiles ignored; a truncated recursive tree is rebuilt one paginated directory listing at a time; at most 5 terms sent to code search; top 20 files read |
+| Not stored         | File contents. Only evidence excerpts cited in a draft are saved with the analysis                                                                                                                                                           |
+| Open items         | The per-directory fallback costs one round trip per directory and its latency is not yet measured; code search is rate limited separately and used best effort; monorepo subdirectory scoping does not exist                                 |
 
 Organization owners may need to approve the app. This is a likely procurement friction (H4) to test in interviews.
 
@@ -35,7 +35,7 @@ Organization owners may need to approve the app. This is a likely procurement fr
 
 ## Retrieval
 
-Keyword scoring over file paths (weight 3) and content, with GitHub code search as a best-effort boost: read the top 20, rescore, keep 60-line windows, give the model 8 candidates, add up to 5 related Jira issues. On the four fixtures it finds 9 of 10 expected files (misses `mail/send.ts` for "Add password reset"). Next steps in order: LLM query expansion, then measure recall on real repositories (experiment E6), and only then consider embeddings behind the `ContextSource` interface.
+Keyword scoring over file paths (weight 3) and content, with GitHub code search as a best-effort boost: read the top 20 and rescore, follow the top three files' imports one hop (relative, and aliases resolved through the repository's `tsconfig.json` `compilerOptions.paths`, with `@/` and `~/` as fallbacks) and through barrels, keep 60-line windows, give the model 8 candidates, add up to 5 related Jira issues. On the four fixtures it finds 9 of 10 expected files (misses `mail/send.ts` for "Add password reset"). Next steps in order: LLM query expansion, then measure recall on real repositories (experiment E6), and only then consider embeddings behind the `ContextSource` interface.
 
 ## Runtime and hosting
 

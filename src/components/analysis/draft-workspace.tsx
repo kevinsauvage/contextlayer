@@ -3,7 +3,7 @@
 import { CircleAlert, CircleCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DraftEditor } from "@/components/analysis/draft-editor";
 import { useOptionalRefinement } from "@/components/analysis/refinement-context";
 import { TicketPreview } from "@/components/analysis/ticket-preview";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
+import type { ActionState } from "@/lib/action-state";
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -48,6 +49,8 @@ type Props = {
   existingKey?: string;
   // Offers "Draft another ticket" in this project once published.
   projectId?: string;
+  // Persists manual edits; omitted for audits, which do not autosave.
+  save?: (draft: TicketDraft) => Promise<ActionState>;
   published: { key: string | null; url: string | null };
   // True when the open questions are answered in a block above the preview.
   questionsAnchored?: boolean;
@@ -61,6 +64,7 @@ export function DraftWorkspace({
   projectLabel,
   existingKey,
   projectId,
+  save,
   published: initialPublished,
   questionsAnchored = false,
 }: Props) {
@@ -81,6 +85,18 @@ export function DraftWorkspace({
 
   useEffect(() => setDraftEdited?.(edited), [edited, setDraftEdited]);
   useWarnBeforeLeaving(edited);
+
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  }, [save]);
+  useEffect(() => {
+    if (!edited || !saveRef.current) return;
+    const timer = setTimeout(() => {
+      void saveRef.current?.(draft);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [draft, edited, published]);
 
   const approve = () => {
     setConfirming(false);

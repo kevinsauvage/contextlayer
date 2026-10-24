@@ -2,9 +2,10 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
-import { clarificationSchema, type Refinement } from "@/core/requirements/schemas";
+import { clarificationSchema, ticketDraftSchema, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
@@ -14,6 +15,7 @@ import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
+import { analysis } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage } from "@/lib/zod";
 
@@ -103,6 +105,26 @@ export async function refineTicket(analysisId: string, input: unknown): Promise<
     request,
     answers: [...mergeAnswers(answers, round), ...(message ? [{ message }] : [])],
   }));
+}
+
+// Autosave keeps manual edits across a reload without approving or publishing anything.
+export async function saveDraftEdits(analysisId: string, draftInput: unknown): Promise<ActionState> {
+  const draft = ticketDraftSchema.safeParse(draftInput);
+  if (!draft.success) return { error: "The edited draft is invalid" };
+
+  const loaded = await loadAnalysis(analysisId, {
+    kind: "create",
+    runningError: "This analysis is still running",
+    publishedError: () => "This draft is already published",
+  });
+  if ("error" in loaded) return loaded;
+
+  const [row] = await loaded.db
+    .update(analysis)
+    .set({ editedResult: draft.data })
+    .where(and(eq(analysis.id, analysisId), isNull(analysis.publishedIssueKey)))
+    .returning({ id: analysis.id });
+  return row ? {} : { error: "This draft is already published" };
 }
 
 export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {

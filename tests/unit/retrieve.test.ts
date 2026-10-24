@@ -113,3 +113,41 @@ describe("following imports", () => {
     expect(references).not.toContain("src/config/content/index.ts");
   });
 });
+
+describe("resolving aliases", () => {
+  const retrieve = (files: Record<string, string>) =>
+    retrieveFileEvidence(extractTerms("Change the hero title"), {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path: string) => files[path] ?? "",
+    });
+
+  it("follows the repository tsconfig paths instead of assuming @/ means src/", async () => {
+    const found = await retrieve({
+      "tsconfig.json": `{
+        // a monorepo keeps the app in packages, not src
+        "compilerOptions": { "baseUrl": ".", "paths": { "~/*": ["./packages/ui/*"] } },
+      }`,
+      "app/Hero.tsx": `import { hero } from "~/content/site";\nexport const Hero = () => hero.title;`,
+      "packages/ui/content/site.ts": `export const hero = { title: "Frontend engineer" };`,
+    });
+    expect(found.map((e) => e.reference)).toContain("packages/ui/content/site.ts");
+  });
+
+  it("resolves paths against compilerOptions.baseUrl", async () => {
+    const found = await retrieve({
+      "tsconfig.json": `{ "compilerOptions": { "baseUrl": "src", "paths": { "#/*": ["modules/*"] } } }`,
+      "src/Hero.tsx": `import { hero } from "#/content/site";\nexport const Hero = () => hero.title;`,
+      "src/modules/content/site.ts": `export const hero = { title: "Frontend engineer" };`,
+    });
+    expect(found.map((e) => e.reference)).toContain("src/modules/content/site.ts");
+  });
+
+  it("keeps the @/ and ~/ defaults when tsconfig declares no paths", async () => {
+    const found = await retrieve({
+      "tsconfig.json": `{ "compilerOptions": { "strict": true } }`,
+      "app/Hero.tsx": `import { hero } from "@/content/site";\nexport const Hero = () => hero.title;`,
+      "src/content/site.ts": `export const hero = { title: "Frontend engineer" };`,
+    });
+    expect(found.map((e) => e.reference)).toContain("src/content/site.ts");
+  });
+});

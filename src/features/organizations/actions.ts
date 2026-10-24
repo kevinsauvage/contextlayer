@@ -1,14 +1,18 @@
 "use server";
 
 import { APIError } from "better-auth/api";
+import type { Route } from "next";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { z } from "zod";
-import { INVITABLE_ROLES } from "@/core/organizations/roles";
+import { INVITABLE_ROLES, OWNER_ROLE } from "@/core/organizations/roles";
 import { toActionError } from "@/features/errors";
 import { getAuth } from "@/infrastructure/auth/auth";
-import { getSession, requireOrgAdmin } from "@/infrastructure/auth/session";
+import { getSession, requireOrgAdmin, requireOrgContext } from "@/infrastructure/auth/session";
+import { getDb } from "@/infrastructure/db/client";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage } from "@/lib/zod";
+import { listUserOrganizations } from "./queries";
 
 // Organization actions may hand back the id of the row they created, so the client can finish the job.
 export type OrganizationActionResult = ActionState & { organizationId?: string; invitationId?: string; email?: string };
@@ -109,6 +113,60 @@ export async function removeMember(memberId: string): Promise<ActionState> {
   } catch (error) {
     return failure(error, "Could not remove the member");
   }
+}
+
+export async function updateMemberRole(memberId: string, role: string): Promise<ActionState> {
+  const parsedId = idSchema.safeParse(memberId);
+  if (!parsedId.success) return { error: firstIssueMessage(parsedId.error) };
+  const parsedRole = roleSchema.safeParse(role);
+  if (!parsedRole.success) return { error: "Choose a valid role" };
+  await requireOrgAdmin();
+  try {
+    await getAuth().api.updateMemberRole({
+      body: { memberId: parsedId.data, role: parsedRole.data },
+      headers: await headers(),
+    });
+    return {};
+  } catch (error) {
+    return failure(error, "Could not change the member role");
+  }
+}
+
+// After leaving or deleting the active organization, land on another membership instead of onboarding jail.
+async function nextOrganizationPath(userId: string): Promise<Route> {
+  const [next] = await listUserOrganizations(getDb(), userId);
+  if (!next) return "/onboarding";
+  try {
+    await getAuth().api.setActiveOrganization({
+      body: { organizationId: next.id },
+      headers: await headers(),
+    });
+    return "/projects";
+  } catch (error) {
+    console.error("[organizations] could not activate the next organization", error);
+    return "/onboarding";
+  }
+}
+
+export async function leaveOrganization(): Promise<ActionState> {
+  const { organizationId, userId } = await requireOrgContext();
+  try {
+    await getAuth().api.leaveOrganization({ body: { organizationId }, headers: await headers() });
+  } catch (error) {
+    return failure(error, "Could not leave the organization");
+  }
+  redirect(await nextOrganizationPath(userId));
+}
+
+export async function deleteOrganization(): Promise<ActionState> {
+  const { organizationId, userId, role } = await requireOrgContext();
+  if (role !== OWNER_ROLE) return { error: "Only the organization owner can delete it" };
+  try {
+    await getAuth().api.deleteOrganization({ body: { organizationId }, headers: await headers() });
+  } catch (error) {
+    return failure(error, "Could not delete the organization");
+  }
+  redirect(await nextOrganizationPath(userId));
 }
 
 export async function cancelInvitation(invitationId: string): Promise<ActionState> {

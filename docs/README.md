@@ -14,7 +14,7 @@
 |              | [`engineering/integrations-setup.md`](engineering/integrations-setup.md)   | GitHub App, Atlassian OAuth, AI provider configuration        |
 |              | [`engineering/phase-0-feasibility.md`](engineering/phase-0-feasibility.md) | Permissions, limits, retrieval, runtime and provider findings |
 | Project      | [`../DECISIONS.md`](../DECISIONS.md)                                       | Decision log                                                  |
-|              | [`../TODO.md`](../TODO.md)                                                 | Backlog by priority                                           |
+|              | [`../TODO.md`](../TODO.md)                                                 | Backlog index; items in `TODO-<KIND>.md` by kind and priority |
 |              | [`../AGENTS.md`](../AGENTS.md)                                             | Rules for contributors and coding agents                      |
 
 Conventions: documents state their status, mark unverified claims, and link to the code or data they describe. Do not record results that were not measured.

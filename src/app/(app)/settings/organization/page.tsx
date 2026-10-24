@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { CopyLinkButton } from "@/components/copy-button";
+import { DangerZone } from "@/components/organization/danger-zone";
 import { InviteForm } from "@/components/organization/invite-form";
+import { MemberRoleSelect } from "@/components/organization/member-role-select";
 import { CancelInvitationButton, RemoveMemberButton } from "@/components/organization/member-actions";
 import { OrganizationNameForm } from "@/components/organization/organization-name-form";
 import { PageHeader } from "@/components/page-header";
@@ -14,13 +16,19 @@ import { getDb } from "@/infrastructure/db/client";
 export const metadata: Metadata = { title: "Organization settings" };
 
 export default async function Page() {
-  const { organizationId, userId, isAdmin } = await requireOrgContext();
+  const { organizationId, userId, isAdmin, role: currentRole } = await requireOrgContext();
   const db = getDb();
   const [organization, members, invitations] = await Promise.all([
     getOrganization(db, organizationId),
     listMembers(db, organizationId),
     isAdmin ? listPendingInvitations(db, organizationId) : [],
   ]);
+  // Owners manage every non-owner; admins manage members. Nobody changes their own role here.
+  const canChangeRole = (member: { userId: string; role: string }) =>
+    isAdmin &&
+    member.userId !== userId &&
+    member.role !== OWNER_ROLE &&
+    (currentRole === OWNER_ROLE || member.role === MEMBER_ROLE);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -55,9 +63,13 @@ export default async function Page() {
                   </span>
                   <span className="truncate text-xs text-muted-foreground">{m.email}</span>
                 </div>
-                <Badge variant={isAdminRole(m.role) ? "secondary" : "outline"} className="capitalize">
-                  {m.role}
-                </Badge>
+                {canChangeRole(m) ? (
+                  <MemberRoleSelect memberId={m.id} role={m.role} />
+                ) : (
+                  <Badge variant={isAdminRole(m.role) ? "secondary" : "outline"} className="capitalize">
+                    {m.role}
+                  </Badge>
+                )}
                 {isAdmin && m.userId !== userId && m.role !== OWNER_ROLE && <RemoveMemberButton memberId={m.id} />}
               </li>
             ))}
@@ -89,6 +101,16 @@ export default async function Page() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Danger zone</CardTitle>
+          <CardDescription>Leaving or deleting an organization is permanent.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DangerZone organizationName={organization?.name ?? ""} isOwner={currentRole === OWNER_ROLE} />
         </CardContent>
       </Card>
     </div>

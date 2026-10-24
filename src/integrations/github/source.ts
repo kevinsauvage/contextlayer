@@ -2,10 +2,12 @@ import "server-only";
 import type { Octokit } from "octokit";
 import type { ContextSource, LineRange } from "@/core/context/source";
 import { getGithubApp, type RepoRef } from "./app";
+import { walkTree, type TreeEntry } from "./tree";
 
 const MAX_FILE_BYTES = 100_000;
 const MAX_SEARCH_TERMS = 3;
 const SEARCH_RESULTS = 20;
+const TREE_PAGE_SIZE = 100;
 const TEXT_EXTENSIONS =
   /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
 const IGNORED_PATH =
@@ -25,16 +27,38 @@ export class GithubSource implements ContextSource {
   }
 
   async listFiles(): Promise<string[]> {
+    const entries = await this.treeEntries();
+    return entries
+      .flatMap((entry) => (entry.path && (entry.size ?? 0) <= MAX_FILE_BYTES ? [entry.path] : []))
+      .filter((path) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path));
+  }
+
+  private async treeEntries(): Promise<TreeEntry[]> {
     const { data } = await this.octokit.rest.git.getTree({
       owner: this.repo.owner,
       repo: this.repo.name,
       tree_sha: this.branch,
       recursive: "1",
     });
-    return data.tree
-      .filter((node) => node.type === "blob" && node.path && (node.size ?? 0) <= MAX_FILE_BYTES)
-      .map((node) => node.path)
-      .filter((path) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path));
+    if (!data.truncated) return data.tree;
+    // A truncated tree is silently incomplete, so pay for one listing per directory instead.
+    console.warn(`[github] tree for ${this.repo.owner}/${this.repo.name} truncated; listing directories instead`);
+    return walkTree(this.branch, (treeSha) => this.listDirectory(treeSha));
+  }
+
+  private async listDirectory(treeSha: string): Promise<TreeEntry[]> {
+    const entries: TreeEntry[] = [];
+    for (let page = 1; ; page += 1) {
+      const { data } = await this.octokit.rest.git.getTree({
+        owner: this.repo.owner,
+        repo: this.repo.name,
+        tree_sha: treeSha,
+        per_page: TREE_PAGE_SIZE,
+        page,
+      });
+      entries.push(...data.tree);
+      if (data.tree.length < TREE_PAGE_SIZE) return entries;
+    }
   }
 
   async readFile(path: string): Promise<string> {

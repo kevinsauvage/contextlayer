@@ -41,7 +41,7 @@ input ─▶ extractTerms ─▶ gatherContext ─▶ generator ─▶ attach ev
 - **Generation** (`src/integrations/ai`): the model receives the candidates and returns a body that cites candidate ids. It never writes evidence. The pipeline attaches the real excerpts for the ids that were cited, which prevents fabricated sources.
 - **Validation** (`src/core/evidence/validate.ts`): a schema-valid draft can still cite nothing, cite unknown ids, or mark a claim `verified` without evidence. Those become `EvidenceIssue`s, stored with the analysis and shown in the review UI.
 - **Clarification**: open questions are answered on the draft page; a question may offer two to four options with one recommended, plus free text. Answers are stored in `analysis.input.answers`, merged across rounds, and the draft is regenerated in place. Blank answers stay as open questions.
-- **Approval**: the user reviews a preview rendered from `ticketSections` (the same structure sent to the tracker) and can edit the draft; `parseApprovedDraft` re-validates schema and evidence before anything is published. Tracker writes happen only from the publish and apply actions.
+- **Approval**: the user reviews a preview rendered from `ticketSections` (the same structure sent to the tracker) and can edit the draft; edits autosave and are restored on reload, a redraft asks before replacing them, and `parseApprovedDraft` re-validates schema and evidence before anything is published. Tracker writes happen only from the publish and apply actions.
 
 ## Claims and evidence
 
@@ -49,13 +49,13 @@ Every statement in a draft is a claim with a status: `verified | inferred | unkn
 
 ## Data model
 
-Better Auth owns users, sessions, organizations, members and invitations (`src/infrastructure/db/schema/auth.ts`). Users switch organizations from the header; invitations are shared as links (`/invitations/<id>`) until an email provider exists. The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
+Better Auth owns users, sessions, organizations, members and invitations (`src/infrastructure/db/schema/auth.ts`). Users switch organizations from the header; invitations are shared as links (`/invitations/<id>`) until an email provider exists. Owners and admins manage members and roles, a member can leave an organization, and an owner can delete one after typing its name. The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
 
-| Table                    | Purpose                                                                                                                                               |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent        |
-| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                               |
-| `analysis`               | Input (request and answers, or issue key), AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL |
+| Table                    | Purpose                                                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent                    |
+| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                                           |
+| `analysis`               | Input (request, answers and follow-ups, or issue key), AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL |
 
 ## Integrations
 
@@ -73,7 +73,7 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 - **Secrets**: integration tokens are encrypted at rest (`ENCRYPTION_KEY`); OAuth `state` is HMAC-signed, bound to user, organization and provider, carries a same-origin return path, and is valid 10 minutes; a connection whose refresh is rejected is marked `needs_reconnect`; the GitHub install callback exchanges the OAuth `code` because `installation_id` in the URL is attacker-controlled.
 - **Source code handling**: files are read on demand through the GitHub API and sent to the configured AI provider. They are not stored; only evidence excerpts cited by a draft are kept.
 - **Access**: `src/proxy.ts` redirects unauthenticated requests; `requireOrgContext` and `requireOrgAdmin` guard actions; creating projects, managing integrations and inviting members need an owner or admin. An exclusive account (a GitHub installation) can belong to one organization only.
-- **Headers**: `next.config.ts` sets `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy and a restrictive permissions policy. A Content Security Policy is open work ([`TODO.md`](../../TODO.md)).
+- **Headers**: `next.config.ts` sets `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy and a restrictive permissions policy. A Content Security Policy is open work ([`TODO-FEATURE.md`](../../TODO-FEATURE.md)).
 
 ## AI provider seam
 

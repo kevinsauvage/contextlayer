@@ -46,7 +46,7 @@ A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged file
 - Comments only when the _why_ is non-obvious.
 - Derive types from Zod schemas (`z.infer`); validate every external input (forms, API responses, AI output) with Zod.
 - New business logic goes in `src/core` with a unit test and a fake for any I/O; adapters go in `src/integrations`.
-- Record non-obvious choices in [`DECISIONS.md`](../../DECISIONS.md) and tick finished work in [`TODO.md`](../../TODO.md).
+- Record non-obvious choices in [`DECISIONS.md`](../../DECISIONS.md) and tick finished work in the matching `TODO-<KIND>.md` (index: [`TODO.md`](../../TODO.md)).
 - Adding a shadcn component: `pnpm dlx shadcn@latest add <name>`; run `pnpm format` only on files you wrote.
 
 ## Evaluating AI changes
