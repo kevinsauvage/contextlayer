@@ -32,8 +32,8 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Fix: add an LLM-judge step (with the separate judge model) that checks each forbidden claim is absent and each uncertain fact is not marked `verified`; fail the case and write the verdict to `results/<case>.json`.
 
 - [ ] **Evaluate the clarification loop**
-  - Context: answers to open questions regenerate the draft (`answerQuestions`, `<answers>` in `src/integrations/ai/prompt.ts`), but nothing checks that the model applies them.
-  - Fix: add eval cases with prepared answers. Assert that answered questions disappear from `openQuestions`, that the answer shows up in the description or criteria, and that a blank answer keeps its question open.
+  - Context: answers to open questions regenerate the draft (`refineTicket`, `<answers>` in `src/integrations/ai/prompt.ts`), but nothing checks that the model applies them.
+  - Fix: add eval cases with prepared answers. Assert that answered questions disappear from `openQuestions`, that the answer shows up in the description or criteria, that a blank answer keeps its question open, and that a follow-up message overrides an earlier answer it contradicts.
 
 - [~] **Pick the default model**
   - Context: DeepSeek-V4.1-Flash and DeepSeek-V4-Pro were compared on 2026-10-24 (see E2 in `validation-experiments.md`). Flash scored 45/48 against Pro's 44, at 8 to 14 s instead of 29 to 51 s and about half the output tokens. Flash is the generator and Pro the judge.
@@ -83,7 +83,7 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Fix: add an `analysis_version` table (analysis id, input, result, created at) written by `restartAnalysis` on re-run, and a version list with "Restore" on the analysis page.
 - [ ] **Clarification loop for audits**
   - Context: audits show the proposed ticket's open questions read-only, and cannot be re-run in place.
-  - Fix: generalise `answerQuestions` and `redraft` in `src/features/ticket-creation/actions.ts` to accept the audit kind (pass the answers to `auditIssue`), and show `ClarifyQuestions` in `AuditView`.
+  - Fix: generalise `refineTicket` and `redraft` in `src/features/ticket-creation/actions.ts` to accept the audit kind (pass the answers to `auditIssue`), and show `TicketChat` in `AuditView`.
 - [ ] **Progress while analyzing**
   - Context: an analysis takes 10–40 s inside a server action, and the user only sees a static message.
   - Fix: stream step updates (reading code, related issues, drafting, validating) from the pipeline and render them as a checklist. If runs approach `maxDuration` (300 s), move to Vercel Workflow or Queues and poll the row status.
@@ -122,7 +122,7 @@ Only open work is listed; finished work lives in `git log` and `DECISIONS.md`. M
   - Fix: write a public page covering what is read, sent, stored and for how long; link each provider's retention terms; optionally support bring-your-own-key per organization.
 - [ ] **Raise the coverage floor**
   - Context: coverage is about 50% of statements against a 40% floor; feature actions, the OAuth flow and integration error paths are the weak spots.
-  - Fix: add tests for `finishConnect`, `createProject`, `answerQuestions` and the error paths above, then raise the floor in `vitest.config.mts` to the new level minus a small margin.
+  - Fix: add tests for `finishConnect`, `createProject`, `refineTicket` and the error paths above, then raise the floor in `vitest.config.mts` to the new level minus a small margin.
 - [ ] **Analysis history, usage metrics, then a concierge pilot** (E5)
   - Context: there is no view across projects, and no data on how often drafts are published unchanged.
   - Fix: add an organization-wide analysis list with filters, track publish rate and edits before publish, then run a two- to four-week pilot with one team and report the results in `validation-experiments.md`.

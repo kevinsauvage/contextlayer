@@ -17,7 +17,6 @@ const answerOptionSchema = z.object({
   text: z.string().min(1).max(300).describe("A concrete answer the requester can pick."),
   recommended: z.boolean().default(false).describe("True for the option you recommend."),
 });
-export type AnswerOption = z.infer<typeof answerOptionSchema>;
 
 const openQuestionSchema = z.object({
   question: z.string().min(1),
@@ -50,6 +49,18 @@ export const clarificationSchema = z.object({
   answer: z.string().trim().max(4000),
 });
 export type Clarification = z.infer<typeof clarificationSchema>;
+
+// A chat message refining the draft outside any question.
+const followUpSchema = z.object({ message: z.string().trim().min(1).max(4000) });
+type FollowUp = z.infer<typeof followUpSchema>;
+
+// Answers and follow-ups in the order the requester sent them.
+export const refinementSchema = z.union([clarificationSchema, followUpSchema]);
+export type Refinement = z.infer<typeof refinementSchema>;
+
+export const isFollowUp = (refinement: Refinement): refinement is FollowUp => "message" in refinement;
+export const refinementText = (refinement: Refinement) =>
+  isFollowUp(refinement) ? refinement.message : refinement.answer;
 
 export const ticketDraftSchema = draftBodySchema.extend({ evidence: z.array(evidenceSchema) });
 export type TicketDraft = z.infer<typeof ticketDraftSchema>;

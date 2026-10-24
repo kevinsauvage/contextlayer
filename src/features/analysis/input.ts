@@ -1,10 +1,10 @@
 import { storedAnalysisInputSchema } from "@/core/analysis/schemas";
-import type { Clarification } from "@/core/requirements/schemas";
+import { isFollowUp, type Clarification, type Refinement } from "@/core/requirements/schemas";
 import type { Analysis } from "@/features/projects/queries";
 
 // The stored input tagged with the row's kind, so callers narrow instead of guessing which fields exist.
 export type AnalysisInput =
-  { kind: "create"; request: string; answers: Clarification[] } | { kind: "audit"; issueKey: string };
+  { kind: "create"; request: string; answers: Refinement[] } | { kind: "audit"; issueKey: string };
 
 export function readAnalysisInput(analysis: Pick<Analysis, "kind" | "input">): AnalysisInput | null {
   const parsed = storedAnalysisInputSchema.safeParse(analysis.input);
@@ -19,14 +19,13 @@ export function readAnalysisInput(analysis: Pick<Analysis, "kind" | "input">): A
 export const requestOf = (input: AnalysisInput | null) =>
   !input ? "" : input.kind === "create" ? input.request : input.issueKey;
 
-export const answersOf = (input: AnalysisInput | null): Clarification[] =>
-  input?.kind === "create" ? input.answers : [];
+export const answersOf = (input: AnalysisInput | null): Refinement[] => (input?.kind === "create" ? input.answers : []);
 
-// Earlier answers are kept; this round's questions replace the earlier unanswered ones, and a re-answered question
-// takes its latest answer.
-export function mergeAnswers(previous: Clarification[], round: Clarification[]): Clarification[] {
+// Earlier answers and follow-ups are kept; this round's questions replace the earlier unanswered ones, and a
+// re-answered question takes its latest answer.
+export function mergeAnswers(previous: Refinement[], round: Clarification[]): Refinement[] {
   const asked = new Set(round.map((pair) => pair.question));
-  return [...previous.filter((pair) => pair.answer && !asked.has(pair.question)), ...round];
+  return [...previous.filter((r) => isFollowUp(r) || (r.answer && !asked.has(r.question))), ...round];
 }
 
 export const firstLine = (text: string) =>

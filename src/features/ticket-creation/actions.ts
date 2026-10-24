@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
-import { clarificationSchema, type Clarification } from "@/core/requirements/schemas";
+import { clarificationSchema, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
@@ -23,7 +23,7 @@ const requestSchema = z
   .min(3, "Describe what you need in at least a few words")
   .max(4000, "Keep the request under 4,000 characters");
 
-const draftFromRequest = async (db: Database, project: Project, request: string, answers: Clarification[] = []) => {
+const draftFromRequest = async (db: Database, project: Project, request: string, answers: Refinement[] = []) => {
   const { draft, issues, usage } = await draftTicket({
     request,
     answers,
@@ -59,9 +59,9 @@ export async function createTicketAnalysis(
 // Until a ticket is published, refining replaces the draft instead of adding another analysis to the history.
 async function redraft(
   analysisId: string,
-  change: (current: { request: string; answers: Clarification[] }) => {
+  change: (current: { request: string; answers: Refinement[] }) => {
     request: string;
-    answers: Clarification[];
+    answers: Refinement[];
   },
 ): Promise<ActionState> {
   return withActionErrors(async () => {
@@ -87,23 +87,22 @@ async function redraft(
   });
 }
 
-export async function rerunTicketAnalysis(
-  analysisId: string,
-  _: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const request = requestSchema.safeParse(formData.get("request"));
-  if (!request.success) return { error: firstIssueMessage(request.error) };
-  return redraft(analysisId, ({ answers }) => ({ request: request.data, answers: answers.filter((a) => a.answer) }));
-}
+// One chat turn: answers to the open questions (blank ones stay open) and an optional free-text message.
+const chatTurnSchema = z.object({
+  answers: z.array(clarificationSchema).max(20),
+  message: z.string().trim().max(4000, "Keep the message under 4,000 characters"),
+});
+export type ChatTurn = z.input<typeof chatTurnSchema>;
 
-const answersSchema = z.array(clarificationSchema).max(20);
-
-export async function answerQuestions(analysisId: string, input: unknown): Promise<ActionState> {
-  const round = answersSchema.safeParse(input);
-  if (!round.success) return { error: firstIssueMessage(round.error, "The answers are invalid") };
-  if (!round.data.some((pair) => pair.answer)) return { error: "Answer at least one question, or publish as is" };
-  return redraft(analysisId, ({ request, answers }) => ({ request, answers: mergeAnswers(answers, round.data) }));
+export async function refineTicket(analysisId: string, input: unknown): Promise<ActionState> {
+  const turn = chatTurnSchema.safeParse(input);
+  if (!turn.success) return { error: firstIssueMessage(turn.error, "The message is invalid") };
+  const { answers: round, message } = turn.data;
+  if (!message && !round.some((pair) => pair.answer)) return { error: "Answer a question or describe what to change" };
+  return redraft(analysisId, ({ request, answers }) => ({
+    request,
+    answers: [...mergeAnswers(answers, round), ...(message ? [{ message }] : [])],
+  }));
 }
 
 export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {

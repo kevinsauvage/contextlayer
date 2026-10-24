@@ -3,7 +3,7 @@ import { gatherContext } from "@/core/context/gather";
 import type { ContextSource, Issue, IssueTracker } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import { validateEvidenceReferences, type EvidenceIssue } from "@/core/evidence/validate";
-import { draftSections, type Clarification, type TicketDraft } from "@/core/requirements/schemas";
+import { draftSections, refinementText, type Refinement, type TicketDraft } from "@/core/requirements/schemas";
 import type { AuditGenerator, DraftGenerator, TokenUsage } from "./generators";
 
 type Deps = { source: ContextSource; tracker: IssueTracker };
@@ -18,11 +18,11 @@ const citedBy = (candidates: Evidence[], claimLists: { evidenceIds: string[] }[]
 };
 
 export async function draftTicket(
-  input: Deps & { request: string; answers?: Clarification[]; generator: DraftGenerator },
+  input: Deps & { request: string; answers?: Refinement[]; generator: DraftGenerator },
 ): Promise<CreationResult> {
   const answers = input.answers ?? [];
-  // Answers often name the part to change ("the home hero"), so they steer retrieval too.
-  const query = [input.request, ...answers.map((a) => a.answer)].join("\n");
+  // Answers and follow-ups often name the part to change ("the home hero"), so they steer retrieval too.
+  const query = [input.request, ...answers.map(refinementText)].join("\n");
   const candidates = await gatherContext({ ...input, query });
   const { body, usage } = await input.generator.generate({ request: input.request, answers, candidates });
 

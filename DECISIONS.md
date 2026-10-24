@@ -121,6 +121,11 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Generator `deepseek-flash` (DeepSeek-V4.1-Flash), judge `deepseek-v4-pro` (DeepSeek-V4-Pro) · on the four fixtures Flash scored 45/48 and Pro 44/48 as generators, with Flash 3 to 4 times faster and about half the output tokens. The judge should be at least as strong as the generator. Both are one vendor; a cross-vendor judge is open work.
 - The baseline judge reads the fixture repository as the source of truth and treats `verifiedFacts` as guidance, and drafts are regenerated in the same run (`tests/evaluation/draft-case.ts`) · judged on `verifiedFacts` alone, it marked a correct claim wrong, and it was scoring drafts from an older pipeline.
 
+## Chat refinement (2026-10-24)
+
+- The new-ticket page is a conversation beside the draft: the request, each answered question and each follow-up are chat bubbles, the latest reply carries the open questions as option chips, and one composer is always visible; there is no separate "Edit request" form, since a follow-up can change anything the request said · refining used to need either the question card or the hidden "Edit request" form, and a change outside the questions had no place to go.
+- A free-text message is stored as `{ message }` in the same `answers` array as `{ question, answer }` (`refinementSchema`), so the history keeps the order the requester sent things in, and the prompt renders it as `Follow-up:` inside `<answers>` with "a later follow-up wins" · separate arrays would reorder the transcript and lose which instruction came last. One send carries the question answers and the message together (`refineTicket`); unanswered questions are sent blank so they stay open.
+
 ## Visual refinement (2026-10-24)
 
 - Neutrals carry a faint cool tint (hue 265), the app canvas sits one step below white so cards read as layers, and one brand hue (`--brand`) marks only identity and current location: the logo, the active nav underline, the next setup step, focus, selection and caret. Buttons stay ink · the stock shadcn look was kept on purpose; color is reserved so it keeps meaning.

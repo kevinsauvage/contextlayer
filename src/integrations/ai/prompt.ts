@@ -1,6 +1,6 @@
 import type { Issue } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
-import type { Clarification } from "@/core/requirements/schemas";
+import { isFollowUp, type Refinement } from "@/core/requirements/schemas";
 
 const SHARED_RULES = `- Use only the provided context. Never invent requirements, numbers, deadlines, or business intent.
 - Mark every claim with a status: verified (cite evidence ids), inferred, unknown, or needs_clarification.
@@ -26,7 +26,7 @@ ${SHARED_RULES}
 - For a copy, config or styling change with a known target and scope, ask no open questions: state the concrete change and how to verify it.
 - If no source in the context clearly matches what the request refers to, say so in a needs_clarification claim and ask which part is meant. Do not build the ticket around a merely similar-sounding component.
 - Quoted text in the request is a requested value; reproduce it exactly.
-- <answers> holds the requester's answers to questions from an earlier draft. Treat each answer as part of the request, and never ask an answered question again. A question without an answer stays in openQuestions unless the context now answers it. When <answers> is present, the answers are settled: ask at most one genuinely new product question, and never start a new investigation thread, so the ticket is publishable as it stands.`;
+- <answers> holds, in order, the requester's answers to questions from an earlier draft and their follow-up messages. Treat each as part of the request; a later follow-up wins over anything earlier it contradicts, and never ask an answered question again. A question without an answer stays in openQuestions unless the context now answers it. When <answers> is present, the answers are settled: ask at most one genuinely new product question, and never start a new investigation thread, so the ticket is publishable as it stands.`;
 
 export const AUDIT_SYSTEM_PROMPT = `You audit an existing software ticket against project context.
 
@@ -42,12 +42,15 @@ const contextBlock = (candidates: Evidence[]) =>
     .map((c) => `<source id="${c.id}" kind="${c.kind}" path="${c.reference}">\n${c.excerpt}\n</source>`)
     .join("\n") || "(no relevant context found)";
 
-const answersBlock = (answers: Clarification[]) =>
-  answers.length
-    ? `\n\n<answers>\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer || "(no answer yet; keep this question open)"}`).join("\n\n")}\n</answers>`
-    : "";
+const refinementLine = (r: Refinement) =>
+  isFollowUp(r)
+    ? `Follow-up: ${r.message}`
+    : `Q: ${r.question}\nA: ${r.answer || "(no answer yet; keep this question open)"}`;
 
-export const buildCreatePrompt = (request: string, answers: Clarification[], candidates: Evidence[]) =>
+const answersBlock = (answers: Refinement[]) =>
+  answers.length ? `\n\n<answers>\n${answers.map(refinementLine).join("\n\n")}\n</answers>` : "";
+
+export const buildCreatePrompt = (request: string, answers: Refinement[], candidates: Evidence[]) =>
   `<request>\n${request}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>

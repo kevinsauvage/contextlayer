@@ -13,6 +13,12 @@ describe("merging answers across rounds", () => {
     expect(mergeAnswers(previous, round)).toEqual([previous[0], ...round]);
   });
 
+  it("keeps follow-up messages in order", () => {
+    const followUp = { message: "Also update the footer" };
+    const round = [{ question: "Keep the gradient?", answer: "Yes" }];
+    expect(mergeAnswers([...previous, followUp], round)).toEqual([previous[0], followUp, ...round]);
+  });
+
   it("lets a later answer replace an earlier one", () => {
     const round = [{ question: "Which banner?", answer: "The cookie banner" }];
     expect(mergeAnswers(previous, round)).toEqual(round);
@@ -48,6 +54,7 @@ describe("create prompt", () => {
     expect(prompt).toContain("Q: Which banner?\nA: The home hero");
     expect(prompt).toContain("A: (no answer yet; keep this question open)");
     expect(buildCreatePrompt("x", [], [])).not.toContain("<answers>");
+    expect(buildCreatePrompt("x", [{ message: "Make it red" }], [])).toContain("Follow-up: Make it red");
   });
 
   it("forbids investigation questions and caps follow-ups after an answer round", () => {

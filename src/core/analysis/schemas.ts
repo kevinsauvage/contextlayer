@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { clarificationSchema } from "@/core/requirements/schemas";
+import { refinementSchema } from "@/core/requirements/schemas";
 
 const createAnalysisInputSchema = z.object({
   request: z.string().min(1),
-  answers: z.array(clarificationSchema).optional(),
+  answers: z.array(refinementSchema).optional(),
 });
 
 const auditAnalysisInputSchema = z.object({ issueKey: z.string().min(1) });
