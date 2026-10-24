@@ -38,6 +38,16 @@ function caseIds() {
     .sort();
 }
 
+const loadCase = (id) => readJson(path.join(FIXTURES_DIR, id, "case.json"));
+
+// The three-way packet compares one-shot create drafts, so audits and answered cases have no baseline to show.
+function reviewableCaseIds() {
+  return caseIds().filter((id) => {
+    const fixture = loadCase(id);
+    return (fixture.kind ?? "create") === "create" && !(fixture.answers ?? []).length;
+  });
+}
+
 // Stable rotation so labels stay put across exports, without relying on Math.random.
 function labelsFor(id) {
   const offset = [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % ROLES.length;
@@ -127,7 +137,7 @@ function exportPackets() {
   scores.scores ??= {};
   scores.preferred ??= {};
 
-  for (const id of caseIds()) {
+  for (const id of reviewableCaseIds()) {
     const analysisPath = path.join(RESULTS_DIR, `${id}.json`);
     const baselinePath = path.join(RESULTS_DIR, `${id}.baseline.json`);
     if (!existsSync(analysisPath) || !existsSync(baselinePath))
@@ -135,13 +145,14 @@ function exportPackets() {
 
     const analysis = readJson(analysisPath);
     const comparison = readJson(baselinePath);
-    const { title: request } = readJson(path.join(FIXTURES_DIR, id, "case.json"));
+    const fixture = loadCase(id);
+    const request = fixture.request ?? fixture.title;
 
     key[id] = labelsFor(id);
     const byRole = {
       original: request,
       baseline: comparison.baseline.text,
-      contextlayer: renderDraft(analysis.draft),
+      contextlayer: renderDraft(analysis.output),
     };
     const drafts = Object.fromEntries(LABELS.map((label) => [label, byRole[key[id][label]]]));
     writeFileSync(path.join(REVIEW_DIR, `${id}.md`), renderPacket(id, request, drafts));
@@ -171,7 +182,7 @@ function exportPackets() {
     ].join("\n"),
   );
 
-  console.log(`Wrote ${caseIds().length} packets to ${REVIEW_DIR} and score template ${SCORES_PATH}.`);
+  console.log(`Wrote ${reviewableCaseIds().length} packets to ${REVIEW_DIR} and score template ${SCORES_PATH}.`);
 }
 
 function loadReview() {
@@ -311,7 +322,7 @@ function renderReport(scores, { rows, model, judgeModel, judgeIsGenerator }) {
     "",
     "## Limits",
     "",
-    "- Four fixtures and one reviewer: directional evidence, not E3. E3 asks for ten tickets and three independent reviewers.",
+    "- Miniature fixtures and one reviewer: directional evidence, not E3. E3 asks for ten tickets and three independent reviewers.",
     "- The reviewer read miniature repositories, not code they own; wrong-claim detection is weaker than with familiar code.",
     "- Human scores override the judge; where they disagree, the judge prompt or the rubric is ambiguous and needs tightening.",
     "",

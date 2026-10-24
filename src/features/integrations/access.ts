@@ -62,16 +62,24 @@ export function connectionContext(
   let current: Token | null = connection.accessTokenEnc
     ? { value: decrypt(connection.accessTokenEnc), expiresAt: connection.tokenExpiresAt }
     : null;
+  let rejected = false;
 
   return {
     externalId: connection.externalId,
     label: connection.label,
     metadata: connection.metadata,
     accessToken: async () => {
-      if (connection.status === "needs_reconnect") throw new ReconnectRequiredError(connection.label);
+      if (rejected || connection.status === "needs_reconnect") throw new ReconnectRequiredError(connection.label);
       if (!current) throw new Error(`${provider.name} connections do not use access tokens`);
       if (!isFresh(current.expiresAt)) current = await refreshGrant(db, connection, provider);
       return current.value;
+    },
+    markReconnect: async () => {
+      rejected = true;
+      const scope = connection.grantId
+        ? eq(integrationConnection.grantId, connection.grantId)
+        : eq(integrationConnection.id, connection.id);
+      await db.update(integrationConnection).set({ status: "needs_reconnect", updatedAt: new Date() }).where(scope);
     },
   };
 }

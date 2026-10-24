@@ -53,9 +53,14 @@ function buildJudgePrompt(c: LoadedCase, baseline: string, contextlayer: unknown
 
 const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY) || Boolean(process.env.AI_BASE_URL);
 
+// Baseline comparison only makes sense for a one-shot create request: an audit has no baseline draft to compare.
+const cases = loadEvaluationCases().filter((c) => c.kind === "create" && c.answers.length === 0);
+
 describe.skipIf(!hasModel)("baseline comparison", () => {
-  it.each(loadEvaluationCases().map((c) => [c.id, c] as const))("%s", async (_id, c) => {
+  it.each(cases.map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const contextlayer = await draftCase(c);
+    if (contextlayer.kind !== "create") return;
+    const draft = contextlayer.result.draft;
 
     const startedAt = Date.now();
     const { text, usage } = await generateText({ model, instructions: BASELINE_SYSTEM_PROMPT, prompt: c.title });
@@ -63,11 +68,7 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
 
     const { output: judgment } = await generateText({
       model: judge.model,
-      prompt: withSchemaInstruction(
-        buildJudgePrompt(c, text, contextlayer.draft),
-        judgmentSchema,
-        judge.structuredOutputs,
-      ),
+      prompt: withSchemaInstruction(buildJudgePrompt(c, text, draft), judgmentSchema, judge.structuredOutputs),
       output: Output.object({ schema: judgmentSchema }),
     });
 
@@ -85,7 +86,7 @@ describe.skipIf(!hasModel)("baseline comparison", () => {
           },
           contextlayer: {
             latencyMs: contextlayer.latencyMs,
-            usage: contextlayer.usage,
+            usage: contextlayer.result.usage,
             retrievalRecall: contextlayer.retrievalRecall,
           },
           judgment,

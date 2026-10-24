@@ -1,0 +1,37 @@
+{
+  "id": "duplicate-export-request",
+  "title": "Export invoices to CSV",
+  "request": "Export invoices to CSV too, using the same download flow as orders.",
+  "relatedIssues": [
+    {
+      "key": "SHOP-88",
+      "summary": "Export orders to CSV",
+      "description": "Add a CSV download of the signed-in user's orders, reusing the existing mailer to send the file.",
+      "status": "In Progress",
+      "url": "https://jira.test/browse/SHOP-88"
+    }
+  ],
+  "answers": [
+    { "question": "Should voided invoices be left out of the export?", "answer": "Leave voided invoices out of the export." },
+    { "message": "Correction: include voided invoices too; my earlier answer was wrong." }
+  ],
+  "expected": {
+    "relevantFiles": ["repo/src/export/exportOrdersCsv.ts", "repo/src/invoices/types.ts"],
+    "verifiedFacts": [
+      "An orders CSV export already exists in src/export/exportOrdersCsv.ts",
+      "SHOP-88 tracks a CSV export for orders and is in progress",
+      "Invoice fields are defined in src/invoices/types.ts"
+    ],
+    "mustStayUncertain": [
+      "Whether this belongs to SHOP-88 or needs a separate ticket",
+      "Which invoice columns the export includes",
+      "The date range or filters for the export"
+    ],
+    "forbiddenClaims": [
+      "Leaving voided invoices out of the export, following the earlier corrected answer",
+      "A specific invoice column list",
+      "Building a download flow from scratch, ignoring the existing orders export"
+    ],
+    "appliedAnswers": ["voided"]
+  }
+}

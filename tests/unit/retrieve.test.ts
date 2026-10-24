@@ -3,7 +3,7 @@ import { retrieveFileEvidence } from "@/core/context/retrieve";
 import { extractTerms } from "@/core/context/terms";
 import { DirectorySource } from "@/integrations/filesystem/directory-source";
 import { first } from "@/lib/first";
-import { loadEvaluationCases } from "../evaluation/fixtures";
+import { loadEvaluationCases, requestOf } from "../evaluation/fixtures";
 
 describe("extractTerms", () => {
   it("drops stopwords and short words and dedupes", () => {
@@ -111,6 +111,15 @@ describe("following imports", () => {
     expect(references).toContain("src/components/Hero.tsx");
     expect(references).toContain("src/config/content/sections.ts");
     expect(references).not.toContain("src/config/content/index.ts");
+  });
+
+  it("reaches copy behind a tsconfig alias in the banner fixture", async () => {
+    const c = first(
+      loadEvaluationCases().filter((c) => c.id === "banner-title"),
+      "banner fixture",
+    );
+    const found = await retrieveFileEvidence(extractTerms(requestOf(c)), new DirectorySource(c.repoDir));
+    expect(found.map((e) => `repo/${e.reference}`)).toContain("repo/src/content/site.ts");
   });
 });
 

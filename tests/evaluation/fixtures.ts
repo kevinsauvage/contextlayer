@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import type { IssueTracker } from "@/core/context/source";
 import { evaluationCaseSchema, type EvaluationCase } from "@/core/evaluation/fixtures";
 
 const FIXTURES_DIR = path.join(import.meta.dirname, "..", "fixtures");
@@ -17,6 +18,28 @@ export function loadEvaluationCases(): LoadedCase[] {
 }
 
 export const fileExists = (c: LoadedCase, relative: string) => existsSync(path.join(c.dir, relative));
+
+// A case may have a full request; the title is its short label (and the whole request when shorter).
+export const requestOf = (c: EvaluationCase) => c.request ?? c.title;
+
+// The tracker a fixture expects: related issues for retrieval, and the audited issue for audit cases.
+export function trackerOf(c: EvaluationCase): IssueTracker {
+  const related = c.relatedIssues;
+  const audited = c.issue;
+  return {
+    searchRelated: async () => related,
+    getIssue: async (key) => {
+      const issue = audited?.key === key ? audited : related.find((candidate) => candidate.key === key);
+      if (!issue) throw new Error(`fixture has no issue ${key}`);
+      return issue;
+    },
+    createIssue: async () => ({
+      key: `${c.id.toUpperCase()}-1`,
+      url: `https://jira.test/browse/${c.id.toUpperCase()}-1`,
+    }),
+    updateIssue: async (key) => ({ key, url: `https://jira.test/browse/${key}` }),
+  };
+}
 
 export type RepositoryFile = { path: string; content: string };
 

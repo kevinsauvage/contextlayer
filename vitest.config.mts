@@ -15,7 +15,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/core/**", "src/features/**", "src/infrastructure/**", "src/integrations/**"],
       reporter: ["text-summary", "html"],
-      thresholds: { statements: 40, branches: 40, functions: 40, lines: 40 },
+      thresholds: { statements: 55, branches: 50, functions: 52, lines: 55 },
     },
     alias: { "server-only": new URL("./tests/stubs/server-only.ts", import.meta.url).pathname },
   },

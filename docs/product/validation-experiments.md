@@ -6,7 +6,7 @@ Each experiment tests one or more hypotheses from [`business-hypotheses.md`](bus
 
 - **Tests:** feasibility of H2, H8.
 - **Method:** `pnpm eval` on 4 fixtures with Gemini 3.8 Flash (free tier).
-- **Result (2026-10-22):** 4 of 4 drafts passed evidence-reference validation (forbidden claims are not checked automatically yet); keyword retrieval found 9 of 10 expected files (misses `mail/send.ts` for "Add password reset").
+- **Result (2026-10-22):** 4 of 4 drafts passed evidence-reference validation; keyword retrieval found 9 of 10 expected files (misses `mail/send.ts` for "Add password reset"). Forbidden claims are now checked too: the eval judge fails a case that presents one as a requirement or settles an uncertain point.
 - **Limit:** 4 fixtures written by the builder; not representative.
 
 ## E2: Baseline comparison (running)
@@ -46,7 +46,7 @@ ContextLayer: 8 to 14 s, about 1.2k input and 1.2 to 2.2k output tokens per case
 Pro is 3 to 4 times slower and writes about twice the tokens without a better score; both lose points on the same cases (password-reset actionability and criteria, where retrieval misses `mail/send.ts`). The judges differ between rows, so the gap is indicative, but nothing favours Pro as the generator.
 
 - **Limits:** the first table comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
-- **To finish:** (1) done 2026-10-24 with a repository-grounded judge, though both models are from the same vendor; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) grow to 8 to 10 fixtures including a Jira-issue and a duplicate-ticket case.
+- **To finish:** (1) done 2026-10-24 with a repository-grounded judge, though both models are from the same vendor; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) done 2026-10-24: nine fixtures, including a Jira-issue audit, a duplicate ticket, imported copy behind a `tsconfig` alias, a multi-paragraph request and a prompt-injection file. The automated run over the new cases is still to do.
 
 ## E3: Blind reviewer comparison (planned)
 

@@ -1,0 +1,38 @@
+name: AI nightly
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  injection-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The eval skips itself without a model, which would make a missing secret look like a pass.
+      - name: Check the eval credentials
+        run: test -n "$AI_API_KEY" || { echo "AI_API_KEY secret is missing"; exit 1; }
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      - name: Prompt-injection subset
+        run: pnpm eval tests/evaluation/injection.eval.ts
+        env:
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ vars.AI_EVAL_MODEL || 'deepseek-flash' }}
+          AI_STRUCTURED_OUTPUTS: "false"
+          AI_JUDGE_BASE_URL: ${{ secrets.AI_JUDGE_BASE_URL || secrets.AI_BASE_URL }}
+          AI_JUDGE_API_KEY: ${{ secrets.AI_JUDGE_API_KEY || secrets.AI_API_KEY }}
+          AI_JUDGE_MODEL: ${{ vars.AI_EVAL_JUDGE_MODEL || 'deepseek-v4-pro' }}
+          AI_JUDGE_STRUCTURED_OUTPUTS: "false"

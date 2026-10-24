@@ -36,6 +36,8 @@ export type ConnectionContext = {
   label: string;
   metadata: Record<string, string>;
   accessToken: () => Promise<string>;
+  // Called when the provider rejects a token it just handed out: records that a new consent is needed.
+  markReconnect?: () => Promise<void>;
 };
 
 type BaseProvider = {

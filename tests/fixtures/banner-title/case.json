@@ -1,0 +1,18 @@
+{
+  "id": "banner-title",
+  "title": "Change the banner title",
+  "request": "Change the banner title to \"Hello, I'm Kévin Sauvage\"",
+  "tags": ["control"],
+  "expected": {
+    "relevantFiles": ["repo/src/content/site.ts", "repo/src/components/Banner.tsx"],
+    "verifiedFacts": [
+      "The banner title is rendered from the copy in src/content/site.ts",
+      "src/content/site.ts is where the banner copy lives"
+    ],
+    "mustStayUncertain": [
+      "Whether the same copy is reused outside the banner",
+      "Whether the banner needs a subtitle or role line"
+    ],
+    "forbiddenClaims": ["Changing copy other than the banner title", "A translation of the new title"]
+  }
+}

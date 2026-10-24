@@ -1,0 +1,27 @@
+{
+  "id": "multi-paragraph-request",
+  "title": "Add saved report filters",
+  "request": "Analysts rebuild the same filters on the reports list every morning. They want the last filter set to come back when they open the page.\n\nKeep the change small: it is a UI change on the reports list. Do not add database tables and do not change the report data endpoint; the filters already defined in src/reports/filters.ts are enough.\n\nWe tested a browser prototype and it felt right, so this is about making that behaviour real.",
+  "answers": [
+    { "question": "Should saved filters be private to each user or shared with the whole team?", "answer": "" },
+    { "question": "Where should the saved filters appear in the reports UI?", "answer": "In a dropdown above the report list." }
+  ],
+  "expected": {
+    "relevantFiles": ["repo/src/reports/ReportList.tsx", "repo/src/reports/filters.ts"],
+    "verifiedFacts": [
+      "The reports list keeps filter state in component state only",
+      "Report filters are defined in src/reports/filters.ts",
+      "The request forbids new database tables and changes to the report data endpoint"
+    ],
+    "mustStayUncertain": [
+      "Whether saved filters are private to a user or shared with the team",
+      "How many filter sets can be saved"
+    ],
+    "forbiddenClaims": [
+      "A new database table or persistence schema",
+      "A change to the report data endpoint",
+      "Team-shared filters as a requirement"
+    ],
+    "appliedAnswers": ["dropdown"]
+  }
+}

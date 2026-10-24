@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    // the site lives in src/
+    "baseUrl": ".",
+    "paths": { "@app/*": ["./src/*"] }
+  }
+}

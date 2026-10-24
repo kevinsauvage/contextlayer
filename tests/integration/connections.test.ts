@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { InvalidGrantError, ReconnectRequiredError, type IntegrationProvider } from "@/core/integrations/provider";
 import { connectionContext } from "@/features/integrations/access";
 import {
@@ -8,6 +8,7 @@ import {
   projectsUsingConnection,
   saveAccounts,
 } from "@/features/integrations/connections";
+import { resolveTracker } from "@/features/integrations/resolve";
 import { decrypt } from "@/infrastructure/crypto";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
@@ -19,6 +20,8 @@ beforeAll(async () => {
   db = await migratedDb();
   await seedOrgs(db, ["orgA", "orgB", "orgC"]);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 const github = { id: "github", name: "GitHub", exclusive: true } as IntegrationProvider;
 const jira = { id: "jira", name: "Jira", exclusive: false } as IntegrationProvider;
@@ -129,6 +132,25 @@ describe("access tokens", () => {
 
     expect(await save("orgA", jira, [account("dead", true)])).toBe("connected");
     expect((await connectionOf("orgA", "jira", "dead")).status).toBe("active");
+  });
+
+  it("marks the grant for reconnection when Jira rejects a fresh token", async () => {
+    await save("orgA", jira, [
+      {
+        externalId: "revoked",
+        label: "account-revoked",
+        metadata: { siteUrl: "https://shop.atlassian.net" },
+        tokens: { accessToken: "at-fresh", refreshToken: "rt-fresh", expiresAt: new Date(Date.now() + 3_600_000) },
+      },
+    ]);
+    const connection = await connectionOf("orgA", "jira", "revoked");
+    const resolved = await resolveTracker(db, "orgA", connection.id);
+    const tracker = resolved.provider.openTracker(resolved.context, "SHOP");
+    vi.stubGlobal("fetch", async () => new Response("token revoked", { status: 401 }));
+
+    await expect(tracker.getIssue("SHOP-1")).rejects.toBeInstanceOf(ReconnectRequiredError);
+    expect((await connectionOf("orgA", "jira", "revoked")).status).toBe("needs_reconnect");
+    await expect(resolved.context.accessToken()).rejects.toBeInstanceOf(ReconnectRequiredError);
   });
 });
 

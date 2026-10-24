@@ -22,7 +22,8 @@ const createdSchema = z.object({ key: z.string() });
 const ISSUE_FIELDS = ["summary", "description", "status"];
 const PREFERRED_ISSUE_TYPE = "Task";
 
-class JiraApiError extends Error {
+// Jira answers 401 when the token was revoked or the grant was removed: that needs a new consent, not a retry.
+export class JiraApiError extends Error {
   constructor(
     readonly status: number,
     detail: string,
@@ -77,7 +78,11 @@ export class JiraClient implements IssueTracker {
   constructor(
     private readonly site: Site,
     private readonly projectKey: string,
-    private readonly accessToken: () => Promise<string>,
+    private readonly auth: {
+      accessToken: () => Promise<string>;
+      // Marks the connection and throws ReconnectRequiredError; absent when the caller has no database.
+      onUnauthorized?: () => Promise<never>;
+    },
   ) {}
 
   async searchRelated(terms: string[], limit: number): Promise<Issue[]> {
@@ -121,7 +126,14 @@ export class JiraClient implements IssueTracker {
   }
 
   private async call(path: string, init: JiraRequest = {}): Promise<unknown> {
-    return jiraRequest(this.site, await this.accessToken(), path, init);
+    try {
+      return await jiraRequest(this.site, await this.auth.accessToken(), path, init);
+    } catch (error) {
+      if (error instanceof JiraApiError && error.status === 401 && this.auth.onUnauthorized) {
+        return this.auth.onUnauthorized();
+      }
+      throw error;
+    }
   }
 
   private published = (key: string): PublishedIssue => ({ key, url: `${this.site.siteUrl}/browse/${key}` });

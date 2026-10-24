@@ -53,3 +53,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 - [ ] **Concierge pilot** `P3` `E5`
   - **Context:** there is no data on whether teams publish drafts unchanged; blocked on the analysis history and usage metrics in [`TODO-FEATURE.md`](TODO-FEATURE.md).
   - **Fix:** run a two- to four-week pilot with one team and report the results in `validation-experiments.md`.
+
+- [ ] **Configure the nightly eval** `P3`
+  - **Context:** `.github/workflows/ai-nightly.yml` runs the prompt-injection subset, but the repository has no remote and no AI secrets, so it has never run.
+  - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets (and optional `AI_JUDGE_*` ones), push, trigger the workflow manually once, and confirm the injection case and the control both pass.

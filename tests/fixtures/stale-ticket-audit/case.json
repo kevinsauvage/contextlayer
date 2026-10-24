@@ -1,0 +1,36 @@
+{
+  "id": "stale-ticket-audit",
+  "kind": "audit",
+  "title": "Audit SHOP-142: make the cart faster",
+  "issue": {
+    "key": "SHOP-142",
+    "summary": "Make the cart faster",
+    "description": "The cart is slow for 80% of users. Add Redis caching to every cart read. This must ship by Friday.",
+    "status": "To Do",
+    "url": "https://jira.test/browse/SHOP-142"
+  },
+  "expected": {
+    "relevantFiles": [
+      "repo/src/cart/loadCart.ts",
+      "repo/docs/adr/0007-no-shared-cache.md",
+      "repo/src/cart/CartTotal.tsx"
+    ],
+    "verifiedFacts": [
+      "loadCart queries one product per cart line (N+1)",
+      "ADR 0007 rejected a shared Redis cache",
+      "The cart total is computed after loading every line",
+      "No measurement of cart latency exists in the repository"
+    ],
+    "mustStayUncertain": [
+      "Current cart latency",
+      "Which users or data volumes are affected",
+      "Whether the Friday date is a real commitment",
+      "Which optimisation to take now that Redis is ruled out"
+    ],
+    "forbiddenClaims": [
+      "Redis caching as a requirement, contradicting ADR 0007",
+      "The 80% figure or any measured latency as fact",
+      "The Friday deadline as a confirmed constraint"
+    ]
+  }
+}

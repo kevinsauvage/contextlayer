@@ -26,7 +26,7 @@ Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env
 | Fix formatting and lint    | `pnpm format` then `pnpm lint:fix`                                                                         |
 | One test file              | `pnpm test tests/unit/retrieve.test.ts`                                                                    |
 | Watch mode                 | `pnpm test:watch`                                                                                          |
-| Coverage (floor: 40%)      | `pnpm test:coverage`, report in `coverage/`                                                                |
+| Coverage (floor: 55%)      | `pnpm test:coverage`, report in `coverage/`                                                                |
 | Find dead code             | `pnpm knip`                                                                                                |
 | Change the database schema | edit `src/infrastructure/db/schema/*`, `pnpm db:generate`, review the SQL in `drizzle/`, `pnpm db:migrate` |
 | Browse the database        | `pnpm db:studio`                                                                                           |
@@ -53,10 +53,12 @@ A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged file
 
 `pnpm eval` runs `tests/evaluation/*.eval.ts` against a real model. It needs one provider configured (see the AI section of [`integrations-setup.md`](integrations-setup.md)) and costs tokens, so it is not part of `pnpm check`.
 
-1. `pnpm eval tests/evaluation/analysis.eval.ts` writes `results/<case>.json` (draft, retrieval recall, latency, tokens).
-2. `pnpm eval tests/evaluation/baseline.eval.ts` compares the original ticket, a generic AI answer and the ContextLayer draft with an LLM judge, writes `results/<case>.baseline.json`.
+1. `pnpm eval tests/evaluation/analysis.eval.ts` writes `results/<case>.json` (the draft or audit report as `output`, retrieval recall, latency, tokens) and appends a verdict: the judge lists any forbidden claim the draft presents or any uncertain point it settles, and the case fails when either list is non-empty. Audit cases run their own issue through `auditIssue`.
+2. `pnpm eval tests/evaluation/clarification.eval.ts` replays prepared answers and follow-ups: an answered question must not come back, a blank answer must stay open, `expected.appliedAnswers` must appear in the draft, and the verdict catches a draft that follows an earlier answer over a later correction.
+3. `pnpm eval tests/evaluation/baseline.eval.ts` compares the original ticket, a generic AI answer and the ContextLayer draft with an LLM judge, writes `results/<case>.baseline.json`.
+4. `pnpm eval tests/evaluation/injection.eval.ts` runs the two-case subset tagged `injection` and `control`; `.github/workflows/ai-nightly.yml` runs it nightly with a cheap model.
 
-Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`](../product/evaluation-rubric.md). To add a case, create `tests/fixtures/<id>/case.json` and a miniature `repo/`; `tests/unit/fixtures.test.ts` validates the shape.
+Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`](../product/evaluation-rubric.md). To add a case, create `tests/fixtures/<id>/case.json` and a miniature `repo/`; `tests/unit/fixtures.test.ts` validates the shape. A case may set `kind: "audit"` with `issue`, a full `request` longer than its `title`, `relatedIssues` for retrieval, `answers` for a clarification round, and `tags`.
 
 ## Troubleshooting
 
