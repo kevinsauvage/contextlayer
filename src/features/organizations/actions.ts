@@ -3,7 +3,7 @@
 import { APIError } from "better-auth/api";
 import type { Route } from "next";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { INVITABLE_ROLES, OWNER_ROLE } from "@/core/organizations/roles";
 import { toActionError } from "@/features/errors";
@@ -28,6 +28,8 @@ const idSchema = z.string().min(1, "Choose an entry");
 
 // Better Auth throws APIError with a message meant for the person; anything else is logged and replaced.
 function failure(error: unknown, fallback: string): ActionState {
+  // A sign-in redirect from the role check must still navigate.
+  unstable_rethrow(error);
   if (error instanceof APIError) return { error: error.message || fallback };
   const known = toActionError(error);
   if (known) return known;
@@ -74,8 +76,8 @@ export async function createOrganization(name: string): Promise<OrganizationActi
 export async function renameOrganization(name: string): Promise<ActionState> {
   const parsed = nameSchema.safeParse(name);
   if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  const { organizationId } = await requireOrgAdmin();
   try {
+    const { organizationId } = await requireOrgAdmin();
     await getAuth().api.updateOrganization({
       body: { organizationId, data: { name: parsed.data } },
       headers: await headers(),
@@ -91,8 +93,8 @@ export async function inviteMember(email: string, role: string): Promise<Organiz
   if (!address.success) return { error: firstIssueMessage(address.error) };
   const parsedRole = roleSchema.safeParse(role);
   if (!parsedRole.success) return { error: "Choose a valid role" };
-  const { organizationId } = await requireOrgAdmin();
   try {
+    const { organizationId } = await requireOrgAdmin();
     const invitation = await getAuth().api.createInvitation({
       body: { email: address.data, role: parsedRole.data, organizationId },
       headers: await headers(),
@@ -106,8 +108,8 @@ export async function inviteMember(email: string, role: string): Promise<Organiz
 export async function removeMember(memberId: string): Promise<ActionState> {
   const parsed = idSchema.safeParse(memberId);
   if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  await requireOrgAdmin();
   try {
+    await requireOrgAdmin();
     await getAuth().api.removeMember({ body: { memberIdOrEmail: parsed.data }, headers: await headers() });
     return {};
   } catch (error) {
@@ -120,8 +122,8 @@ export async function updateMemberRole(memberId: string, role: string): Promise<
   if (!parsedId.success) return { error: firstIssueMessage(parsedId.error) };
   const parsedRole = roleSchema.safeParse(role);
   if (!parsedRole.success) return { error: "Choose a valid role" };
-  await requireOrgAdmin();
   try {
+    await requireOrgAdmin();
     await getAuth().api.updateMemberRole({
       body: { memberId: parsedId.data, role: parsedRole.data },
       headers: await headers(),
@@ -172,8 +174,8 @@ export async function deleteOrganization(): Promise<ActionState> {
 export async function cancelInvitation(invitationId: string): Promise<ActionState> {
   const parsed = idSchema.safeParse(invitationId);
   if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  await requireOrgAdmin();
   try {
+    await requireOrgAdmin();
     await getAuth().api.cancelInvitation({ body: { invitationId: parsed.data }, headers: await headers() });
     return {};
   } catch (error) {

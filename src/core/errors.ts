@@ -21,3 +21,11 @@ export class ConnectionMissingError extends Error {
     this.name = "ConnectionMissingError";
   }
 }
+
+// The tracker refused the write for a reason the person can fix (a summary that is too long, a required field).
+export class TrackerRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TrackerRejectedError";
+  }
+}

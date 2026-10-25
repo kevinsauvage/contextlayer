@@ -141,7 +141,7 @@ export function DraftWorkspace({
 
       {result.error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not publish</AlertTitle>
+          <AlertTitle>{published ? "Published with a problem" : "Could not publish"}</AlertTitle>
           <AlertDescription>{result.error}</AlertDescription>
         </Alert>
       )}

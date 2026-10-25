@@ -16,13 +16,19 @@ export class GithubSource implements ContextSource {
   private constructor(
     private readonly octokit: Octokit,
     private readonly repo: RepoRef,
-    private readonly branch: string,
+    // Pinned commit, not the branch: a link must keep showing the lines it was verified against.
+    private readonly revision: string,
   ) {}
 
   static async connect(installationId: number, repo: RepoRef): Promise<GithubSource> {
     const octokit = await getGithubApp().getInstallationOctokit(installationId);
     const { data } = await octokit.rest.repos.get({ owner: repo.owner, repo: repo.name });
-    return new GithubSource(octokit, repo, data.default_branch);
+    const branch = await octokit.rest.repos.getBranch({
+      owner: repo.owner,
+      repo: repo.name,
+      branch: data.default_branch,
+    });
+    return new GithubSource(octokit, repo, branch.data.commit.sha);
   }
 
   async listFiles(): Promise<string[]> {
@@ -38,13 +44,13 @@ export class GithubSource implements ContextSource {
     const { data } = await this.octokit.rest.git.getTree({
       owner: this.repo.owner,
       repo: this.repo.name,
-      tree_sha: this.branch,
+      tree_sha: this.revision,
       recursive: "1",
     });
     if (!data.truncated) return data.tree;
     // A truncated tree is silently incomplete, so pay for one listing per directory instead.
     console.warn(`[github] tree for ${this.repo.owner}/${this.repo.name} truncated; listing directories instead`);
-    return walkTree(this.branch, (treeSha) => this.listDirectory(treeSha));
+    return walkTree(this.revision, (treeSha) => this.listDirectory(treeSha));
   }
 
   // `git.getTree` has no pagination: one call returns the whole directory, or a truncated part of a huge one.
@@ -63,7 +69,7 @@ export class GithubSource implements ContextSource {
       owner: this.repo.owner,
       repo: this.repo.name,
       path,
-      ref: this.branch,
+      ref: this.revision,
       headers: { accept: "application/vnd.github.raw+json" },
     });
     return data as unknown as string;
@@ -91,6 +97,6 @@ export class GithubSource implements ContextSource {
 
   urlFor(path: string, lines?: LineRange): string {
     const anchor = lines ? `#L${lines.start}-L${lines.end}` : "";
-    return `https://github.com/${this.repo.owner}/${this.repo.name}/blob/${this.branch}/${path}${anchor}`;
+    return `https://github.com/${this.repo.owner}/${this.repo.name}/blob/${this.revision}/${path}${anchor}`;
   }
 }

@@ -5,12 +5,14 @@ import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
-import { clarificationSchema, ticketDraftSchema, type Refinement } from "@/core/requirements/schemas";
+import { citedEvidence } from "@/core/evidence/validate";
+import { clarificationSchema, draftBodySchema, draftSections, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
+import { storedEvidence } from "@/features/analysis/read";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
@@ -109,8 +111,8 @@ export async function refineTicket(analysisId: string, input: unknown): Promise<
 
 // Autosave keeps manual edits across a reload without approving or publishing anything.
 export async function saveDraftEdits(analysisId: string, draftInput: unknown): Promise<ActionState> {
-  const draft = ticketDraftSchema.safeParse(draftInput);
-  if (!draft.success) return { error: "The edited draft is invalid" };
+  const draft = draftBodySchema.safeParse(draftInput);
+  if (!draft.success) return { error: firstIssueMessage(draft.error, "The edited draft is invalid") };
 
   const loaded = await loadAnalysis(analysisId, {
     kind: "create",
@@ -119,24 +121,26 @@ export async function saveDraftEdits(analysisId: string, draftInput: unknown): P
   });
   if ("error" in loaded) return loaded;
 
+  // Only the editable fields are stored; evidence is rebuilt from the stored result so the browser cannot add one.
+  const evidence = storedEvidence(loaded.analysis);
   const [row] = await loaded.db
     .update(analysis)
-    .set({ editedResult: draft.data })
+    .set({ editedResult: { ...draft.data, evidence: citedEvidence(evidence, draftSections(draft.data)) } })
     .where(and(eq(analysis.id, analysisId), isNull(analysis.publishedIssueKey)))
     .returning({ id: analysis.id });
   return row ? {} : { error: "This draft is already published" };
 }
 
 export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {
-  const approved = parseApprovedDraft(draftInput, "The draft is invalid");
-  if ("error" in approved) return approved;
-
   const loaded = await loadAnalysis(analysisId, {
     kind: "create",
     status: "completed",
     publishedError: (issueKey) => `Already published as ${issueKey}`,
   });
   if ("error" in loaded) return loaded;
+
+  const approved = parseApprovedDraft(draftInput, storedEvidence(loaded.analysis), "The draft is invalid");
+  if ("error" in approved) return approved;
 
   return publishApproved(loaded.db, analysisId, approved.draft, async () => {
     const tracker = await buildProjectTracker(loaded.db, loaded.project);

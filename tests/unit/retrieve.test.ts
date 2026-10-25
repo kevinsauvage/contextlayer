@@ -92,6 +92,21 @@ describe("ranking search hits", () => {
     const found = await retrieveFileEvidence(["primary"], source);
     expect(found[0]?.reference).toBe("src/styles/globals.css");
   });
+
+  it("drops a search hit whose content does not contain the terms", async () => {
+    const files: Record<string, string> = {
+      "src/a.ts": "export const value = 1;",
+      "src/b.ts": "export const other = 2;",
+    };
+    const source = {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path: string) => files[path] ?? "",
+      // GitHub tokenises differently from the substring check: the hit names no usable line.
+      searchContent: async () => ["src/a.ts"],
+    };
+
+    expect(await retrieveFileEvidence(["primary"], source)).toEqual([]);
+  });
 });
 
 describe("following imports", () => {

@@ -12,6 +12,31 @@ const SECTION_ITEM_LABELS: Record<string, string> = {
 
 const itemLabel = (section: string, index: number) => `${SECTION_ITEM_LABELS[section] ?? section} ${index + 1}`;
 
+// Only the sources a claim actually cites are published, so a ticket never carries unused excerpts.
+export function citedEvidence(evidence: Evidence[], sections: ClaimSections): Evidence[] {
+  const ids = new Set(Object.values(sections).flatMap((claims) => claims.flatMap((claim) => claim.evidenceIds)));
+  return evidence.filter((item) => ids.has(item.id));
+}
+
+const EVIDENCE_REQUIRED_CATEGORIES: Record<string, string> = {
+  conflict_with_code: "a conflict with the code",
+  existing_implementation_or_duplicate: "an existing implementation or duplicate",
+};
+
+// A conflict or a duplicate is a claim about the code that only evidence can settle, whatever the model's status.
+export function validateAuditFindings(findings: (Claim & { category: string })[]): EvidenceIssue[] {
+  return findings.flatMap((finding, i) => {
+    const label = EVIDENCE_REQUIRED_CATEGORIES[finding.category];
+    if (!label || finding.status === "verified") return [];
+    return [
+      {
+        path: `findings[${i}]`,
+        message: `${itemLabel("findings", i)} reports ${label} but is not Verified with evidence.`,
+      },
+    ];
+  });
+}
+
 // Schema validation checks structure only; this checks that cited evidence exists.
 export function validateEvidenceReferences(evidence: Evidence[], sections: ClaimSections): EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];

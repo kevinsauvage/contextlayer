@@ -22,7 +22,10 @@ vi.mock("@/integrations/github/app", () => ({
   getGithubApp: () => ({
     getInstallationOctokit: async () => ({
       rest: {
-        repos: { get: async () => ({ data: { default_branch: "main" } }) },
+        repos: {
+          get: async () => ({ data: { default_branch: "main" } }),
+          getBranch: async () => ({ data: { commit: { sha: "abc123" } } }),
+        },
         git: {
           // A recursive call is keyed `<sha>?recursive`, so a test can truncate it and still list the root.
           getTree: async (params: { tree_sha: string; recursive?: string }) => {
@@ -56,7 +59,7 @@ beforeEach(() => {
 describe("GithubSource.listFiles", () => {
   it("keeps small text blobs outside ignored paths", async () => {
     github.trees = {
-      "main?recursive": {
+      "abc123?recursive": {
         truncated: false,
         tree: [
           { path: "src/app.ts", type: "blob", size: 120 },
@@ -77,8 +80,8 @@ describe("GithubSource.listFiles", () => {
   it("lists each directory once without pagination when the recursive tree is truncated", async () => {
     const many = Array.from({ length: 150 }, (_, i) => ({ path: `f${i}.ts`, type: "blob", size: 1 }));
     github.trees = {
-      "main?recursive": { truncated: true, tree: [] },
-      main: { truncated: false, tree: [{ path: "src", type: "tree", sha: "src" }] },
+      "abc123?recursive": { truncated: true, tree: [] },
+      abc123: { truncated: false, tree: [{ path: "src", type: "tree", sha: "src" }] },
       src: { truncated: false, tree: [...many, { path: "lib", type: "tree", sha: "lib" }] },
       lib: { truncated: false, tree: [{ path: "util.ts", type: "blob", size: 1 }] },
     };
@@ -88,7 +91,7 @@ describe("GithubSource.listFiles", () => {
     expect(files).toHaveLength(151);
     expect(files).toContain("src/f149.ts");
     expect(files).toContain("src/lib/util.ts");
-    expect(github.treeCalls.map((call) => call.tree_sha)).toEqual(["main", "main", "src", "lib"]);
+    expect(github.treeCalls.map((call) => call.tree_sha)).toEqual(["abc123", "abc123", "src", "lib"]);
     expect(github.treeCalls.some((call) => "page" in call || "per_page" in call)).toBe(false);
   });
 });
@@ -117,12 +120,12 @@ describe("GithubSource.searchContent", () => {
 });
 
 describe("GithubSource.urlFor", () => {
-  it("links to the file on the default branch, with a line anchor when given", async () => {
+  it("links to the file at the pinned commit, with a line anchor when given", async () => {
     const source = await connect();
 
-    expect(source.urlFor("src/a.ts")).toBe("https://github.com/acme/shop/blob/main/src/a.ts");
+    expect(source.urlFor("src/a.ts")).toBe("https://github.com/acme/shop/blob/abc123/src/a.ts");
     expect(source.urlFor("src/a.ts", { start: 3, end: 9 })).toBe(
-      "https://github.com/acme/shop/blob/main/src/a.ts#L3-L9",
+      "https://github.com/acme/shop/blob/abc123/src/a.ts#L3-L9",
     );
   });
 });

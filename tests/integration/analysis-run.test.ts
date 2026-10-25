@@ -26,6 +26,20 @@ const start = (request: string, execute: Execute) =>
 const restart = (request: string, execute: Execute, rerunId: string) =>
   restartAnalysis({ db, userId: "u1", input: { request }, execute, rerunId });
 
+// `startAnalysis` returns the id only once its run finished, so a pending run is found by its stored input.
+async function waitForRow(request: string): Promise<string> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const rows = await db.select().from(schema.analysis);
+    const row = rows.find((candidate) => {
+      const input: unknown = candidate.input;
+      return typeof input === "object" && input !== null && "request" in input && input.request === request;
+    });
+    if (row) return row.id;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`no analysis row for ${request}`);
+}
+
 describe("running an analysis", () => {
   it("records a failure with its message", async () => {
     const id = await start("vague", async () => {
@@ -98,7 +112,7 @@ describe("running an analysis", () => {
     });
     await db
       .update(schema.analysis)
-      .set({ status: "running", createdAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .set({ status: "running", startedAt: new Date(Date.now() - 11 * 60 * 1000) })
       .where(eq(schema.analysis.id, id));
 
     expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
@@ -115,13 +129,39 @@ describe("running an analysis", () => {
     });
     await db
       .update(schema.analysis)
-      .set({ status: "running", createdAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .set({ status: "running", startedAt: new Date(Date.now() - 11 * 60 * 1000) })
       .where(eq(schema.analysis.id, id));
 
     await expect(restart("fresh", async () => ({ result: {}, issues: [] }), id)).resolves.toBe(id);
     expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
       status: "completed",
       input: { request: "fresh" },
+    });
+  });
+
+  it("discards the outcome of a run that a re-run replaced", async () => {
+    let finishFirst!: (outcome: { result: unknown; issues: [] }) => void;
+    const first = start(
+      "slow",
+      () =>
+        new Promise((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    const slowId = await waitForRow("slow");
+    await db
+      .update(schema.analysis)
+      .set({ startedAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .where(eq(schema.analysis.id, slowId));
+
+    await restart("replacement", async () => ({ result: { title: "replacement" }, issues: [] }), slowId);
+    finishFirst({ result: { title: "slow" }, issues: [] });
+    await first;
+
+    expect((await getAnalysis(db, "orgA", slowId))?.analysis).toMatchObject({
+      status: "completed",
+      input: { request: "replacement" },
+      result: { title: "replacement" },
     });
   });
 });

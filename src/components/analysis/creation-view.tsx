@@ -10,7 +10,7 @@ export function CreationView({ analysis, draft, trackerName, trackerKey, questio
   if (!draft) return <OutdatedResult subject="draft" action="Send a message in the conversation to run it again." />;
   return (
     <DraftWorkspace
-      key={analysis.createdAt.toISOString()}
+      key={analysis.startedAt.toISOString()}
       initial={draft}
       publish={publishTicket.bind(null, analysis.id)}
       save={saveDraftEdits.bind(null, analysis.id)}

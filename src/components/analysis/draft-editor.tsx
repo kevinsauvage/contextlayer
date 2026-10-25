@@ -67,6 +67,7 @@ export function DraftEditor({ draft, onChange, disabled: published, trackerName,
         <Input
           id="draft-title"
           value={draft.title}
+          maxLength={255}
           disabled={published}
           onChange={(e) => patch({ title: e.target.value })}
         />

@@ -76,7 +76,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
       }
     />
   );
-  const runKey = analysis.createdAt.toISOString();
+  const runKey = analysis.startedAt.toISOString();
 
   if (analysis.kind === "audit") {
     return (

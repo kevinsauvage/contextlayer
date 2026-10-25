@@ -2,6 +2,11 @@ import type { Issue } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import { isFollowUp, type Refinement } from "@/core/requirements/schemas";
 
+// Untrusted values must not close the block they sit in or open a fake one (a forged `<source>`), or that text
+// reads as prompt outside the "untrusted data" rule. No tag survives, and an attribute value cannot end its quote.
+const asText = (value: string) => value.replace(/</g, "&lt;");
+const asAttribute = (value: string) => asText(value).replace(/"/g, "&quot;");
+
 const SHARED_RULES = `- Use only the provided context. Never invent requirements, numbers, deadlines, or business intent.
 - Mark every claim with a status: verified (cite evidence ids), inferred, unknown, or needs_clarification.
 - A claim may be "verified" only if the cited context directly supports it. If context shows a problem but not the intended outcome, state the problem as verified and the intended scope as needs_clarification.
@@ -39,7 +44,10 @@ ${SHARED_RULES}
 
 const contextBlock = (candidates: Evidence[]) =>
   candidates
-    .map((c) => `<source id="${c.id}" kind="${c.kind}" path="${c.reference}">\n${c.excerpt}\n</source>`)
+    .map(
+      (c) =>
+        `<source id="${asAttribute(c.id)}" kind="${asAttribute(c.kind)}" path="${asAttribute(c.reference)}">\n${asText(c.excerpt)}\n</source>`,
+    )
     .join("\n") || "(no relevant context found)";
 
 const refinementLine = (r: Refinement) =>
@@ -54,4 +62,4 @@ export const buildCreatePrompt = (request: string, answers: Refinement[], candid
   `<request>\n${request}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>
-  `<ticket key="${issue.key}" status="${issue.status}">\nTitle: ${issue.summary}\n\n${issue.description || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;
+  `<ticket key="${asAttribute(issue.key)}" status="${asAttribute(issue.status)}">\nTitle: ${asText(issue.summary)}\n\n${asText(issue.description) || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;

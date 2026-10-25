@@ -71,12 +71,15 @@ describe("draftTicket", () => {
 });
 
 describe("auditIssue", () => {
-  const auditBody = (findingEvidence: string[]): AuditBody => ({
+  const auditBody = (
+    findingEvidence: string[],
+    findingStatus: AuditBody["findings"][number]["status"] = "verified",
+  ): AuditBody => ({
     summary: "Vague ticket",
     findings: [
       {
         text: "Existing label work in CHK-7",
-        status: "verified",
+        status: findingStatus,
         evidenceIds: findingEvidence,
         category: "existing_implementation_or_duplicate",
       },
@@ -102,5 +105,14 @@ describe("auditIssue", () => {
       path: "findings[0]",
       message: "Finding 1 is marked Verified but cites no evidence.",
     });
+  });
+
+  it("flags a duplicate or conflict finding that is not verified", async () => {
+    expect((await run(auditBody([], "inferred"))).issues).toEqual([
+      {
+        path: "findings[0]",
+        message: "Finding 1 reports an existing implementation or duplicate but is not Verified with evidence.",
+      },
+    ]);
   });
 });

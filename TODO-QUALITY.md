@@ -8,15 +8,15 @@ Tests, evals and fixtures: code that changes no product behaviour but proves it.
   - **Context:** auditing is half the product, but only one of the nine fixtures (`stale-ticket-audit`) is `kind: "audit"`, so the audit prompt, finding categories and the proposed ticket have almost no eval coverage.
   - **Fix:** add three or four audit cases: missing or non-testable acceptance criteria, a ticket that duplicates an existing implementation or issue (`relatedIssues`), a claim that conflicts with the code, and a sound ticket that should get few findings. Each needs `expected.forbiddenClaims` and `mustStayUncertain`.
 
-- [ ] **Injection through Jira text and tag breakout** `P1` `C3`
-  - **Context:** the only injection fixture (`prompt-injection`) hides the instruction in a repository file. Nothing covers instructions in an audited issue's description or in a related issue, or text that tries to close the `<context>` / `<ticket>` tags (see the prompt bug in [`TODO-BUG.md`](TODO-BUG.md)). `buildAuditPrompt` has no unit test.
-  - **Fix:** add an `injection`-tagged audit fixture whose issue description and a related issue carry instructions and a `</ticket>` breakout, so the nightly subset runs it, plus unit tests for both prompt builders asserting untrusted text stays inside its block.
+- [~] **Injection through Jira text and tag breakout** `P1` `C3`
+  - **Context:** the only injection fixture (`prompt-injection`) hides the instruction in a repository file. Nothing covers instructions in an audited issue's description or in a related issue. Both prompt builders now neutralise closing tags and attribute quotes (`tests/unit/prompt.test.ts`), but no eval fixture exercises an audited issue or a related issue carrying instructions.
+  - **Fix:** add an `injection`-tagged audit fixture whose issue description and a related issue carry instructions and a `</ticket>` breakout, so the nightly subset runs it.
 
 ## P2 · Connect and deliver
 
-- [ ] **Tests for publishing and autosave** `P2`
-  - **Context:** `publishTicket`, `applyAuditToTracker`, `saveDraftEdits`, `parseApprovedDraft` and `publishApproved` have no tests, although they are the only Jira writes and the approval gate.
-  - **Fix:** integration tests with a fake tracker: publishes once and records the key and URL, refuses a second publish, refuses a draft with an evidence issue, maps a reconnect error, reports a tracker failure without recording, refuses to autosave a published or running analysis, and `applyAuditToTracker` updates the audited key only.
+- [~] **Tests for publishing and autosave** `P2`
+  - **Context:** `publishTicket`, `applyAuditToTracker` and `saveDraftEdits` have no tests, although they are the only Jira writes and the approval gate. `publishApproved` now covers publishing once, refusing a simultaneous second claim and releasing the claim after a tracker failure (`tests/integration/publish.test.ts`); `parseApprovedDraft` covers a forged evidence item, an unknown citation and a refused title (`tests/unit/approved-draft.test.ts`).
+  - **Fix:** integration tests with a fake tracker for the remaining paths: `publishTicket` records the key and URL, refuses a draft with an evidence issue, maps a reconnect error, refuses to autosave a published or running analysis, and `applyAuditToTracker` updates the audited key only and refuses after a Jira edit.
 
 ## P3 · Harden and validate
 

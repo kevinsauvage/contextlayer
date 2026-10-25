@@ -34,8 +34,14 @@ const openQuestionSchema = z.object({
     .describe("Why the recommended option is the best choice, in one sentence."),
 });
 
+// Jira rejects a summary over 255 characters or containing a line break, so the draft cannot hold one either.
+const titleSchema = z
+  .string()
+  .transform((value) => value.replace(/[\r\n]+/g, " ").trim())
+  .pipe(z.string().min(1, "Enter a title").max(255, "Keep the title under 255 characters"));
+
 export const draftBodySchema = z.object({
-  title: z.string().min(1),
+  title: titleSchema,
   description: z.array(claimSchema).min(1),
   acceptanceCriteria: z.array(acceptanceCriterionSchema),
   assumptions: z.array(assumptionSchema),

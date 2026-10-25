@@ -77,7 +77,11 @@ export async function retrieveFileEvidence(
       };
     }),
   );
-  const ranked = scored.sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
+  // A code-search hit whose text does not contain the terms, or a test file the penalty pushed below zero, has
+  // nothing to cite: keeping it would send the model an excerpt from the top of an unrelated file.
+  const ranked = scored
+    .filter((file) => file.score > 0)
+    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
   const imported = await followImports(ranked, paths, source, terms);
 
   return [...ranked.slice(0, maxCandidates - imported.length), ...imported].map((file) =>

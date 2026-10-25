@@ -92,6 +92,12 @@ export const analysis = pgTable(
     error: text("error"),
     publishedIssueKey: text("published_issue_key"),
     publishedIssueUrl: text("published_issue_url"),
+    // Claimed (with a lease) before the tracker write so two approvals cannot create two issues.
+    publishingSince: timestamp("publishing_since"),
+    // Set on each run; an outcome is recorded only if the row still carries the token the run started with.
+    runToken: text("run_token"),
+    // Staleness and latency use the run's start; createdAt stays fixed so the history order does not move.
+    startedAt: timestamp("started_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("analysis_project_created_idx").on(t.projectId, t.createdAt)],

@@ -9,7 +9,15 @@ export type ContextSource = {
   urlFor?(path: string, lines?: LineRange): string;
 };
 
-export type Issue = { key: string; summary: string; description: string; status: string; url: string };
+export type Issue = {
+  key: string;
+  summary: string;
+  description: string;
+  status: string;
+  url: string;
+  // The tracker's last-modified timestamp, so an audit can tell whether the issue changed since it ran.
+  updated?: string;
+};
 export type PublishedIssue = { key: string; url: string };
 
 export type IssueTracker = {
