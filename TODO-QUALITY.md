@@ -2,28 +2,8 @@
 
 Tests, evals and fixtures: code that changes no product behaviour but proves it. Index and conventions: [`TODO.md`](TODO.md).
 
-## P1 · Prove the product
-
-- [ ] **More audit fixtures** `P1` `C3` `E2`
-  - **Context:** auditing is half the product, but only one of the nine fixtures (`stale-ticket-audit`) is `kind: "audit"`, so the audit prompt, finding categories and the proposed ticket have almost no eval coverage.
-  - **Fix:** add three or four audit cases: missing or non-testable acceptance criteria, a ticket that duplicates an existing implementation or issue (`relatedIssues`), a claim that conflicts with the code, and a sound ticket that should get few findings. Each needs `expected.forbiddenClaims` and `mustStayUncertain`.
-
-- [~] **Injection through Jira text and tag breakout** `P1` `C3`
-  - **Context:** the only injection fixture (`prompt-injection`) hides the instruction in a repository file. Nothing covers instructions in an audited issue's description or in a related issue. Both prompt builders now neutralise closing tags and attribute quotes (`tests/unit/prompt.test.ts`), but no eval fixture exercises an audited issue or a related issue carrying instructions.
-  - **Fix:** add an `injection`-tagged audit fixture whose issue description and a related issue carry instructions and a `</ticket>` breakout, so the nightly subset runs it.
-
-## P2 · Connect and deliver
-
-- [~] **Tests for publishing and autosave** `P2`
-  - **Context:** `publishTicket`, `applyAuditToTracker` and `saveDraftEdits` have no tests, although they are the only Jira writes and the approval gate. `publishApproved` now covers publishing once, refusing a simultaneous second claim and releasing the claim after a tracker failure (`tests/integration/publish.test.ts`); `parseApprovedDraft` covers a forged evidence item, an unknown citation and a refused title (`tests/unit/approved-draft.test.ts`).
-  - **Fix:** integration tests with a fake tracker for the remaining paths: `publishTicket` records the key and URL, refuses a draft with an evidence issue, maps a reconnect error, refuses to autosave a published or running analysis, and `applyAuditToTracker` updates the audited key only and refuses after a Jira edit.
-
 ## P3 · Harden and validate
 
-- [ ] **UI and end-to-end smoke tests** `P3`
-  - **Context:** there are no component or browser tests, so the draft workspace (800 ms autosave, discard confirmation before a redraft, approval confirmation with unresolved items, unsaved-changes prompt) is only checked by hand.
-  - **Fix:** add React Testing Library tests for `DraftWorkspace` and `TicketChat`, and one Playwright smoke run (sign up, create a project on fake providers, draft, approve) against the local stack.
-
-- [ ] **Tests for starting a connection** `P3`
-  - **Context:** `finishConnect` is tested, but `startConnect` is not: the `not_admin` and `unconfigured` notices, `returnTo` sanitising and the signed state's contents.
-  - **Fix:** unit-test `startConnect` with a fake provider for each branch, and assert the state verifies back to the same user, organization, provider and safe `returnTo`.
+- [~] **End-to-end smoke test** `P3`
+  - **Context:** the draft workspace and the chat now have React Testing Library tests (`tests/components/`: approval, confirmation with unresolved items, autosave, the unsaved-changes prompt, sending and the discard-edits confirmation), but no test drives the running app through sign-up, a project and a publish. The app has no way to run on fake GitHub, Jira and model providers, so a browser test would need real credentials.
+  - **Fix:** add a test-only provider set (selected by an env flag that `env.ts` refuses in production) with a fixture repository, an in-memory tracker and a canned generator, then one Playwright run against the local stack: sign up, create a project, draft, approve, and check the issue in the fake tracker.

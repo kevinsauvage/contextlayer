@@ -25,6 +25,7 @@ Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env
 | Run everything CI runs     | `pnpm check`                                                                                               |
 | Fix formatting and lint    | `pnpm format` then `pnpm lint:fix`                                                                         |
 | One test file              | `pnpm test tests/unit/retrieve.test.ts`                                                                    |
+| Component tests            | `pnpm test tests/components` (`.tsx`, jsdom via a `// @vitest-environment jsdom` comment)                  |
 | Watch mode                 | `pnpm test:watch`                                                                                          |
 | Coverage (floor: 55%)      | `pnpm test:coverage`, report in `coverage/`                                                                |
 | Find dead code             | `pnpm knip`                                                                                                |
@@ -58,7 +59,7 @@ A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged file
 3. `pnpm eval tests/evaluation/baseline.eval.ts` compares the original ticket, a generic AI answer and the ContextLayer draft with an LLM judge, writes `results/<case>.baseline.json`.
 4. `pnpm eval tests/evaluation/injection.eval.ts` runs the two-case subset tagged `injection` and `control`; `.github/workflows/ai-nightly.yml` runs it nightly with a cheap model.
 
-Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`](../product/evaluation-rubric.md). To add a case, create `tests/fixtures/<id>/case.json` and a miniature `repo/`; `tests/unit/fixtures.test.ts` validates the shape. A case may set `kind: "audit"` with `issue`, a full `request` longer than its `title`, `relatedIssues` for retrieval, `answers` for a clarification round, and `tags`.
+Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`](../product/evaluation-rubric.md). To add a case, create `tests/fixtures/<id>/case.json` and a miniature `repo/`; `tests/unit/fixtures.test.ts` validates the shape, and `tests/unit/fixture-recall.test.ts` checks without a model that retrieval finds every `relevantFiles` entry (list a known miss in its `KNOWN_MISSES`, with the backlog item that fixes it). A case may set `kind: "audit"` with `issue`, a full `request` longer than its `title`, `relatedIssues` for retrieval, `answers` for a clarification round, and `tags`.
 
 ## Troubleshooting
 

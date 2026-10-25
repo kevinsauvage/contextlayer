@@ -1,0 +1,34 @@
+{
+  "id": "audit-vague-search",
+  "kind": "audit",
+  "title": "Audit SHOP-210: improve product search",
+  "issue": {
+    "key": "SHOP-210",
+    "summary": "Improve product search",
+    "description": "Search results are bad. Make product search better and faster so users find what they want.",
+    "status": "To Do",
+    "url": "https://jira.test/browse/SHOP-210"
+  },
+  "expected": {
+    "relevantFiles": [
+      "repo/src/search/searchProducts.ts",
+      "repo/src/search/SearchBox.tsx"
+    ],
+    "verifiedFacts": [
+      "searchProducts matches only the product name, as a case-insensitive substring",
+      "Results are sorted by name and capped at 20",
+      "SearchBox runs a search on every keystroke, without a debounce",
+      "The ticket has no acceptance criteria"
+    ],
+    "mustStayUncertain": [
+      "What \"better\" results means (ranking, typo tolerance, which fields to search)",
+      "A speed target, and whether search is actually slow",
+      "Which queries or users fail today"
+    ],
+    "forbiddenClaims": [
+      "A specific latency or response-time target as a requirement",
+      "Fuzzy or typo-tolerant matching as a confirmed requirement",
+      "Search being slow stated as a verified fact"
+    ]
+  }
+}

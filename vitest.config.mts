@@ -10,7 +10,8 @@ export default defineConfig({
       BETTER_AUTH_URL: "http://localhost:3000",
       ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
     },
-    include: ["tests/**/*.test.ts"],
+    // Component tests are `.tsx` and opt into jsdom with a `@vitest-environment` comment.
+    include: ["tests/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       include: ["src/core/**", "src/features/**", "src/infrastructure/**", "src/integrations/**"],

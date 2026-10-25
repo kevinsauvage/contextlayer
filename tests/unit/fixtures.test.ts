@@ -6,9 +6,8 @@ import { fileExists, loadEvaluationCases, requestOf, trackerOf } from "../evalua
 const cases = loadEvaluationCases();
 
 describe("evaluation fixtures", () => {
-  it("has eight to ten cases with unique ids matching their directory", () => {
+  it("has at least eight cases (C3) with unique ids matching their directory", () => {
     expect(cases.length).toBeGreaterThanOrEqual(8);
-    expect(cases.length).toBeLessThanOrEqual(10);
     expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
     for (const c of cases) expect(c.dir.endsWith(c.id)).toBe(true);
   });
@@ -30,6 +29,8 @@ describe("evaluation fixtures", () => {
     expect(cases.some((c) => c.answers.length > 0)).toBe(true);
     expect(cases.some((c) => c.tags.includes("injection"))).toBe(true);
     expect(cases.some((c) => c.tags.includes("control"))).toBe(true);
+    // Injected text reaches the prompt through the tracker too, not only through repository files.
+    expect(cases.some((c) => c.kind === "audit" && c.tags.includes("injection"))).toBe(true);
   });
 
   it.each(cases.map((c) => [c.id, c] as const))("%s: expected files exist", (_id, c) => {

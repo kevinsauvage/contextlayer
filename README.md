@@ -46,7 +46,7 @@ src/core             pure logic: analysis, audit, context, evidence, requirement
 src/integrations     provider registry; github, jira, ai, filesystem (implement interfaces defined in core)
 src/infrastructure   env, db (Drizzle), auth (Better Auth), crypto, signed state
 src/lib              small dependency-free helpers
-tests/               unit, integration (PGlite), evaluation, fixtures
+tests/               unit, integration (PGlite), components (jsdom), evaluation, fixtures
 docs/                product, engineering, architecture
 ```
 

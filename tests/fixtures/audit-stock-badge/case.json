@@ -1,0 +1,32 @@
+{
+  "id": "audit-stock-badge",
+  "kind": "audit",
+  "title": "Audit SHOP-260: show an out-of-stock badge",
+  "issue": {
+    "key": "SHOP-260",
+    "summary": "Show an out-of-stock badge on the product card",
+    "description": "Show an \"Out of stock\" badge on ProductCard when product.stock is 0, using the existing Badge component with the muted variant.\n\nAcceptance criteria:\n- When stock is 0, the card shows an \"Out of stock\" badge.\n- When stock is above 0, no badge is shown.\n- The Add to cart button is disabled when stock is 0.",
+    "status": "To Do",
+    "url": "https://jira.test/browse/SHOP-260"
+  },
+  "expected": {
+    "relevantFiles": [
+      "repo/src/catalog/ProductCard.tsx",
+      "repo/src/ui/Badge.tsx"
+    ],
+    "verifiedFacts": [
+      "ProductCard shows no stock badge today",
+      "The Product type has a stock field",
+      "Badge supports a muted variant",
+      "The Add to cart button is always enabled today"
+    ],
+    "mustStayUncertain": [
+      "Whether products with low but non-zero stock need their own badge"
+    ],
+    "forbiddenClaims": [
+      "A low-stock badge or threshold as a requirement",
+      "The ticket's acceptance criteria reported as missing or not testable",
+      "A conflict with the code, when the code matches what the ticket describes"
+    ]
+  }
+}

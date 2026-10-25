@@ -2,11 +2,17 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Issue, IssueTracker } from "@/core/context/source";
-import type { IntegrationProvider, SourceProvider, TrackerProvider } from "@/core/integrations/provider";
+import {
+  ReconnectRequiredError,
+  type IntegrationProvider,
+  type SourceProvider,
+  type TrackerProvider,
+} from "@/core/integrations/provider";
+import type { TicketDraft } from "@/core/requirements/schemas";
 import { removeMember } from "@/features/organizations/actions";
 import { createProject, deleteProject } from "@/features/projects/actions";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
-import { refineTicket } from "@/features/ticket-creation/actions";
+import { publishTicket, refineTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
 import { first } from "@/lib/first";
@@ -261,5 +267,116 @@ describe("applyAuditToTracker", () => {
     expect(updates).toEqual([]);
     const [row] = await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id));
     expect(row?.publishingSince).toBeNull();
+  });
+});
+
+describe("publishTicket and saveDraftEdits", () => {
+  const stored: TicketDraft = {
+    title: "Round cart totals",
+    description: [{ text: "Totals are rounded down.", status: "verified", evidenceIds: ["e1"] }],
+    acceptanceCriteria: [],
+    assumptions: [],
+    openQuestions: [],
+    evidence: [{ id: "e1", kind: "code", reference: "src/cart/loadCart.ts", excerpt: "Math.floor(total)" }],
+  };
+  const { evidence: _evidence, ...editable } = stored;
+
+  async function draftAnalysis(overrides: Partial<typeof schema.analysis.$inferInsert> = {}): Promise<string> {
+    const project = await seedProject(state.db, "orgA", connections);
+    const row = first(
+      await state.db
+        .insert(schema.analysis)
+        .values({
+          projectId: project.id,
+          createdByUserId: "u1",
+          kind: "create",
+          status: "completed",
+          input: { request: "Round totals" },
+          result: stored,
+          ...overrides,
+        })
+        .returning({ id: schema.analysis.id }),
+    );
+    return row.id;
+  }
+
+  const rowOf = async (id: string) =>
+    first(await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
+
+  function creatingTracker(create: IssueTracker["createIssue"]) {
+    state.tracker = {
+      searchRelated: async () => [],
+      getIssue: async () => {
+        throw new Error("unused");
+      },
+      createIssue: create,
+      updateIssue: async () => {
+        throw new Error("unused");
+      },
+    };
+  }
+
+  it("creates the issue with the stored evidence and records its key and URL", async () => {
+    const id = await draftAnalysis();
+    const created: TicketDraft[] = [];
+    creatingTracker(async (draft) => {
+      created.push(draft);
+      return { key: "SHOP-9", url: "https://jira.test/browse/SHOP-9" };
+    });
+    const forged = [{ ...stored.evidence[0], excerpt: "Forged", url: "https://evil.test" }];
+
+    expect(await publishTicket(id, { ...editable, evidence: forged })).toEqual({
+      issueKey: "SHOP-9",
+      issueUrl: "https://jira.test/browse/SHOP-9",
+    });
+    expect(created.map((draft) => draft.evidence)).toEqual([stored.evidence]);
+    expect(await rowOf(id)).toMatchObject({
+      publishedIssueKey: "SHOP-9",
+      publishedIssueUrl: "https://jira.test/browse/SHOP-9",
+    });
+  });
+
+  it("refuses a draft that cites evidence the analysis does not hold, without calling the tracker", async () => {
+    const id = await draftAnalysis();
+    let calls = 0;
+    creatingTracker(async () => {
+      calls += 1;
+      return { key: "SHOP-10", url: "u" };
+    });
+    const draft = { ...editable, description: [{ text: "Unsupported.", status: "verified", evidenceIds: ["e99"] }] };
+
+    expect(await publishTicket(id, draft)).toEqual({
+      error:
+        "Description paragraph 1 cites evidence e99, which is not in the evidence list. Fix it in Edit, then approve again.",
+    });
+    expect(calls).toBe(0);
+  });
+
+  it("asks for a reconnect when the tracker grant expired, and leaves the draft publishable", async () => {
+    const id = await draftAnalysis();
+    creatingTracker(async () => {
+      throw new ReconnectRequiredError("Acme Jira");
+    });
+
+    expect(await publishTicket(id, editable)).toEqual({
+      error: "The connection to Acme Jira expired. An admin needs to reconnect it in Integrations.",
+    });
+    expect(await rowOf(id)).toMatchObject({ publishedIssueKey: null, publishingSince: null });
+  });
+
+  it("autosaves edits with the stored evidence only", async () => {
+    const id = await draftAnalysis();
+    const forged = [{ ...stored.evidence[0], excerpt: "Forged" }];
+
+    expect(await saveDraftEdits(id, { ...editable, title: "Round cart totals half up", evidence: forged })).toEqual({});
+    expect((await rowOf(id)).editedResult).toEqual({ ...stored, title: "Round cart totals half up" });
+  });
+
+  it("refuses to autosave a published or a running analysis", async () => {
+    const published = await draftAnalysis({ publishedIssueKey: "SHOP-11", publishedIssueUrl: "u" });
+    const running = await draftAnalysis({ status: "running", result: null });
+
+    expect(await saveDraftEdits(published, editable)).toEqual({ error: "This draft is already published" });
+    expect(await saveDraftEdits(running, editable)).toEqual({ error: "This analysis is still running" });
   });
 });

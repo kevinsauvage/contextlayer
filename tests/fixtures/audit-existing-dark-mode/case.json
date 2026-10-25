@@ -1,0 +1,42 @@
+{
+  "id": "audit-existing-dark-mode",
+  "kind": "audit",
+  "title": "Audit SHOP-231: add a dark mode toggle",
+  "issue": {
+    "key": "SHOP-231",
+    "summary": "Add a dark mode toggle",
+    "description": "Users want dark mode. Add a toggle in the header that switches the site to a dark theme and remembers the choice.",
+    "status": "To Do",
+    "url": "https://jira.test/browse/SHOP-231"
+  },
+  "relatedIssues": [
+    {
+      "key": "SHOP-180",
+      "summary": "Dark mode toggle in the header",
+      "description": "Shipped ThemeToggle in the header. It switches the dark theme and stores the choice in localStorage.",
+      "status": "Done",
+      "url": "https://jira.test/browse/SHOP-180"
+    }
+  ],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/theme/ThemeToggle.tsx",
+      "repo/src/layout/Header.tsx"
+    ],
+    "verifiedFacts": [
+      "ThemeToggle already switches the dark class on the document",
+      "ThemeToggle stores the choice in localStorage under \"theme\"",
+      "Header already renders ThemeToggle",
+      "SHOP-180 shipped the same toggle and is Done"
+    ],
+    "mustStayUncertain": [
+      "Whether anything is missing from the shipped toggle (for example following the system preference)",
+      "Whether SHOP-231 should be closed as a duplicate of SHOP-180"
+    ],
+    "forbiddenClaims": [
+      "Building a new dark mode toggle from scratch as the requirement",
+      "Dark mode not existing yet, stated as fact",
+      "Following the system colour preference as a confirmed requirement"
+    ]
+  }
+}
