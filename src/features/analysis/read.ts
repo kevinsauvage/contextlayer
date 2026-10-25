@@ -40,3 +40,15 @@ export function readAnalysis(analysis: Analysis): ReadAnalysis {
   const draft = ticketDraftSchema.safeParse(proposal).data;
   return { input, draft: draft ? withStoredEvidence(draft, evidence) : null, report };
 }
+
+const SHORT_SHA = 7;
+
+export const shortRevision = (revision: string) => revision.slice(0, SHORT_SHA);
+
+// Set when this draft read a different commit than the draft it replaced: its evidence may differ from before.
+export function revisionChange(
+  analysis: Pick<Analysis, "sourceRevision" | "previousSourceRevision">,
+): { from: string; to: string } | null {
+  const { sourceRevision: to, previousSourceRevision: from } = analysis;
+  return to && from && to !== from ? { from: shortRevision(from), to: shortRevision(to) } : null;
+}

@@ -17,7 +17,7 @@ export class GithubSource implements ContextSource {
     private readonly octokit: Octokit,
     private readonly repo: RepoRef,
     // Pinned commit, not the branch: a link must keep showing the lines it was verified against.
-    private readonly revision: string,
+    readonly revision: string,
   ) {}
 
   static async connect(installationId: number, repo: RepoRef): Promise<GithubSource> {

@@ -20,7 +20,7 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | Priority | Goal                                                              | Bug | Feature | Quality | Non-code |
 | -------- | ----------------------------------------------------------------- | --: | ------: | ------: | -------: |
 | P0       | Decide whether to build (evidence for the go / pivot / stop rule) |   0 |       0 |       0 |        3 |
-| P1       | Prove the product (quality, retrieval, cost)                      |   1 |       4 |       2 |        2 |
+| P1       | Prove the product (quality, retrieval, cost)                      |   0 |       4 |       2 |        2 |
 | P2       | Connect and deliver (real teams, real credentials)                |   0 |       5 |       1 |        2 |
 | P3       | Harden and validate (security, operations, pilot)                 |   0 |       6 |       2 |        5 |
 

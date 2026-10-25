@@ -13,7 +13,7 @@ import type { AuditGenerator, DraftGenerator, TokenUsage } from "./generators";
 
 type Deps = { source: ContextSource; tracker: IssueTracker };
 
-type AnalysisBase = { candidates: Evidence[]; issues: EvidenceIssue[]; usage?: TokenUsage };
+type AnalysisBase = { candidates: Evidence[]; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 export type CreationResult = AnalysisBase & { draft: TicketDraft };
 export type AuditResult = AnalysisBase & { issue: Issue; report: AuditReport };
 
@@ -27,7 +27,8 @@ export async function draftTicket(
   const { body, usage } = await input.generator.generate({ request: input.request, answers, candidates });
 
   const draft: TicketDraft = { ...body, evidence: citedEvidence(candidates, draftSections(body)) };
-  return { draft, candidates, issues: validateEvidenceReferences(draft.evidence, draftSections(draft)), usage };
+  const issues = validateEvidenceReferences(draft.evidence, draftSections(draft));
+  return { draft, candidates, issues, usage, revision: input.source.revision };
 }
 
 export async function auditIssue(input: Deps & { issueKey: string; generator: AuditGenerator }): Promise<AuditResult> {
@@ -42,5 +43,5 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };
   const report: AuditReport = { ...body, evidence: citedEvidence(candidates, sections) };
   const issues = [...validateEvidenceReferences(report.evidence, sections), ...validateAuditFindings(report.findings)];
-  return { issue, report, candidates, issues, usage };
+  return { issue, report, candidates, issues, usage, revision: input.source.revision };
 }

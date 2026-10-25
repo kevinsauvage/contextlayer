@@ -43,6 +43,13 @@
       "when": 1792872650208,
       "tag": "0005_normal_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792946993693,
+      "tag": "0006_sharp_supernaut",
+      "breakpoints": true
     }
   ]
 }

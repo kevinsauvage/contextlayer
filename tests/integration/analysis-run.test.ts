@@ -18,7 +18,7 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
-type Execute = () => Promise<{ result: unknown; issues: [] }>;
+type Execute = () => Promise<{ result: unknown; issues: []; revision?: string }>;
 
 const start = (request: string, execute: Execute) =>
   startAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute });
@@ -39,6 +39,36 @@ async function waitForRow(request: string): Promise<string> {
   }
   throw new Error(`no analysis row for ${request}`);
 }
+
+describe("source revisions", () => {
+  const revisionsOf = async (id: string) => {
+    const found = (await getAnalysis(db, "orgA", id))?.analysis;
+    return { current: found?.sourceRevision, previous: found?.previousSourceRevision };
+  };
+  const at = (revision: string) => async () => ({ result: { title: "T" }, issues: [] as [], revision });
+
+  it("records the commit a run read and keeps the one it replaced on a re-run", async () => {
+    const id = await start("revisions", at("aaa1111"));
+    expect(await revisionsOf(id)).toEqual({ current: "aaa1111", previous: null });
+
+    await restart("revisions", at("bbb2222"), id);
+    expect(await revisionsOf(id)).toEqual({ current: "bbb2222", previous: "aaa1111" });
+  });
+
+  it("compares with the last draft that read the code when a re-run in between failed", async () => {
+    const id = await start("revisions after a failure", at("aaa1111"));
+    await restart(
+      "revisions after a failure",
+      async () => {
+        throw new Error("model timed out");
+      },
+      id,
+    );
+    await restart("revisions after a failure", at("ccc3333"), id);
+
+    expect(await revisionsOf(id)).toEqual({ current: "ccc3333", previous: "aaa1111" });
+  });
+});
 
 describe("running an analysis", () => {
   it("records a failure with its message", async () => {

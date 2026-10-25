@@ -7,6 +7,8 @@ export type ContextSource = {
   readFile(path: string): Promise<string>;
   searchContent?(terms: string[]): Promise<string[]>;
   urlFor?(path: string, lines?: LineRange): string;
+  // The commit every read came from, when the source has one; stored so a re-run can tell the code moved.
+  readonly revision?: string;
 };
 
 export type Issue = {

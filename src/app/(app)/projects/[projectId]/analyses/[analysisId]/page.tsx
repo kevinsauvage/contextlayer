@@ -8,6 +8,7 @@ import { CreationView } from "@/components/analysis/creation-view";
 import { EvidenceWarnings } from "@/components/analysis/evidence-warnings";
 import { InlineText } from "@/components/analysis/inline-text";
 import { OpenQuestions } from "@/components/analysis/open-questions";
+import { RevisionNotice } from "@/components/analysis/revision-notice";
 import { RefinementProvider } from "@/components/analysis/refinement-context";
 import { TicketChat } from "@/components/analysis/ticket-chat";
 import { PageHeader } from "@/components/page-header";
@@ -16,7 +17,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { plainInline } from "@/core/requirements/render";
 import { isFollowUp, type Clarification } from "@/core/requirements/schemas";
 import { answersOf, firstLine, requestOf } from "@/features/analysis/input";
-import { readAnalysis } from "@/features/analysis/read";
+import { readAnalysis, revisionChange, shortRevision } from "@/features/analysis/read";
 import { getAnalysis } from "@/features/projects/queries";
 import { refineTicket } from "@/features/ticket-creation/actions";
 import { projectIntegrations } from "@/features/projects/view";
@@ -72,7 +73,12 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
       }
       description={
         analysis.status === "completed" &&
-        `${analysis.model ?? "Unknown model"} · ${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s · ${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`
+        [
+          analysis.model ?? "Unknown model",
+          `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
+          `${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`,
+          ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
+        ].join(" · ")
       }
     />
   );
@@ -135,6 +141,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
             {analysis.status === "completed" ? (
               <>
                 <EvidenceWarnings issues={analysis.evidenceIssues ?? []} />
+                {!analysis.publishedIssueKey && <RevisionNotice change={revisionChange(analysis)} />}
                 {canRefine && <OpenQuestions decided={decided} />}
                 <CreationView
                   analysis={analysis}

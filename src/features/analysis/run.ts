@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, lt, ne, or } from "drizzle-orm";
+import { and, eq, lt, ne, or, sql } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
@@ -12,7 +12,7 @@ import { analysis } from "@/infrastructure/db/schema";
 import { getEnv } from "@/infrastructure/env";
 import { first } from "@/lib/first";
 
-type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage };
+type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 
 type Execute = () => Promise<Outcome>;
 
@@ -36,10 +36,11 @@ async function applyOutcome(
 async function recordOutcome(db: Database, id: string, runToken: string, execute: Execute): Promise<void> {
   const startedAt = Date.now();
   try {
-    const { result, issues, usage } = await execute();
+    const { result, issues, usage, revision } = await execute();
     await applyOutcome(db, id, runToken, {
       status: "completed",
       result,
+      sourceRevision: revision ?? null,
       evidenceIssues: issues,
       inputTokens: usage?.inputTokens,
       outputTokens: usage?.outputTokens,
@@ -104,6 +105,9 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
       model: getEnv().AI_MODEL,
       runToken,
       startedAt: new Date(),
+      // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.
+      previousSourceRevision: sql`coalesce(${analysis.sourceRevision}, ${analysis.previousSourceRevision})`,
+      sourceRevision: null,
       result: null,
       editedResult: null,
       evidenceIssues: null,

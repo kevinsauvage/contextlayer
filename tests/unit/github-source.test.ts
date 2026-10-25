@@ -123,6 +123,7 @@ describe("GithubSource.urlFor", () => {
   it("links to the file at the pinned commit, with a line anchor when given", async () => {
     const source = await connect();
 
+    expect(source.revision).toBe("abc123");
     expect(source.urlFor("src/a.ts")).toBe("https://github.com/acme/shop/blob/abc123/src/a.ts");
     expect(source.urlFor("src/a.ts", { start: 3, end: 9 })).toBe(
       "https://github.com/acme/shop/blob/abc123/src/a.ts#L3-L9",

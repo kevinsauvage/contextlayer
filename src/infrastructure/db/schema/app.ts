@@ -96,6 +96,9 @@ export const analysis = pgTable(
     publishingSince: timestamp("publishing_since"),
     // Set on each run; an outcome is recorded only if the row still carries the token the run started with.
     runToken: text("run_token"),
+    // The commit the run read, and the one the previous draft read, so the page can say the code changed.
+    sourceRevision: text("source_revision"),
+    previousSourceRevision: text("previous_source_revision"),
     // Staleness and latency use the run's start; createdAt stays fixed so the history order does not move.
     startedAt: timestamp("started_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

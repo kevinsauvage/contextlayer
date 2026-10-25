@@ -41,6 +41,18 @@ const body = (evidenceIds: string[]): DraftBody => ({
 
 const drafting = (b: DraftBody): DraftGenerator => ({ generate: async () => ({ body: b }) });
 
+it("reports the revision the source read", async () => {
+  const pinned: ContextSource = { ...source, revision: "abc123" };
+  const result = await draftTicket({
+    request: "checkout button",
+    source: pinned,
+    tracker,
+    generator: drafting(body([])),
+  });
+
+  expect(result.revision).toBe("abc123");
+});
+
 describe("draftTicket", () => {
   const run = (b: DraftBody) => draftTicket({ request: "checkout button", source, tracker, generator: drafting(b) });
 

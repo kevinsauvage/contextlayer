@@ -28,13 +28,13 @@ const requestSchema = z
   .max(4000, "Keep the request under 4,000 characters");
 
 const draftFromRequest = async (db: Database, project: Project, request: string, answers: Refinement[] = []) => {
-  const { draft, issues, usage } = await draftTicket({
+  const { draft, issues, usage, revision } = await draftTicket({
     request,
     answers,
     ...(await buildProjectContext(db, project)),
     generator: defaultGenerator(),
   });
-  return { result: draft, issues, usage };
+  return { result: draft, issues, usage, revision };
 };
 
 export async function createTicketAnalysis(

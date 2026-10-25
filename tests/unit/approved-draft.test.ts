@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence } from "@/core/evidence/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
-import { readAnalysis } from "@/features/analysis/read";
+import { readAnalysis, revisionChange } from "@/features/analysis/read";
 import type { Analysis } from "@/features/projects/queries";
 
 const evidence: Evidence[] = [
@@ -66,5 +66,17 @@ describe("readAnalysis", () => {
 
     expect(readAnalysis(row).draft?.evidence).toEqual([]);
     expect(parseApprovedDraft(edited, evidence, "invalid")).toMatchObject({ draft: { evidence: [] } });
+  });
+});
+
+describe("revisionChange", () => {
+  it("reports a moved commit in short form, and nothing when either side is unknown or equal", () => {
+    expect(revisionChange({ sourceRevision: "bbbbbbb2222", previousSourceRevision: "aaaaaaa1111" })).toEqual({
+      from: "aaaaaaa",
+      to: "bbbbbbb",
+    });
+    expect(revisionChange({ sourceRevision: "aaaaaaa1111", previousSourceRevision: "aaaaaaa1111" })).toBeNull();
+    expect(revisionChange({ sourceRevision: "aaaaaaa1111", previousSourceRevision: null })).toBeNull();
+    expect(revisionChange({ sourceRevision: null, previousSourceRevision: "aaaaaaa1111" })).toBeNull();
   });
 });
