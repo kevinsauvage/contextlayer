@@ -3,9 +3,11 @@ import type { Evidence } from "@/core/evidence/schemas";
 import { isFollowUp, type Refinement } from "@/core/requirements/schemas";
 
 // Untrusted values must not close the block they sit in or open a fake one (a forged `<source>`), or that text
-// reads as prompt outside the "untrusted data" rule. No tag survives, and an attribute value cannot end its quote.
-const asText = (value: string) => value.replace(/</g, "&lt;");
-const asAttribute = (value: string) => asText(value).replace(/"/g, "&quot;");
+// reads as prompt outside the "untrusted data" rule. Only tags named like the prompt's own blocks are defused, so
+// code such as `Array<string>` or `<Banner />` still reaches the model exactly as written.
+const PROMPT_TAGS = /<(\s*\/?\s*(?:request|answers|context|source|ticket)\b)/gi;
+const asText = (value: string) => value.replace(PROMPT_TAGS, "&lt;$1");
+const asAttribute = (value: string) => value.replace(/</g, "&lt;").replace(/"/g, "&quot;");
 
 const SHARED_RULES = `- Use only the provided context. Never invent requirements, numbers, deadlines, or business intent.
 - Mark every claim with a status: verified (cite evidence ids), inferred, unknown, or needs_clarification.

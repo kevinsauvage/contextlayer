@@ -4,10 +4,6 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
 
 ## P1 · Quality: make the core promise hold
 
-- [ ] **Prompt escaping alters code excerpts** `P1` `B8`
-  - **Context:** `asText` turns every `<` into `&lt;` (`src/integrations/ai/prompt.ts:7,60`), so JSX and generics reach the model altered while the prompt requires quoting exactly.
-  - **Fix:** stop escaping content. Wrap each source in a boundary tag with a random per-request token (and tell the model that only that token closes a block), keep escaping for attribute values, and add a prompt test with JSX and an injected closing tag.
-
 - [ ] **Jira text extraction drops content** `P1` `B11`
   - **Context:** `adfToText` (`src/integrations/jira/adf.ts:42-51`) loses `mention`, `status`, `emoji` and `date` nodes and joins table cells without a separator, so audits read damaged ticket text.
   - **Fix:** render those nodes from their `attrs.text`, separate table cells and rows, and extend `tests/unit/jira-adf.test.ts`.
