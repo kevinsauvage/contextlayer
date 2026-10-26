@@ -1,0 +1,16 @@
+{
+  "id": "repo-dark-mode",
+  "kind": "retrieval",
+  "title": "Add a dark mode toggle",
+  "request": "Add a dark mode toggle in the app header that remembers the choice between visits.",
+  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
+  "tags": ["retrieval", "large"],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/app/layout.tsx",
+      "repo/src/app/globals.css",
+      "repo/src/app/(app)/layout.tsx"
+    ],
+    "knownMisses": ["repo/src/app/layout.tsx", "repo/src/app/(app)/layout.tsx"]
+  }
+}

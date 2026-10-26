@@ -16,6 +16,7 @@
     "forbiddenClaims": [
       "A specific token expiry (e.g. 15 minutes) presented as a requirement",
       "Proposing magic links as the mechanism"
-    ]
+    ],
+    "knownMisses": ["repo/src/mail/send.ts"]
   }
 }

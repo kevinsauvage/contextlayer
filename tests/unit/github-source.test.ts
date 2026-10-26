@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { gatherContext } from "@/core/context/gather";
 import type { TreeEntry } from "@/integrations/github/tree";
 import { GithubSource } from "@/integrations/github/source";
+import { first } from "@/lib/first";
+import { loadEvaluationCases, readRepository, requestOf, trackerOf } from "../evaluation/fixtures";
 
 type SearchResponse = { data: { items: { path: string }[] } };
 
@@ -174,5 +177,46 @@ describe("GithubSource.urlFor", () => {
     expect(source.urlFor("src/a.ts", { start: 3, end: 9 })).toBe(
       "https://github.com/acme/shop/blob/abc123/src/a.ts#L3-L9",
     );
+  });
+});
+
+// The evaluations read a local checkout, but the app reads GitHub; this proves the fixture's files are still found
+// through the API path, including its capped code search.
+describe("GithubSource on a fixture repository", () => {
+  const c = first(
+    loadEvaluationCases().filter((candidate) => candidate.id === "banner-title"),
+    "banner-title fixture",
+  );
+  const files = readRepository(c);
+
+  beforeEach(() => {
+    github.trees = {
+      "abc123?recursive": {
+        truncated: false,
+        tree: files.map((file) => ({ path: file.path, type: "blob" as const, size: file.content.length })),
+      },
+    };
+    github.contents = Object.fromEntries(files.map((file) => [file.path, file.content]));
+    // GitHub code search matches paths and content; the fake returns the files whose text carries the term.
+    github.search = (q) => {
+      const term = (q.split(" ")[0] ?? "").toLowerCase();
+      return Promise.resolve({
+        data: {
+          items: files.filter((file) => file.content.toLowerCase().includes(term)).map((file) => ({ path: file.path })),
+        },
+      });
+    };
+  });
+
+  it("retrieves the files the ticket must change through the API, with a capped code search", async () => {
+    const { evidence } = await gatherContext({
+      query: requestOf(c),
+      source: await connect(),
+      tracker: trackerOf(c),
+    });
+
+    const retrieved = evidence.map((item) => `repo/${item.reference}`);
+    for (const file of c.expected.relevantFiles) expect(retrieved, file).toContain(file);
+    expect(github.searchCalls.length).toBeLessThanOrEqual(3);
   });
 });

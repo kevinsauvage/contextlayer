@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GitSource } from "@/integrations/git/git-source";
 
 let root: string;
+let firstCommit: string;
 const write = (file: string, content: string) => {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   writeFileSync(path.join(root, file), content);
@@ -26,6 +27,10 @@ beforeAll(() => {
   write("big.ts", "banner ".repeat(30_000));
   git("add", ".");
   git("commit", "-q", "-m", "init");
+  firstCommit = git("rev-parse", "HEAD").toString().trim();
+  write("src/other.ts", "export const other = 2; // banner once");
+  git("add", ".");
+  git("commit", "-q", "-m", "second");
   write("src/untracked.ts", "export const draft = 'banner';");
 });
 
@@ -56,5 +61,18 @@ describe("GitSource", () => {
   it("returns nothing for a term that matches no file", async () => {
     const source = await GitSource.open(root);
     expect(await source.searchContent(["zzzxqy"])).toEqual([]);
+  });
+
+  // A pinned commit is what a recall measurement reads: the same files on every run, whatever the working tree holds.
+  it("reads a pinned commit instead of the working tree", async () => {
+    const source = await GitSource.open(root, firstCommit);
+    expect(source.revision).toBe(firstCommit);
+    expect(await source.listFiles()).toEqual(["big.ts", "src/Banner.tsx", "src/other.ts"]);
+    expect(await source.readFile("src/other.ts")).toContain("other = 1");
+    expect(await source.searchContent(["banner"])).toEqual(["src/Banner.tsx", "big.ts", "src/other.ts"]);
+  });
+
+  it("refuses a commit the checkout does not have", async () => {
+    await expect(GitSource.open(root, "0".repeat(40))).rejects.toThrow(/fetch the full history/);
   });
 });

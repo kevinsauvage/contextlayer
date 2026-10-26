@@ -1,0 +1,17 @@
+{
+  "id": "repo-analysis-candidates",
+  "kind": "retrieval",
+  "title": "Show which files the analysis retrieved",
+  "request": "I want to see which files an analysis looked at, and why, under a collapsible block on the analysis page.",
+  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
+  "tags": ["retrieval", "large"],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/features/ticket-creation/actions.ts",
+      "repo/src/features/analysis/run.ts",
+      "repo/src/infrastructure/db/schema/app.ts",
+      "repo/src/app/(app)/projects/[projectId]/analyses/[analysisId]/page.tsx"
+    ],
+    "knownMisses": ["repo/src/features/ticket-creation/actions.ts", "repo/src/features/analysis/run.ts"]
+  }
+}

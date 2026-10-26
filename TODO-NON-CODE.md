@@ -5,8 +5,8 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 ## P1 · Quality: make the core promise hold
 
 - [ ] **Measure retrieval recall after query expansion** `P1` `E6`
-  - **Context:** retrieval now asks the model for 5–10 code-search terms and merges them with `extractTerms`, but recall has not been measured on real repositories. The deterministic fixture test runs without a model and still records `mail/send.ts` as a known miss.
-  - **Fix:** run retrieval on every fixture and on this repository (ContextLayer, about 300 files, through the local git source in [`TODO-FEATURE.md`](TODO-FEATURE.md), since it has no GitHub remote) with expansion on, using 5 to 8 requests whose relevant files you list beforehand; record recall per case in `validation-experiments.md`, and consider embeddings only if recall stays under 90%.
+  - **Context:** retrieval asks the model for 5–10 code-search terms and merges them with `extractTerms`, but recall has never been measured on real code. The harness now exists (`tests/evaluation/recall.eval.ts`, which writes `results/<case>.recall.json`), and six retrieval cases read this repository at a pinned commit. Without expansion the deterministic path already misses every expected file in three of those six, so the expansion is what this measurement is about.
+  - **Fix:** run `pnpm eval tests/evaluation/recall.eval.ts` over every fixture and the large checkouts, and record recall and the missed files per case in `validation-experiments.md` (E6). Add a file the expanded run misses to that case's `knownMisses` if the model-free run found it, and consider embeddings only if recall stays under 90%.
 
 ## P2 · Polish and evidence
 
@@ -15,8 +15,8 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Fix:** pick a host (Vercel with managed Postgres from the Marketplace fits the stack), document production env vars, run `drizzle-kit migrate` as a deploy step, and register the production callback URLs with GitHub and Atlassian.
 
 - [ ] **Dependency hygiene before the first deploy** `P2`
-  - **Context:** `pnpm audit --prod` reports one high finding (`body-parser` through `shadcn` > `@modelcontextprotocol/sdk` > `express`) and one moderate (`esbuild` through `better-auth` > `drizzle-kit`). `shadcn` is a CLI used for one CSS import (`src/app/globals.css:3`) but sits in `dependencies`. Patch updates are pending for `next`, `ai`, `better-auth`, `@ai-sdk/openai-compatible` and `knip`. These become production dependencies on a public site.
-  - **Fix:** move `shadcn` to `devDependencies`, apply the patch updates, re-run the audit, and add `pnpm audit --prod` to `.github/workflows/ci.yml`.
+  - **Context:** the patch updates and the high `pnpm audit --prod` finding were closed on 2026-10-26; one moderate finding remains (`esbuild` through `better-auth` > `drizzle-kit`) and `shadcn` still sits in `dependencies` although only its CSS is imported (`src/app/globals.css:3`). `pnpm audit --prod` is not part of CI, so a new advisory would go unnoticed.
+  - **Fix:** move `shadcn` to `devDependencies`, update `better-auth` when the `esbuild` finding is fixed upstream, re-run the audit, and add `pnpm audit --prod` to `.github/workflows/ci.yml`.
 
 - [ ] **Production readiness check** `P2`
   - **Context:** the app has only run on one machine. Several settings are fine locally and wrong on a host: the database pool is `max: 10` per process (`src/infrastructure/db/client.ts:11`), the sign-in rate limiter keeps counters in memory (`node_modules/better-auth/dist/api/rate-limiter/index.mjs:6`), and OAuth redirect URIs come from `BETTER_AUTH_URL` (`src/features/integrations/oauth-flow.ts:13`). The existing "Hosting and deploy" item covers the host and migrations but not these.
@@ -37,8 +37,8 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 ## P3 · Later: optional features and deeper hardening
 
 - [ ] **Configure the nightly eval** `P3`
-  - **Context:** `.github/workflows/ai-nightly.yml` runs the prompt-injection subset, but the repository has no remote and no AI secrets, so it has never run.
-  - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets (and optional `AI_JUDGE_*` ones), push, trigger the workflow manually once, and confirm the injection case and the control both pass.
+  - **Context:** `.github/workflows/ai-nightly.yml` runs the prompt-injection subset, but the repository has no AI secrets, so it has never run against a model.
+  - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets (and optional `AI_JUDGE_*` ones), trigger the workflow manually once, and confirm the injection case and the control both pass.
 
 - [~] **Blind human scoring** `P3` `E3`
   - **Context:** E2 is done: a repository-grounded judge scored ContextLayer 45, generic AI 12 and the original 11 of 48, with Flash generating and Pro judging. Both are DeepSeek, and E3 (three reviewers, ten blind tickets) has not run. The generic-AI version sees only the ticket title, so the 45 vs 12 vs 11 gap overstates the advantage over an AI that reads the code (see "Fair baseline in the evaluation" in [`TODO-QUALITY.md`](TODO-QUALITY.md)).

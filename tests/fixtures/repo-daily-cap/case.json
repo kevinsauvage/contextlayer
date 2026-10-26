@@ -1,0 +1,20 @@
+{
+  "id": "repo-daily-cap",
+  "kind": "retrieval",
+  "title": "Cap analyses per user per day",
+  "request": "Stop a user from starting more than ten analyses a day and tell them the limit is reached.",
+  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
+  "tags": ["retrieval", "large"],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/features/analysis/run.ts",
+      "repo/src/features/ticket-creation/actions.ts",
+      "repo/src/infrastructure/env.ts"
+    ],
+    "knownMisses": [
+      "repo/src/features/analysis/run.ts",
+      "repo/src/features/ticket-creation/actions.ts",
+      "repo/src/infrastructure/env.ts"
+    ]
+  }
+}

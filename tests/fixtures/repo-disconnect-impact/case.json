@@ -1,0 +1,20 @@
+{
+  "id": "repo-disconnect-impact",
+  "kind": "retrieval",
+  "title": "Show which projects use a connection before disconnecting it",
+  "request": "Before I disconnect GitHub, show me which projects use it instead of refusing the click afterwards.",
+  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
+  "tags": ["retrieval", "large"],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/features/integrations/actions.ts",
+      "repo/src/features/integrations/connections.ts",
+      "repo/src/components/integrations/disconnect-button.tsx"
+    ],
+    "knownMisses": [
+      "repo/src/features/integrations/actions.ts",
+      "repo/src/features/integrations/connections.ts",
+      "repo/src/components/integrations/disconnect-button.tsx"
+    ]
+  }
+}

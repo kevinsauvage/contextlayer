@@ -6,7 +6,7 @@ import { judgeVerdict } from "./judge";
 const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY) || Boolean(process.env.AI_BASE_URL);
 
 describe.skipIf(!hasModel)("analysis evaluation", () => {
-  const cases = loadEvaluationCases().filter((c) => c.answers.length === 0);
+  const cases = loadEvaluationCases().filter((c) => c.kind === "create" && c.answers.length === 0);
 
   it.each(cases.map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const run = await draftCase(c);

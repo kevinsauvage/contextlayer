@@ -37,6 +37,14 @@ describe("evaluation fixtures", () => {
     for (const file of c.expected.relevantFiles) expect(fileExists(c, file), file).toBe(true);
   });
 
+  it("measures every retrieval case on a pinned checkout", () => {
+    const retrieval = cases.filter((c) => c.kind === "retrieval");
+    expect(retrieval.length).toBeGreaterThanOrEqual(5);
+    for (const c of retrieval) expect(c.repository?.commit, c.id).toMatch(/^[0-9a-f]{40}$/);
+    // One request in another language: stopwords and term extraction differ from the English fixtures.
+    expect(retrieval.some((c) => c.tags.includes("french"))).toBe(true);
+  });
+
   it("refuses an audit case without the issue to audit", () => {
     const expected = {
       relevantFiles: ["repo/a.ts"],
@@ -50,12 +58,20 @@ describe("evaluation fixtures", () => {
 });
 
 describe("fixture tracker", () => {
-  it("returns the related issues retrieval searches", async () => {
-    const c = first(
-      cases.filter((c) => c.relatedIssues.length > 0),
-      "case with related issues",
-    );
-    expect(await trackerOf(c).searchRelated(["export"], 5)).toEqual(c.relatedIssues);
+  const withRelated = first(
+    cases.filter((c) => c.relatedIssues.some((issue) => issue.summary.toLowerCase().includes("export"))),
+    "case with a related export issue",
+  );
+
+  it("returns the related issues the query's terms match", async () => {
+    expect(await trackerOf(withRelated).searchRelated(["export"], 5)).toEqual(withRelated.relatedIssues);
+  });
+
+  // Production searches an index, so an unrelated query finds nothing; returning the issue anyway would make the
+  // duplicate exists/does not exist distinction unmeasurable.
+  it("returns nothing when no issue matches the terms, and honors the limit", async () => {
+    expect(await trackerOf(withRelated).searchRelated(["kubernetes"], 5)).toEqual([]);
+    expect(await trackerOf(withRelated).searchRelated(["export"], 0)).toEqual([]);
   });
 
   it("returns the audited issue and refuses unknown keys", async () => {

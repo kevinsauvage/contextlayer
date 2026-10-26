@@ -8,10 +8,6 @@ Tests, evals and fixtures: code that changes no product behaviour but proves it.
   - **Context:** the baseline in `tests/evaluation/baseline.eval.ts` receives only the ticket title and no repository, and the judge prompt scores `evidenceTraceability` as "text without citations scores 0", so the baseline loses by construction. The 45 vs 12 vs 11 result cannot support C2. The real alternative is an AI that can read the code.
   - **Fix:** add a second baseline that gets the same retrieved candidates as ContextLayer with a plain "write a Jira ticket" prompt, so the comparison isolates claim statuses and citations. Score `evidenceTraceability` for it on whether each claim names its file, not on a structured citation list. Keep the title-only baseline as a floor, report all three, and update E2 in `validation-experiments.md`. The repo-aware agent comparison is in [`TODO-NON-CODE.md`](TODO-NON-CODE.md).
 
-- [ ] **Make the fixtures exercise production retrieval** `P1` `E6`
-  - **Context:** evals run on `DirectorySource`, which scores all content with all terms, while production uses `GithubSource` (code search on at most 3 terms). The fake tracker in `tests/evaluation/fixtures.ts` returns every related issue whatever the query. Fixture repositories have 2 to 4 files, so recall is trivially high.
-  - **Fix:** add this repository at a pinned commit as a large fixture (checked out by the eval, not copied) with 5 to 8 requests and their relevant files, make the fake tracker filter by the query terms, run `GithubSource` against a fixture-backed fake of the GitHub client (tree, contents, a capped code search), and add one French request. Record recall per case in `validation-experiments.md`. Pairs with "Local git source" in [`TODO-FEATURE.md`](TODO-FEATURE.md).
-
 ## P2 · Polish and evidence
 
 - [~] **End-to-end smoke test** `P2`

@@ -16,14 +16,23 @@ export class GitSource implements ContextSource {
   private constructor(
     private readonly root: string,
     readonly revision?: string,
+    // A commit reads the same files on every run; without one the working tree is read, untracked files included.
+    private readonly snapshot?: string,
   ) {}
 
-  static async open(root: string): Promise<GitSource> {
+  static async open(root: string, commit?: string): Promise<GitSource> {
+    if (commit) {
+      await git(root, ["cat-file", "-e", `${commit}^{commit}`]).catch(() => {
+        throw new Error(`${root} has no commit ${commit}; fetch the full history to read it`);
+      });
+      return new GitSource(root, commit, commit);
+    }
     const head = await git(root, ["rev-parse", "HEAD"]).catch(() => undefined);
     return new GitSource(root, head?.trim());
   }
 
   async listFiles(): Promise<string[]> {
+    if (this.snapshot) return this.snapshotFiles(this.snapshot);
     const listed = await git(this.root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
     const paths = listed.split("\0").filter((file) => file && isReadablePath(file));
     const sizes = await Promise.all(
@@ -37,22 +46,41 @@ export class GitSource implements ContextSource {
     return paths.filter((_, index) => (sizes[index] ?? Infinity) <= MAX_FILE_BYTES).sort();
   }
 
+  // `git ls-tree -r -l` prints `100644 blob <sha> <size>\t<path>`, sizes included so large files are skipped unread.
+  private async snapshotFiles(commit: string): Promise<string[]> {
+    const listed = await git(this.root, ["ls-tree", "-r", "-l", commit]);
+    return listed
+      .split("\n")
+      .filter(Boolean)
+      .flatMap((line) => {
+        const [meta, file] = line.split("\t");
+        const [, type, , size] = (meta ?? "").split(" ");
+        return type === "blob" && file && isReadablePath(file) && Number(size) <= MAX_FILE_BYTES ? [file] : [];
+      })
+      .sort();
+  }
+
   readFile(file: string): Promise<string> {
+    if (this.snapshot) return git(this.root, ["show", `${this.snapshot}:${file}`]);
     return readFile(path.join(this.root, file), "utf8");
   }
 
   async searchContent(terms: string[]): Promise<string[]> {
+    const snapshot = this.snapshot;
+    // Grepping a commit prints `rev:path:count`; the working tree prints `path:count`.
+    const prefix = snapshot ? `${snapshot}:` : "";
     const found: string[] = [];
     for (const term of searchableTerms(terms)) {
       const counted = await git(this.root, [
         "grep",
-        "--untracked",
+        ...(snapshot ? [] : ["--untracked"]),
         "-I",
         "-i",
         "-F",
         "-c",
         "-e",
         term,
+        ...(snapshot ? [snapshot] : []),
         "--",
         ".",
       ]).catch((error: unknown) => {
@@ -62,10 +90,13 @@ export class GitSource implements ContextSource {
       const ranked = counted
         .split("\n")
         .filter(Boolean)
-        .map((line) => ({
-          file: line.slice(0, line.lastIndexOf(":")),
-          hits: Number(line.slice(line.lastIndexOf(":") + 1)),
-        }))
+        .map((line) => {
+          const path = line.slice(0, line.lastIndexOf(":"));
+          return {
+            file: path.startsWith(prefix) ? path.slice(prefix.length) : path,
+            hits: Number(line.slice(line.lastIndexOf(":") + 1)),
+          };
+        })
         .filter(({ file }) => isReadablePath(file))
         .sort((a, b) => b.hits - a.hits || a.file.localeCompare(b.file))
         .slice(0, SEARCH_RESULTS);

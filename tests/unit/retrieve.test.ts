@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { retrieveFileEvidence } from "@/core/context/retrieve";
 import { extractTerms, mergeTerms } from "@/core/context/terms";
-import { GitSource } from "@/integrations/git/git-source";
 import { first } from "@/lib/first";
-import { loadEvaluationCases, requestOf } from "../evaluation/fixtures";
+import { loadEvaluationCases, requestOf, sourceOf } from "../evaluation/fixtures";
 
 describe("extractTerms", () => {
   it("drops stopwords and short words and dedupes", () => {
@@ -80,18 +79,19 @@ describe("mergeTerms", () => {
 });
 
 describe("retrieveContext on fixtures", () => {
-  it.each(loadEvaluationCases().map((c) => [c.id, c] as const))(
-    "%s: finds at least one expected file",
-    async (_id, c) => {
-      const found = await retrieveFileEvidence(extractTerms(c.title), await GitSource.open(c.repoDir));
-      const references = found.map((e) => `repo/${e.reference}`);
-      expect(c.expected.relevantFiles.some((f) => references.includes(f))).toBe(true);
-    },
-  );
+  // A copied fixture repo is small enough for its title alone to find a file; the large checkouts are covered by
+  // tests/unit/fixture-recall.test.ts, which knows what each one retrieves today.
+  const small = loadEvaluationCases().filter((c) => c.kind !== "retrieval");
+
+  it.each(small.map((c) => [c.id, c] as const))("%s: finds at least one expected file", async (_id, c) => {
+    const found = await retrieveFileEvidence(extractTerms(c.title), await sourceOf(c));
+    const references = found.map((e) => `repo/${e.reference}`);
+    expect(c.expected.relevantFiles.some((f) => references.includes(f))).toBe(true);
+  });
 
   it("returns an empty list when nothing matches", async () => {
     const c = first(loadEvaluationCases(), "evaluation case");
-    expect(await retrieveFileEvidence(extractTerms("zzzxqy"), await GitSource.open(c.repoDir))).toEqual([]);
+    expect(await retrieveFileEvidence(extractTerms("zzzxqy"), await sourceOf(c))).toEqual([]);
   });
 });
 
@@ -169,7 +169,7 @@ describe("following imports", () => {
       loadEvaluationCases().filter((c) => c.id === "banner-title"),
       "banner fixture",
     );
-    const found = await retrieveFileEvidence(extractTerms(requestOf(c)), await GitSource.open(c.repoDir));
+    const found = await retrieveFileEvidence(extractTerms(requestOf(c)), await sourceOf(c));
     expect(found.map((e) => `repo/${e.reference}`)).toContain("repo/src/content/site.ts");
   });
 

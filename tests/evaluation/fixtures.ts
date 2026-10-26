@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { IssueTracker } from "@/core/context/source";
+import type { Issue, IssueTracker } from "@/core/context/source";
 import { evaluationCaseSchema, type EvaluationCase } from "@/core/evaluation/fixtures";
+import { GitSource } from "@/integrations/git/git-source";
 
 const FIXTURES_DIR = path.join(import.meta.dirname, "..", "fixtures");
 
@@ -13,21 +14,46 @@ export function loadEvaluationCases(): LoadedCase[] {
     .map((entry) => {
       const dir = path.join(FIXTURES_DIR, entry.name);
       const parsed = evaluationCaseSchema.parse(JSON.parse(readFileSync(path.join(dir, "case.json"), "utf8")));
-      return { ...parsed, dir, repoDir: path.join(dir, "repo") };
+      const repoDir = parsed.repository ? path.resolve(dir, parsed.repository.root) : path.join(dir, "repo");
+      return { ...parsed, dir, repoDir };
     });
 }
 
-export const fileExists = (c: LoadedCase, relative: string) => existsSync(path.join(c.dir, relative));
+// A fixture with a `repository` reads its checkout at the pinned commit, so a measurement is reproducible.
+export const sourceOf = (c: LoadedCase) => GitSource.open(c.repoDir, c.repository?.commit);
+
+// `relevantFiles` are written relative to the case directory; only the part below `repo/` names a file.
+export const fileExists = (c: LoadedCase, relative: string) =>
+  existsSync(path.join(c.repoDir, relative.replace(/^repo\//, "")));
 
 // A case may have a full request; the title is its short label (and the whole request when shorter).
 export const requestOf = (c: EvaluationCase) => c.request ?? c.title;
+
+const normalize = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+// The real tracker searches by the query's terms, so a fixture must too: returning every issue would hide a
+// retrieval that found nothing, and would reward a run that searched badly.
+const relatedByQuery = (issues: Issue[], terms: string[], limit: number): Issue[] =>
+  issues
+    .map((issue) => {
+      const text = normalize(`${issue.summary} ${issue.description}`);
+      return { issue, hits: terms.filter((term) => text.includes(normalize(term))).length };
+    })
+    .filter(({ hits }) => hits > 0)
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, limit)
+    .map(({ issue }) => issue);
 
 // The tracker a fixture expects: related issues for retrieval, and the audited issue for audit cases.
 export function trackerOf(c: EvaluationCase): IssueTracker {
   const related = c.relatedIssues;
   const audited = c.issue;
   return {
-    searchRelated: async () => related,
+    searchRelated: async (terms, limit) => relatedByQuery(related, terms, limit),
     getIssue: async (key) => {
       const issue = audited?.key === key ? audited : related.find((candidate) => candidate.key === key);
       if (!issue) throw new Error(`fixture has no issue ${key}`);
