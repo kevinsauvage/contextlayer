@@ -1,6 +1,12 @@
 import "server-only";
-import type { CompleteResult, SourceProvider } from "@/core/integrations/provider";
 import {
+  parseResourceScope,
+  RESOURCE_SCOPE_SEPARATOR,
+  type CompleteResult,
+  type SourceProvider,
+} from "@/core/integrations/provider";
+import {
+  getInstallationDirectory,
   getInstallationRepo,
   githubAccountsForUser,
   githubAuthorizeUrl,
@@ -33,10 +39,20 @@ export function selectGithubAccounts(
   };
 }
 
-const parseRepo = (resourceId: string) => {
-  const [owner = "", name = ""] = resourceId.split("/");
-  return { owner, name };
-};
+type ParsedRepo = { owner: string; name: string; subdirectory?: string };
+
+// `owner/repo` or `owner/repo#apps/web`: a malformed scope returns an empty owner so the provider refuses it
+// instead of silently reading the whole repository.
+function parseGithubResourceId(resourceId: string): ParsedRepo {
+  const scope = parseResourceScope(resourceId);
+  const hasScope = resourceId.includes(RESOURCE_SCOPE_SEPARATOR);
+  if (hasScope && !scope.subdirectory) return { owner: "", name: "" };
+  const [owner = "", name = ""] = scope.resourceId.split("/");
+  return { owner, name, subdirectory: scope.subdirectory };
+}
+
+const labelOf = (owner: string, name: string, subdirectory?: string) =>
+  subdirectory ? `${owner}/${name} · ${subdirectory}` : `${owner}/${name}`;
 
 export const githubProvider: SourceProvider = {
   id: "github",
@@ -47,6 +63,7 @@ export const githubProvider: SourceProvider = {
   resourceNoun: "repository",
   canAddAccount: true,
   exclusive: true,
+  supportsSubdirectory: true,
 
   isConfigured: isGithubConfigured,
 
@@ -72,11 +89,21 @@ export const githubProvider: SourceProvider = {
   },
 
   async getResource(ctx, resourceId) {
-    const { owner, name } = parseRepo(resourceId);
+    const { owner, name, subdirectory } = parseGithubResourceId(resourceId);
     if (!owner || !name) return null;
-    const repo = await getInstallationRepo(Number(ctx.externalId), owner, name);
-    return repo ? { id: `${repo.owner}/${repo.name}`, label: `${repo.owner}/${repo.name}` } : null;
+    const installationId = Number(ctx.externalId);
+    const repo = await getInstallationRepo(installationId, owner, name);
+    if (!repo) return null;
+    if (subdirectory && !(await getInstallationDirectory(installationId, repo.owner, repo.name, subdirectory)))
+      return null;
+    return {
+      id: subdirectory ? `${repo.owner}/${repo.name}#${subdirectory}` : `${repo.owner}/${repo.name}`,
+      label: labelOf(repo.owner, repo.name, subdirectory),
+    };
   },
 
-  openSource: (ctx, resourceId) => GithubSource.connect(Number(ctx.externalId), parseRepo(resourceId)),
+  openSource: (ctx, resourceId) => {
+    const { owner, name, subdirectory } = parseGithubResourceId(resourceId);
+    return GithubSource.connect(Number(ctx.externalId), { owner, name }, subdirectory);
+  },
 };

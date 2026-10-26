@@ -77,6 +77,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           analysis.model ?? "Unknown model",
           `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
           `${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`,
+          ...(analysis.costUsd === null ? [] : [`$${analysis.costUsd.toFixed(4)}`]),
           ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
         ].join(" · ")
       }

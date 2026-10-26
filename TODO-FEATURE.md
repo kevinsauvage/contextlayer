@@ -2,24 +2,6 @@
 
 New application behaviour. Index and conventions: [`TODO.md`](TODO.md).
 
-## P1 · Prove the product
-
-- [~] **Cost per analysis** `P1` `H7` `C5`
-  - **Context:** real runs use about 2.4k input and 3.2k output tokens and cost well under a cent, so H7 looks safe; the app records no price, so cost per analysis and per model is still not tracked.
-  - **Fix:** add a per-model price table (input and output per million tokens) in `src/core` or the env, compute cost in `startAnalysis` / `restartAnalysis`, store it in a `cost_usd` column, and show it next to the token counts on the analysis page.
-
-- [ ] **Model-based query expansion** `P1` `E6`
-  - **Context:** `extractTerms` uses keywords plus a synonym map and still misses `mail/send.ts` for "Add password reset". Code search now runs per term and content scoring counts occurrences, but there is no semantic expansion; embeddings stay deferred until measured.
-  - **Fix:** before retrieval, ask a small model for 5–10 code-search terms (identifiers, file names) from the request and merge them with `extractTerms`. Measure recall on the fixtures and two real repositories (E6), and consider embeddings only if recall stays under 90%.
-
-- [ ] **Import following for Python and Go** `P1`
-  - **Context:** `resolveImports` in `src/core/context/imports.ts` only understands JS/TS imports.
-  - **Fix:** add resolvers for Python (`from x import y`) and Go packages before relying on import following in those stacks.
-
-- [ ] **Monorepo scoping** `P1`
-  - **Context:** a project always spans the whole repository, so retrieval in a monorepo mixes unrelated apps.
-  - **Fix:** add an optional subdirectory to the project (`source_resource_id` like `owner/repo#apps/web`) and restrict file listing and search to it.
-
 ## P2 · Connect and deliver
 
 - [ ] **Second providers: Linear and GitLab** `P2`

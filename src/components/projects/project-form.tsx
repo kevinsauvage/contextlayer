@@ -23,6 +23,7 @@ type StepProps = {
   description: string;
   providers: ProviderOverview[];
   onResource: (resource: Resource) => void;
+  scoped?: boolean;
 };
 
 function ConnectLinks({ providers }: { providers: ProviderOverview[] }) {
@@ -48,7 +49,7 @@ function ConnectLinks({ providers }: { providers: ProviderOverview[] }) {
   );
 }
 
-function ConnectionStep({ step, kind, title, description, providers, onResource }: StepProps) {
+function ConnectionStep({ step, kind, title, description, providers, onResource, scoped }: StepProps) {
   const options = providers.flatMap((provider) =>
     provider.connections.map((connection) => ({ ...connection, provider })),
   );
@@ -117,6 +118,15 @@ function ConnectionStep({ step, kind, title, description, providers, onResource 
             emptyHint={`No ${current.provider.resourceNoun} is visible to this ${current.provider.name} ${current.provider.accountNoun}. Grant access in ${current.provider.name}, then reload.`}
             onSelect={onResource}
           />
+          {scoped && current.provider.supportsSubdirectory && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`${field}Subdirectory`}>Folder (optional)</Label>
+              <Input id={`${field}Subdirectory`} name={`${field}Subdirectory`} placeholder="apps/web" maxLength={200} />
+              <p className="text-xs text-muted-foreground">
+                Read only this folder, for a monorepo. Leave empty to use the whole repository.
+              </p>
+            </div>
+          )}
           <ConnectLinks providers={providers} />
         </>
       )}
@@ -141,6 +151,7 @@ export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]
         title="Code"
         description="The repository ContextLayer reads for evidence."
         providers={sources}
+        scoped
         onResource={(resource) => {
           if (!nameEdited) setName(nameFromResource(resource));
         }}

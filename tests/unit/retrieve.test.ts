@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { retrieveFileEvidence } from "@/core/context/retrieve";
-import { extractTerms } from "@/core/context/terms";
+import { extractTerms, mergeTerms } from "@/core/context/terms";
 import { DirectorySource } from "@/integrations/filesystem/directory-source";
 import { first } from "@/lib/first";
 import { loadEvaluationCases, requestOf } from "../evaluation/fixtures";
@@ -40,6 +40,26 @@ describe("extractTerms", () => {
       "responsive",
       "viewport",
     ]);
+  });
+});
+
+describe("mergeTerms", () => {
+  it("appends model terms after the request's own and drops duplicates and unusable values", () => {
+    expect(mergeTerms(["reset", "password"], ["Reset", "mailer", "`sendMail`", "two words", "", "mailer"])).toEqual([
+      "reset",
+      "password",
+      "mailer",
+      "sendmail",
+    ]);
+  });
+
+  it("caps how many expanded terms it adds", () => {
+    expect(
+      mergeTerms(
+        ["reset"],
+        Array.from({ length: 12 }, (_, i) => `term${i}`),
+      ),
+    ).toHaveLength(9);
   });
 });
 
@@ -135,6 +155,42 @@ describe("following imports", () => {
     );
     const found = await retrieveFileEvidence(extractTerms(requestOf(c)), new DirectorySource(c.repoDir));
     expect(found.map((e) => `repo/${e.reference}`)).toContain("repo/src/content/site.ts");
+  });
+
+  it("follows a Python relative import to the module that implements the change", async () => {
+    const files: Record<string, string> = {
+      "src/reset/handler.py": `from ..services.mail import send_reset\n\ndef handle():\n    return send_reset()`,
+      "src/services/mail.py": `def send_reset():\n    return "token"`,
+    };
+    const found = await retrieveFileEvidence(extractTerms("password reset"), {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path) => files[path] ?? "",
+    });
+    expect(found.map((e) => e.reference)).toContain("src/services/mail.py");
+  });
+
+  it("follows an absolute Python import that starts below the repository root", async () => {
+    const files: Record<string, string> = {
+      "src/reset/job.py": `from services.mail import send_reset\n\ndef run():\n    return send_reset()`,
+      "src/services/mail.py": `def send_reset():\n    return "token"`,
+    };
+    const found = await retrieveFileEvidence(extractTerms("password reset queued job"), {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path) => files[path] ?? "",
+    });
+    expect(found.map((e) => e.reference)).toContain("src/services/mail.py");
+  });
+
+  it("follows a Go package import even though the module prefix is not in the tree", async () => {
+    const files: Record<string, string> = {
+      "internal/reset/handler.go": `package reset\n\nimport (\n\t"fmt"\n\t"github.com/acme/shop/internal/mail"\n)\n\nfunc Handle() { fmt.Println(mail.SendReset()) }`,
+      "internal/mail/send.go": `package mail\n\nfunc SendReset() {}`,
+    };
+    const found = await retrieveFileEvidence(extractTerms("password reset"), {
+      listFiles: async () => Object.keys(files),
+      readFile: async (path) => files[path] ?? "",
+    });
+    expect(found.map((e) => e.reference)).toContain("internal/mail/send.go");
   });
 });
 

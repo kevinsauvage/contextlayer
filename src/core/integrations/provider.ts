@@ -12,9 +12,31 @@ const PROVIDER_DESCRIPTOR_KEYS = [
   "resourceNoun",
   "canAddAccount",
   "exclusive",
+  "supportsSubdirectory",
 ] as const;
 
 export type Resource = { id: string; label: string };
+
+// A source resource may be narrowed to one directory with `owner/repo#apps/web`; providers that support it parse
+// the suffix, and everything else keeps the bare id.
+export const RESOURCE_SCOPE_SEPARATOR = "#";
+
+export const isSafeSubdirectory = (path: string) =>
+  path.length > 0 &&
+  !/[#?]/.test(path) &&
+  !path.split("/").some((part) => part === "" || part === ".." || part === ".");
+
+export function parseResourceScope(resourceId: string): { resourceId: string; subdirectory?: string } {
+  const [id = "", ...rest] = resourceId.split(RESOURCE_SCOPE_SEPARATOR);
+  const subdirectory = rest.join(RESOURCE_SCOPE_SEPARATOR).replace(/^\/+|\/+$/g, "");
+  return subdirectory && isSafeSubdirectory(subdirectory) ? { resourceId: id, subdirectory } : { resourceId: id };
+}
+
+export function withResourceSubdirectory(resourceId: string, subdirectory: string | undefined): string {
+  const { resourceId: base } = parseResourceScope(resourceId);
+  const path = (subdirectory ?? "").trim().replace(/^\/+|\/+$/g, "");
+  return path && isSafeSubdirectory(path) ? `${base}${RESOURCE_SCOPE_SEPARATOR}${path}` : base;
+}
 
 export type OAuthTokens = { accessToken: string; refreshToken: string; expiresAt: Date };
 
@@ -51,6 +73,8 @@ type BaseProvider = {
   canAddAccount: boolean;
   // An exclusive account (a GitHub App installation) may belong to one organization only.
   exclusive: boolean;
+  // Whether a resource id may carry a `#subdirectory` suffix to restrict a monorepo to one app.
+  supportsSubdirectory?: boolean;
   isConfigured(): boolean;
   authorizeUrl(input: { state: string; redirectUri: string; add: boolean }): string;
   complete(input: { query: URLSearchParams; state: string; redirectUri: string }): Promise<CompleteResult>;

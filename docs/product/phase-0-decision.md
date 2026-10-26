@@ -10,7 +10,7 @@ Question: is this worth building into a product? Status: **open**. The prototype
 | C2  | Output is clearly better than generic AI and the original ticket (H2) | E2 finished and E3: ContextLayer first in 7 of 10 | E2 with a separate, repository-grounded judge: 45 vs 12 vs 11 of 48, same vendor, 4 fixtures; E3 pending                                | Not yet |
 | C3  | No fabricated claim survives validation on the fixtures               | Forbidden-claim checks on 8 to 10 fixtures        | Evidence references validated; forbidden claims not yet checked automatically                                                           | Not yet |
 | C4  | Integrations are feasible and acceptable (H4)                         | Feasibility notes and interviews                  | Feasible: GitHub App and Jira OAuth work in the prototype ([`feasibility`](../engineering/phase-0-feasibility.md)); acceptance untested | Partly  |
-| C5  | Cost and latency are viable (H7)                                      | Cost per analysis from the `analysis` table       | 8 to 20 s, 1 to 3k tokens per analysis on DeepSeek; cost not computed                                                                   | Partly  |
+| C5  | Cost and latency are viable (H7)                                      | Cost per analysis from the `analysis` table       | 8 to 20 s, 1 to 3k tokens per analysis on DeepSeek; cost now recorded per run from list prices (`analysis.cost_usd`)                    | Partly  |
 | C6  | A differentiator remains against platform features (H6)               | Hands-on competitor comparison, interviews        | First-pass desk research only ([`competitor-research.md`](competitor-research.md))                                                      | No      |
 
 ## Rule

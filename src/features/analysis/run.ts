@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, lt, ne, or, sql } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
+import { estimateCostUsd } from "@/core/analysis/pricing";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
@@ -33,7 +34,13 @@ async function applyOutcome(
 }
 
 // Runs the model call and records its outcome; a failure lands on the row instead of escaping as an error page.
-async function recordOutcome(db: Database, id: string, runToken: string, execute: Execute): Promise<void> {
+async function recordOutcome(
+  db: Database,
+  id: string,
+  runToken: string,
+  model: string,
+  execute: Execute,
+): Promise<void> {
   const startedAt = Date.now();
   try {
     const { result, issues, usage, revision } = await execute();
@@ -44,6 +51,7 @@ async function recordOutcome(db: Database, id: string, runToken: string, execute
       evidenceIssues: issues,
       inputTokens: usage?.inputTokens,
       outputTokens: usage?.outputTokens,
+      costUsd: estimateCostUsd(model, usage),
       latencyMs: Date.now() - startedAt,
     });
   } catch (error) {
@@ -67,6 +75,7 @@ type StartArgs = {
 
 export async function startAnalysis(args: StartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
+  const model = getEnv().AI_MODEL;
   const row = first(
     await args.db
       .insert(analysis)
@@ -75,12 +84,12 @@ export async function startAnalysis(args: StartArgs): Promise<string> {
         createdByUserId: args.userId,
         kind: args.kind,
         input: args.input,
-        model: getEnv().AI_MODEL,
+        model,
         runToken,
       })
       .returning({ id: analysis.id }),
   );
-  await recordOutcome(args.db, row.id, runToken, args.execute);
+  await recordOutcome(args.db, row.id, runToken, model, args.execute);
   return row.id;
 }
 
@@ -96,13 +105,14 @@ type RestartArgs = {
 // A stale "running" row is allowed through: no request is left to finish it.
 export async function restartAnalysis(args: RestartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
+  const model = getEnv().AI_MODEL;
   const [row] = await args.db
     .update(analysis)
     .set({
       status: "running",
       input: args.input,
       createdByUserId: args.userId,
-      model: getEnv().AI_MODEL,
+      model,
       runToken,
       startedAt: new Date(),
       // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.
@@ -113,6 +123,7 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
       evidenceIssues: null,
       inputTokens: null,
       outputTokens: null,
+      costUsd: null,
       latencyMs: null,
       error: null,
     })
@@ -124,6 +135,6 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
     )
     .returning({ id: analysis.id });
   if (!row) throw new AnalysisAlreadyRunningError();
-  await recordOutcome(args.db, row.id, runToken, args.execute);
+  await recordOutcome(args.db, row.id, runToken, model, args.execute);
   return row.id;
 }

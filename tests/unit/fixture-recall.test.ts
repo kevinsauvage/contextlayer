@@ -5,7 +5,7 @@ import { loadEvaluationCases, requestOf, trackerOf } from "../evaluation/fixture
 
 // Files retrieval is known to miss, each tracked in TODO-FEATURE.md; anything else missing is a regression.
 const KNOWN_MISSES: Record<string, string[]> = {
-  // Needs model-based query expansion: "password reset" shares no term with the mailer.
+  // This test runs without a model, so it cannot use the expansion that finds the mailer.
   "password-reset": ["repo/src/mail/send.ts"],
 };
 
@@ -13,7 +13,7 @@ const KNOWN_MISSES: Record<string, string[]> = {
 describe("fixture retrieval recall", () => {
   it.each(loadEvaluationCases().map((c) => [c.id, c] as const))("%s", async (_id, c) => {
     const query = c.kind === "audit" && c.issue ? `${c.issue.summary} ${c.issue.description}` : requestOf(c);
-    const evidence = await gatherContext({
+    const { evidence } = await gatherContext({
       query,
       source: new DirectorySource(c.repoDir),
       tracker: trackerOf(c),

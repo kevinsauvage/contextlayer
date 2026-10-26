@@ -1,5 +1,6 @@
+import type { QueryExpander, TokenUsage } from "@/core/analysis/generators";
 import type { Evidence } from "@/core/evidence/schemas";
-import { extractTerms } from "./terms";
+import { extractTerms, mergeTerms } from "./terms";
 import { retrieveFileEvidence, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
 
@@ -15,17 +16,22 @@ function issueEvidence(issue: Issue): EvidenceCandidate {
   };
 }
 
+export type GatheredContext = { evidence: Evidence[]; usage?: TokenUsage };
+
 export async function gatherContext(input: {
   query: string;
   source: ContextSource;
   tracker: IssueTracker;
   excludeIssueKey?: string;
-}): Promise<Evidence[]> {
-  const terms = extractTerms(input.query);
+  expander?: QueryExpander;
+}): Promise<GatheredContext> {
+  const expanded = input.expander ? await input.expander.expandTerms(input.query) : undefined;
+  const terms = mergeTerms(extractTerms(input.query), expanded?.terms ?? []);
   const [files, issues] = await Promise.all([
     retrieveFileEvidence(terms, input.source),
     terms.length ? input.tracker.searchRelated(terms, RELATED_ISSUE_LIMIT) : [],
   ]);
   const related = issues.filter((issue) => issue.key !== input.excludeIssueKey).map(issueEvidence);
-  return [...files, ...related].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
+  const evidence = [...files, ...related].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
+  return { evidence, usage: expanded?.usage };
 }

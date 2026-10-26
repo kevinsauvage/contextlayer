@@ -80,6 +80,24 @@ describe("draftTicket", () => {
   it("flags a verified claim that cites nothing", async () => {
     expect((await run(body([]))).issues[0]?.message).toMatch(/cites no evidence/);
   });
+
+  it("merges expanded search terms and bills their tokens with the draft", async () => {
+    const mailer: ContextSource = {
+      listFiles: async () => ["src/mailer.ts"],
+      readFile: async () => "export function sendMailer() {}",
+    };
+    const generator: DraftGenerator = {
+      generate: async () => ({ body: body([]), usage: { inputTokens: 100, outputTokens: 50 } }),
+    };
+    const expander = {
+      expandTerms: async () => ({ terms: ["mailer"], usage: { inputTokens: 10, outputTokens: 4 } }),
+    };
+
+    const result = await draftTicket({ request: "password reset", source: mailer, tracker, generator, expander });
+
+    expect(result.candidates.map((candidate) => candidate.reference)).toContain("src/mailer.ts");
+    expect(result.usage).toEqual({ inputTokens: 110, outputTokens: 54 });
+  });
 });
 
 describe("auditIssue", () => {

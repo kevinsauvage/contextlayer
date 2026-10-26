@@ -22,6 +22,10 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** E2 is done: a repository-grounded judge scored ContextLayer 45, generic AI 12 and the original 11 of 48, with Flash generating and Pro judging. Both are DeepSeek, and E3 (three reviewers, ten blind tickets) has not run.
   - **Fix:** run `pnpm review:export`, score the packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`. Optionally add one cross-vendor judge or generator to remove same-vendor bias.
 
+- [ ] **Measure retrieval recall after query expansion** `P1` `E6`
+  - **Context:** retrieval now asks the model for 5–10 code-search terms and merges them with `extractTerms`, but recall has not been measured on real repositories. The deterministic fixture test runs without a model and still records `mail/send.ts` as a known miss.
+  - **Fix:** run retrieval on every fixture and on two real repositories with expansion on, record recall per case in `validation-experiments.md`, and consider embeddings only if recall stays under 90%.
+
 - [ ] **Measure large-repository latency** `P1` `E6`
   - **Context:** listing a truncated tree now falls back to one paginated listing per directory (`walkTree` in `src/integrations/github/tree.ts`), so files are no longer silently lost, but the added round trips are unmeasured.
   - **Fix:** connect a GitHub App to a repository of about 1,000 files and one large enough to truncate the recursive tree, time `listFiles` for both paths, and record the numbers in `docs/engineering/phase-0-feasibility.md`.

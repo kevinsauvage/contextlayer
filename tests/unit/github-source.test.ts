@@ -9,6 +9,8 @@ type GithubStub = {
   treeCalls: Record<string, unknown>[];
   searchCalls: string[];
   search: (q: string) => Promise<SearchResponse>;
+  contents: Record<string, string>;
+  contentCalls: string[];
 };
 
 const github = vi.hoisted((): GithubStub => ({
@@ -16,6 +18,8 @@ const github = vi.hoisted((): GithubStub => ({
   treeCalls: [],
   searchCalls: [],
   search: () => Promise.resolve({ data: { items: [] } }),
+  contents: {},
+  contentCalls: [],
 }));
 
 vi.mock("@/integrations/github/app", () => ({
@@ -42,16 +46,23 @@ vi.mock("@/integrations/github/app", () => ({
           },
         },
       },
+      request: async (_route: string, params: { path: string }) => {
+        github.contentCalls.push(params.path);
+        return { data: github.contents[params.path] ?? "" };
+      },
     }),
   }),
 }));
 
 const connect = () => GithubSource.connect(1, { owner: "acme", name: "shop" });
+const connectScoped = () => GithubSource.connect(1, { owner: "acme", name: "shop" }, "apps/web");
 
 beforeEach(() => {
   github.trees = {};
   github.treeCalls = [];
   github.searchCalls = [];
+  github.contents = {};
+  github.contentCalls = [];
   github.search = () => Promise.resolve({ data: { items: [] } });
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -116,6 +127,41 @@ describe("GithubSource.searchContent", () => {
         : Promise.resolve({ data: { items: [{ path: "src/total.ts" }] } });
 
     expect(await (await connect()).searchContent(["cart", "total"])).toEqual(["src/total.ts"]);
+  });
+});
+
+describe("GithubSource with a monorepo folder", () => {
+  it("lists only that folder's files, relative to it", async () => {
+    github.trees = {
+      "abc123?recursive": {
+        truncated: false,
+        tree: [
+          { path: "apps/web/src/a.ts", type: "blob", size: 10 },
+          { path: "apps/web/package.json", type: "blob", size: 10 },
+          { path: "apps/api/src/b.ts", type: "blob", size: 10 },
+          { path: "README.md", type: "blob", size: 10 },
+        ],
+      },
+    };
+
+    expect((await (await connectScoped()).listFiles()).sort()).toEqual(["package.json", "src/a.ts"]);
+  });
+
+  it("scopes code search to the folder and strips it from hits", async () => {
+    github.search = () =>
+      Promise.resolve({ data: { items: [{ path: "apps/web/src/a.ts" }, { path: "apps/api/src/b.ts" }] } });
+
+    expect(await (await connectScoped()).searchContent(["cart"])).toEqual(["src/a.ts"]);
+    expect(github.searchCalls).toEqual(["cart repo:acme/shop path:apps/web"]);
+  });
+
+  it("reads and links files back into the folder", async () => {
+    github.contents["apps/web/src/a.ts"] = "export const a = 1;";
+    const source = await connectScoped();
+
+    expect(await source.readFile("src/a.ts")).toBe("export const a = 1;");
+    expect(github.contentCalls).toEqual(["apps/web/src/a.ts"]);
+    expect(source.urlFor("src/a.ts")).toBe("https://github.com/acme/shop/blob/abc123/apps/web/src/a.ts");
   });
 });
 

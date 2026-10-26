@@ -3,7 +3,13 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { ConnectionContext, IntegrationProvider, Resource } from "@/core/integrations/provider";
+import {
+  isSafeSubdirectory,
+  withResourceSubdirectory,
+  type ConnectionContext,
+  type IntegrationProvider,
+  type Resource,
+} from "@/core/integrations/provider";
 import { withActionErrors } from "@/features/errors";
 import { resolveSource, resolveTracker } from "@/features/integrations/resolve";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
@@ -17,6 +23,7 @@ const projectInputSchema = z.object({
   name: z.string().trim().min(2, "Enter a project name of at least 2 characters").max(100),
   sourceConnectionId: z.uuid("Choose where the code lives"),
   sourceResourceId: z.string().min(1, "Choose a repository"),
+  sourceSubdirectory: z.string().trim().max(200).optional(),
   trackerConnectionId: z.uuid("Choose where tickets live"),
   trackerResourceId: z.string().min(1, "Choose a project or board"),
 });
@@ -43,12 +50,22 @@ export async function createProject(_: ActionState, formData: FormData): Promise
       resolveSource(db, organizationId, input.data.sourceConnectionId),
       resolveTracker(db, organizationId, input.data.trackerConnectionId),
     ]);
+    const subdirectory = input.data.sourceSubdirectory ?? "";
+    if (subdirectory && !isSafeSubdirectory(subdirectory))
+      return { error: "Enter a folder path inside the repository, without . or .. segments" };
+    if (subdirectory && !source.provider.supportsSubdirectory)
+      return { error: `${source.provider.name} does not support narrowing a repository to a folder` };
+    const sourceResourceId = withResourceSubdirectory(input.data.sourceResourceId, subdirectory);
     const [repository, board] = await Promise.all([
-      resolveResource(source.provider, source.context, input.data.sourceResourceId),
+      resolveResource(source.provider, source.context, sourceResourceId),
       resolveResource(tracker.provider, tracker.context, input.data.trackerResourceId),
     ]);
     if (!repository)
-      return { error: `That ${source.provider.resourceNoun} is not accessible to ${source.provider.name}` };
+      return {
+        error: subdirectory
+          ? `That folder is not accessible in ${source.provider.name}`
+          : `That ${source.provider.resourceNoun} is not accessible to ${source.provider.name}`,
+      };
     if (!board) return { error: `That ${tracker.provider.resourceNoun} was not found in ${tracker.provider.name}` };
 
     const created = first(

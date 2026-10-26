@@ -99,6 +99,27 @@ const MAX_TERM_OCCURRENCES = 5;
 export const scoreMatches = (text: string, terms: string[]) =>
   terms.reduce((total, term) => total + Math.min(text.split(term).length - 1, MAX_TERM_OCCURRENCES), 0);
 
+// Expanded terms are appended after the request's own terms, which stay the strongest signal.
+const MAX_EXPANDED_TERMS = 8;
+const MAX_TERM_LENGTH = 48;
+
+export function mergeTerms(primary: string[], expanded: string[]): string[] {
+  const seen = new Set(primary);
+  const extra: string[] = [];
+  for (const raw of expanded) {
+    const term = raw
+      .trim()
+      .toLowerCase()
+      .replace(/^[`"']+|[`"']+$/g, "");
+    const usable = term.length > 1 && term.length <= MAX_TERM_LENGTH && !/\s/.test(term) && !seen.has(term);
+    if (!usable) continue;
+    seen.add(term);
+    extra.push(term);
+    if (extra.length === MAX_EXPANDED_TERMS) break;
+  }
+  return [...primary, ...extra];
+}
+
 export function extractTerms(text: string, max = MAX_TERMS): string[] {
   const frequency = new Map<string, number>();
   for (const term of normalize(text).split(/[^a-z0-9]+/)) {

@@ -17,3 +17,10 @@ export type DraftGenerator = {
 export type AuditGenerator = {
   audit(input: { issue: Issue; candidates: Evidence[] }): Promise<GeneratorResult<AuditBody>>;
 };
+
+export type ExpandedTerms = { terms: string[]; usage?: TokenUsage };
+
+// A small model call that turns a request into the identifiers and file names retrieval should look for.
+export type QueryExpander = {
+  expandTerms(query: string): Promise<ExpandedTerms>;
+};

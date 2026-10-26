@@ -18,9 +18,11 @@ export class GithubSource implements ContextSource {
     private readonly repo: RepoRef,
     // Pinned commit, not the branch: a link must keep showing the lines it was verified against.
     readonly revision: string,
+    // A monorepo app: paths are presented relative to this directory, and links point back into it.
+    private readonly subdirectory = "",
   ) {}
 
-  static async connect(installationId: number, repo: RepoRef): Promise<GithubSource> {
+  static async connect(installationId: number, repo: RepoRef, subdirectory?: string): Promise<GithubSource> {
     const octokit = await getGithubApp().getInstallationOctokit(installationId);
     const { data } = await octokit.rest.repos.get({ owner: repo.owner, repo: repo.name });
     const branch = await octokit.rest.repos.getBranch({
@@ -28,7 +30,20 @@ export class GithubSource implements ContextSource {
       repo: repo.name,
       branch: data.default_branch,
     });
-    return new GithubSource(octokit, repo, branch.data.commit.sha);
+    return new GithubSource(octokit, repo, branch.data.commit.sha, subdirectory);
+  }
+
+  private inScope(path: string): boolean {
+    return !this.subdirectory || path === this.subdirectory || path.startsWith(`${this.subdirectory}/`);
+  }
+
+  private relativePath(path: string): string {
+    if (!this.subdirectory || path === this.subdirectory) return path;
+    return path.slice(this.subdirectory.length + 1);
+  }
+
+  private repositoryPath(path: string): string {
+    return this.subdirectory ? `${this.subdirectory}/${path}` : path;
   }
 
   async listFiles(): Promise<string[]> {
@@ -37,6 +52,8 @@ export class GithubSource implements ContextSource {
       .flatMap((entry) =>
         entry.type === "blob" && entry.path && (entry.size ?? 0) <= MAX_FILE_BYTES ? [entry.path] : [],
       )
+      .filter((path) => this.inScope(path) && path !== this.subdirectory)
+      .map((path) => this.relativePath(path))
       .filter((path) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path));
   }
 
@@ -68,7 +85,7 @@ export class GithubSource implements ContextSource {
     const { data } = await this.octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
       owner: this.repo.owner,
       repo: this.repo.name,
-      path,
+      path: this.repositoryPath(path),
       ref: this.revision,
       headers: { accept: "application/vnd.github.raw+json" },
     });
@@ -79,14 +96,23 @@ export class GithubSource implements ContextSource {
   // Code search has no OR: ANDing every term finds almost nothing, so run one query per term, best effort.
   async searchContent(terms: string[]): Promise<string[]> {
     const repo = `repo:${this.repo.owner}/${this.repo.name}`;
+    const scope = this.subdirectory ? ` path:${this.subdirectory}` : "";
     const searchable = terms
       .filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term))
       .slice(0, MAX_SEARCH_TERMS);
     const paths: string[] = [];
     for (const term of searchable) {
       try {
-        const { data } = await this.octokit.rest.search.code({ q: `${term} ${repo}`, per_page: SEARCH_RESULTS });
-        paths.push(...data.items.map((item) => item.path));
+        const { data } = await this.octokit.rest.search.code({
+          q: `${term} ${repo}${scope}`,
+          per_page: SEARCH_RESULTS,
+        });
+        paths.push(
+          ...data.items
+            .map((item) => item.path)
+            .filter((path) => this.inScope(path))
+            .map((path) => this.relativePath(path)),
+        );
       } catch (error) {
         // Rate limits and unparsable terms must not fail retrieval, but silent degradation is worth a log line.
         console.warn(`[github] code search failed for "${term}"`, error instanceof Error ? error.message : error);
@@ -97,6 +123,6 @@ export class GithubSource implements ContextSource {
 
   urlFor(path: string, lines?: LineRange): string {
     const anchor = lines ? `#L${lines.start}-L${lines.end}` : "";
-    return `https://github.com/${this.repo.owner}/${this.repo.name}/blob/${this.revision}/${path}${anchor}`;
+    return `https://github.com/${this.repo.owner}/${this.repo.name}/blob/${this.revision}/${this.repositoryPath(path)}${anchor}`;
   }
 }

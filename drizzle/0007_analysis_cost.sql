@@ -1,0 +1,1 @@
+ALTER TABLE "analysis" ADD COLUMN "cost_usd" double precision;

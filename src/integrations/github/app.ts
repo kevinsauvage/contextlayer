@@ -61,6 +61,22 @@ export async function getInstallationRepo(
   }
 }
 
+export async function getInstallationDirectory(
+  installationId: number,
+  owner: string,
+  name: string,
+  path: string,
+): Promise<boolean> {
+  const octokit = await getGithubApp().getInstallationOctokit(installationId);
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo: name, path });
+    return Array.isArray(data);
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 404) return false;
+    throw error;
+  }
+}
+
 export type GithubAccount = { installationId: number; accountLogin: string };
 
 // Installations of this app that the signed-in GitHub user can access. Installation ids in callback URLs

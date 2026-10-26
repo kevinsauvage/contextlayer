@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
+import { estimateCostUsd } from "@/core/analysis/pricing";
 import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
+import { getEnv } from "@/infrastructure/env";
 import { migratedDb, seedConnections, seedOrgs, seedProject } from "../helpers/db";
 
 let db: Database;
@@ -18,7 +20,12 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
-type Execute = () => Promise<{ result: unknown; issues: []; revision?: string }>;
+type Execute = () => Promise<{
+  result: unknown;
+  issues: [];
+  revision?: string;
+  usage?: { inputTokens: number; outputTokens: number };
+}>;
 
 const start = (request: string, execute: Execute) =>
   startAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute });
@@ -67,6 +74,32 @@ describe("source revisions", () => {
     await restart("revisions after a failure", at("ccc3333"), id);
 
     expect(await revisionsOf(id)).toEqual({ current: "ccc3333", previous: "aaa1111" });
+  });
+});
+
+describe("cost", () => {
+  it("records the price of the run's tokens for the configured model", async () => {
+    const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
+    const id = await start("cost", async () => ({ result: {}, issues: [], usage }));
+
+    expect((await getAnalysis(db, "orgA", id))?.analysis.costUsd).toBe(estimateCostUsd(getEnv().AI_MODEL, usage));
+  });
+
+  it("clears the previous cost when a re-run starts", async () => {
+    const id = await start("cost again", async () => ({
+      result: {},
+      issues: [],
+      usage: { inputTokens: 1000, outputTokens: 1000 },
+    }));
+    await restart(
+      "cost again",
+      async () => {
+        throw new Error("model timed out");
+      },
+      id,
+    );
+
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({ status: "failed", costUsd: null });
   });
 });
 

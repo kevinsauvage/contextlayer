@@ -16,7 +16,7 @@ Feasible with the current architecture. The open engineering risks are retrieval
 | What is read       | Repository metadata, the default-branch file tree, and file contents on demand through the API                                                                                                                                               |
 | Limits in the code | Files over 100 KB skipped; text extensions only; `node_modules`, build output and lockfiles ignored; a truncated recursive tree is rebuilt one paginated directory listing at a time; at most 5 terms sent to code search; top 20 files read |
 | Not stored         | File contents. Only evidence excerpts cited in a draft are saved with the analysis                                                                                                                                                           |
-| Open items         | The per-directory fallback costs one round trip per directory and its latency is not yet measured; code search is rate limited separately and used best effort; monorepo subdirectory scoping does not exist                                 |
+| Open items         | The per-directory fallback costs one round trip per directory and its latency is not yet measured; code search is rate limited separately and used best effort; monorepo scoping is one folder per project, not per path pattern             |
 
 Organization owners may need to approve the app. This is a likely procurement friction (H4) to test in interviews.
 

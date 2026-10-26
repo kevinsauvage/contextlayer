@@ -31,13 +31,13 @@ Two use cases share one pipeline (`src/core/analysis/analyze.ts`):
 2. **Audit** (`auditIssue`): Jira issue key → fetch issue → candidates → report with findings and a proposed ticket.
 
 ```
-input ─▶ extractTerms ─▶ gatherContext ─▶ generator ─▶ attach evidence ─▶ validate references
-         (≤ 10 terms + synonyms) files + imports +   (LLM, Zod-typed)  (cited ids only)  (EvidenceIssue[])
-                                 related issues
+input ─▶ extractTerms + model expansion ─▶ gatherContext ─▶ generator ─▶ attach evidence ─▶ validate references
+         (≤ 10 terms + synonyms + ≤ 8)     files + imports +   (LLM, Zod-typed)  (cited ids only)  (EvidenceIssue[])
+                                           related issues
 ```
 
-- **Terms** (`src/core/context/terms.ts`): quoted text (the requested new value) is ignored, accents are folded, stopwords and edit verbs are dropped, and a small UI synonym map adds terms ("banner" → hero, header).
-- **Retrieval** (`src/core/context/retrieve.ts`): path scoring (weight 3) plus content scoring that counts capped term occurrences; test files rank below source and up to 10 candidates are kept. Optional provider search (GitHub code search: one query per term, best effort) only decides which files to read, and import following (`src/core/context/imports.ts`) reads the top three files' local imports one hop (through barrel `index` files) because copy and config usually live in an imported module. Read the top 20, rescore, keep 60-line windows. Related Jira issues come from `IssueTracker.searchRelated`. Every candidate gets an id `e1…eN`.
+- **Terms** (`src/core/context/terms.ts`): quoted text (the requested new value) is ignored, accents are folded, stopwords and edit verbs are dropped, and a small UI synonym map adds terms ("banner" → hero, header). Before searching, the generator also returns 5–10 code-search terms (identifiers and file names); they are appended after the request's own terms and capped at 8.
+- **Retrieval** (`src/core/context/retrieve.ts`): path scoring (weight 3) plus content scoring that counts capped term occurrences; test files rank below source and up to 10 candidates are kept. Optional provider search (GitHub code search: one query per term, best effort) only decides which files to read, and import following (`src/core/context/imports.ts`) reads the top three files' local imports one hop, through barrel `index` or `__init__.py` files, because copy and config usually live in an imported module. It understands JS/TS, Python (relative and absolute modules) and Go (package directories). Read the top 20, rescore, keep 60-line windows. A project may be scoped to one folder (`owner/repo#apps/web`), and then the GitHub source lists and searches only that folder with paths relative to it. Related Jira issues come from `IssueTracker.searchRelated`. Every candidate gets an id `e1…eN`.
 - **Generation** (`src/integrations/ai`): the model receives the candidates and returns a body that cites candidate ids. It never writes evidence. The pipeline attaches the real excerpts for the ids that were cited, which prevents fabricated sources.
 - **Validation** (`src/core/evidence/validate.ts`): a schema-valid draft can still cite nothing, cite unknown ids, or mark a claim `verified` without evidence. Those become `EvidenceIssue`s, stored with the analysis and shown in the review UI.
 - **Clarification**: open questions are answered on the draft page; a question may offer two to four options with one recommended, plus free text. Answers are stored in `analysis.input.answers`, merged across rounds, and the draft is regenerated in place. Blank answers stay as open questions.
@@ -51,11 +51,11 @@ Every statement in a draft is a claim with a status: `verified | inferred | unkn
 
 Better Auth owns users, sessions, organizations, members and invitations (`src/infrastructure/db/schema/auth.ts`). Users switch organizations from the header; invitations are shared as links (`/invitations/<id>`) until an email provider exists. Owners and admins manage members and roles, a member can leave an organization, and an owner can delete one after typing its name. The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
 
-| Table                    | Purpose                                                                                                                                                           |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent                    |
-| `project`                | One source connection + resource (repository) and one tracker connection + resource (Jira project), with display labels                                           |
-| `analysis`               | Input (request, answers and follow-ups, or issue key), AI result, user-edited result, evidence issues, model, tokens, latency, error, published issue key and URL |
+| Table                    | Purpose                                                                                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent                                    |
+| `project`                | One source connection + resource (repository, optionally `owner/repo#apps/web`) and one tracker connection + resource (Jira project), with display labels                         |
+| `analysis`               | Input (request, answers and follow-ups, or issue key), AI result, user-edited result, evidence issues, model, tokens, estimated cost, latency, error, published issue key and URL |
 
 ## Integrations
 

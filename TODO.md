@@ -1,6 +1,6 @@
 # TODO
 
-Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-10-24.
+Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-10-26.
 
 The backlog is split by kind of work, one `TODO-<KIND>.md` file each. Add a new kind only when none fits, following the same pattern.
 
@@ -20,7 +20,7 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | Priority | Goal                                                              | Bug | Feature | Quality | Non-code |
 | -------- | ----------------------------------------------------------------- | --: | ------: | ------: | -------: |
 | P0       | Decide whether to build (evidence for the go / pivot / stop rule) |   0 |       0 |       0 |        3 |
-| P1       | Prove the product (quality, retrieval, cost)                      |   0 |       4 |       0 |        2 |
+| P1       | Prove the product (quality, retrieval, cost)                      |   0 |       0 |       0 |        3 |
 | P2       | Connect and deliver (real teams, real credentials)                |   0 |       5 |       0 |        2 |
 | P3       | Harden and validate (security, operations, pilot)                 |   0 |       6 |       1 |        5 |
 

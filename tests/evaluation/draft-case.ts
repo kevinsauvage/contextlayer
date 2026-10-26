@@ -34,10 +34,17 @@ async function runCase(c: LoadedCase, source: DirectorySource, generator: AiGene
   const tracker = trackerOf(c);
   if (c.kind === "audit") {
     if (!c.issue) throw new Error(`fixture ${c.id} is an audit case without an issue`);
-    const result = await auditIssue({ issueKey: c.issue.key, source, tracker, generator });
+    const result = await auditIssue({ issueKey: c.issue.key, source, tracker, generator, expander: generator });
     return { kind: "audit", result, text: auditText(result.report) };
   }
-  const result = await draftTicket({ request: requestOf(c), answers: c.answers, source, tracker, generator });
+  const result = await draftTicket({
+    request: requestOf(c),
+    answers: c.answers,
+    source,
+    tracker,
+    generator,
+    expander: generator,
+  });
   return { kind: "create", result, text: JSON.stringify(result.draft, null, 2) };
 }
 

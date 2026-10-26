@@ -72,11 +72,13 @@ const sourceProvider: SourceProvider = {
   resourceNoun: "repository",
   canAddAccount: true,
   exclusive: true,
+  supportsSubdirectory: true,
   isConfigured: () => true,
   authorizeUrl: () => "https://github.test/authorize",
   complete: async () => ({ status: "cancelled" }),
   listResources: async () => [],
-  getResource: async (_ctx, id) => (id === "o/r" ? { id, label: "o/r" } : null),
+  getResource: async (_ctx, id) =>
+    id === "o/r" ? { id, label: "o/r" } : id === "o/r#apps/web" ? { id, label: "o/r · apps/web" } : null,
   openSource: async () => {
     throw new Error("unused");
   },
@@ -161,6 +163,27 @@ describe("createProject", () => {
     expect(created?.sourceResourceLabel).toBe("o/r");
     expect(created?.trackerResourceLabel).toBe("SHOP · Shop");
     expect(state.redirects.at(-1)).toBe(`/projects/${created?.id}`);
+  });
+
+  it("stores a monorepo folder scope in the source resource", async () => {
+    await expect(createProject({}, projectForm({ name: "Monorepo", sourceSubdirectory: "apps/web" }))).rejects.toThrow(
+      "NEXT_REDIRECT:/projects/",
+    );
+    const [created] = await state.db.select().from(schema.project).where(eq(schema.project.name, "Monorepo"));
+    expect(created?.sourceResourceId).toBe("o/r#apps/web");
+    expect(created?.sourceResourceLabel).toBe("o/r · apps/web");
+  });
+
+  it("reports a folder the provider cannot find", async () => {
+    expect(await createProject({}, projectForm({ sourceSubdirectory: "gone" }))).toEqual({
+      error: "That folder is not accessible in GitHub",
+    });
+  });
+
+  it("refuses a folder path that leaves the repository", async () => {
+    expect(await createProject({}, projectForm({ sourceSubdirectory: "../elsewhere" }))).toEqual({
+      error: "Enter a folder path inside the repository, without . or .. segments",
+    });
   });
 });
 
