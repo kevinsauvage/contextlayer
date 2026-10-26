@@ -25,8 +25,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm lint
+      # Typecheck first: `next typegen` writes the route types (PageProps, LayoutProps) that lint resolves.
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm knip
       - run: pnpm test:coverage
       - run: pnpm build
