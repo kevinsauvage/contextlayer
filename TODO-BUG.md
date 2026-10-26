@@ -12,14 +12,6 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
   - **Context:** `asText` turns every `<` into `&lt;` (`src/integrations/ai/prompt.ts:7,60`), so JSX and generics reach the model altered while the prompt requires quoting exactly.
   - **Fix:** stop escaping content. Wrap each source in a boundary tag with a random per-request token (and tell the model that only that token closes a block), keep escaping for attribute values, and add a prompt test with JSX and an injected closing tag.
 
-- [ ] **Autosave fails silently** `P1` `B13`
-  - **Context:** `src/components/analysis/draft-workspace.tsx:96` ignores the action result. A new item is empty, which fails `draftBodySchema` (`text.min(1)`), so nothing is saved, with no indicator, until every field is filled.
-  - **Fix:** show a "Saved" or "Not saved: <reason>" status next to the tabs, and store `editedResult` with a looser schema (empty text allowed) while keeping the strict schema for publishing.
-
-- [ ] **A stale autosave can overwrite a redraft** `P1` `B14`
-  - **Context:** Next.js dispatches Server Actions one at a time per client (`server-actions.md`, "Sequential dispatch on the client"), so an autosave queued before a redraft runs after it and writes the old edits over the new draft.
-  - **Fix:** send the analysis `startedAt` with `saveDraftEdits` and reject it when it differs from the row, and clear the pending autosave timer when a redraft starts.
-
 - [ ] **Jira text extraction drops content** `P1` `B11`
   - **Context:** `adfToText` (`src/integrations/jira/adf.ts:42-51`) loses `mention`, `status`, `emoji` and `date` nodes and joins table cells without a separator, so audits read damaged ticket text.
   - **Fix:** render those nodes from their `attrs.text`, separate table cells and rows, and extend `tests/unit/jira-adf.test.ts`.

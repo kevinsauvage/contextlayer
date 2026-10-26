@@ -112,7 +112,9 @@ export async function refineTicket(analysisId: string, input: unknown): Promise<
 }
 
 // Autosave keeps manual edits across a reload without approving or publishing anything.
-export async function saveDraftEdits(analysisId: string, draftInput: unknown): Promise<ActionState> {
+// `runKey` is the `startedAt` of the run the browser edited. An autosave queued before a redraft finishes would
+// otherwise write the old edits over the new draft.
+export async function saveDraftEdits(analysisId: string, runKey: string, draftInput: unknown): Promise<ActionState> {
   const draft = draftBodySchema.safeParse(draftInput);
   if (!draft.success) return { error: firstIssueMessage(draft.error, "The edited draft is invalid") };
 
@@ -122,6 +124,8 @@ export async function saveDraftEdits(analysisId: string, draftInput: unknown): P
     publishedError: () => "This draft is already published",
   });
   if ("error" in loaded) return loaded;
+  if (loaded.analysis.startedAt.toISOString() !== runKey)
+    return { error: "The draft was regenerated; reload the page" };
 
   // Only the editable fields are stored; evidence is rebuilt from the stored result so the browser cannot add one.
   const evidence = storedEvidence(loaded.analysis);

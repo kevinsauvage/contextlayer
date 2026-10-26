@@ -75,3 +75,12 @@ export const draftSections = (draft: DraftBody) => ({
   description: draft.description,
   acceptanceCriteria: draft.acceptanceCriteria,
 });
+
+// A new list item starts empty, which the schema rejects; autosave keeps only the finished items.
+export const withoutIncompleteItems = (draft: TicketDraft): TicketDraft => ({
+  ...draft,
+  description: draft.description.filter((claim) => claim.text.trim()),
+  acceptanceCriteria: draft.acceptanceCriteria.filter((claim) => claim.text.trim()),
+  assumptions: draft.assumptions.filter((item) => item.text.trim() && item.rationale.trim()),
+  openQuestions: draft.openQuestions.filter((item) => item.question.trim() && item.impact.trim()),
+});

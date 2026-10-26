@@ -86,6 +86,18 @@ describe("DraftWorkspace", () => {
     expect(publish).toHaveBeenCalledWith({ ...ready, title: "Round cart totals half up" });
   });
 
+  it("shows when an autosave failed, and keeps only finished items in what it sends", async () => {
+    const save = vi.fn(async () => ({ error: "The draft was regenerated; reload the page" }));
+    const { user } = renderWorkspace(ready, { save });
+
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Add criterion" }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1), { timeout: 2000 });
+
+    expect(save).toHaveBeenCalledWith(ready);
+    expect((await screen.findByRole("status")).textContent).toContain("Not saved: The draft was regenerated");
+  });
+
   it("warns before leaving the page only while there are unsaved edits", async () => {
     const { user } = renderWorkspace(ready);
     const leave = () => {

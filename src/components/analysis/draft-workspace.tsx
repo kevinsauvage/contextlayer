@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
-import type { TicketDraft } from "@/core/requirements/schemas";
+import { withoutIncompleteItems, type TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 import type { ActionState } from "@/lib/action-state";
 
@@ -86,6 +86,7 @@ export function DraftWorkspace({
   useEffect(() => setDraftEdited?.(edited), [edited, setDraftEdited]);
   useWarnBeforeLeaving(edited);
 
+  const [saveStatus, setSaveStatus] = useState<{ saved: boolean; error?: string }>({ saved: false });
   const saveRef = useRef(save);
   useEffect(() => {
     saveRef.current = save;
@@ -93,7 +94,10 @@ export function DraftWorkspace({
   useEffect(() => {
     if (!edited || !saveRef.current) return;
     const timer = setTimeout(() => {
-      void saveRef.current?.(draft);
+      void saveRef.current?.(withoutIncompleteItems(draft)).then(
+        (outcome) => setSaveStatus({ saved: !outcome.error, error: outcome.error }),
+        () => setSaveStatus({ saved: false, error: "Could not reach the server" }),
+      );
     }, 800);
     return () => clearTimeout(timer);
   }, [draft, edited, published]);
@@ -118,6 +122,11 @@ export function DraftWorkspace({
           </TabsTrigger>
         </TabsList>
         {published && <p className="text-xs text-muted-foreground">Published tickets are edited in {trackerName}.</p>}
+        {edited && save && (
+          <p className={saveStatus.error ? "text-xs text-destructive" : "text-xs text-muted-foreground"} role="status">
+            {saveStatus.error ? `Not saved: ${saveStatus.error}` : saveStatus.saved ? "Saved" : "Saving soon…"}
+          </p>
+        )}
         <TabsContent value="preview">
           <TicketPreview
             draft={draft}

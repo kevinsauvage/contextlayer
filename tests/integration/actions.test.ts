@@ -325,6 +325,7 @@ describe("publishTicket and saveDraftEdits", () => {
 
   const rowOf = async (id: string) =>
     first(await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
+  const runKeyOf = async (id: string) => (await rowOf(id)).startedAt.toISOString();
 
   function creatingTracker(create: IssueTracker["createIssue"]) {
     state.tracker = {
@@ -391,15 +392,34 @@ describe("publishTicket and saveDraftEdits", () => {
     const id = await draftAnalysis();
     const forged = [{ ...stored.evidence[0], excerpt: "Forged" }];
 
-    expect(await saveDraftEdits(id, { ...editable, title: "Round cart totals half up", evidence: forged })).toEqual({});
+    expect(
+      await saveDraftEdits(id, await runKeyOf(id), {
+        ...editable,
+        title: "Round cart totals half up",
+        evidence: forged,
+      }),
+    ).toEqual({});
     expect((await rowOf(id)).editedResult).toEqual({ ...stored, title: "Round cart totals half up" });
+  });
+
+  it("refuses an autosave from a run that has since been regenerated", async () => {
+    const id = await draftAnalysis();
+
+    expect(await saveDraftEdits(id, "2020-01-01T00:00:00.000Z", editable)).toEqual({
+      error: "The draft was regenerated; reload the page",
+    });
+    expect((await rowOf(id)).editedResult).toBeNull();
   });
 
   it("refuses to autosave a published or a running analysis", async () => {
     const published = await draftAnalysis({ publishedIssueKey: "SHOP-11", publishedIssueUrl: "u" });
     const running = await draftAnalysis({ status: "running", result: null });
 
-    expect(await saveDraftEdits(published, editable)).toEqual({ error: "This draft is already published" });
-    expect(await saveDraftEdits(running, editable)).toEqual({ error: "This analysis is still running" });
+    expect(await saveDraftEdits(published, await runKeyOf(published), editable)).toEqual({
+      error: "This draft is already published",
+    });
+    expect(await saveDraftEdits(running, await runKeyOf(running), editable)).toEqual({
+      error: "This analysis is still running",
+    });
   });
 });
