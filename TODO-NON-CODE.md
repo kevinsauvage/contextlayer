@@ -2,13 +2,13 @@
 
 Research, decisions, manual reviews, configuration and documentation: work that ships no application code. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P1 · Prove it: evaluation and correctness fixes
+## P1 · Quality: make the core promise hold
 
 - [ ] **Measure retrieval recall after query expansion** `P1` `E6`
   - **Context:** retrieval now asks the model for 5–10 code-search terms and merges them with `extractTerms`, but recall has not been measured on real repositories. The deterministic fixture test runs without a model and still records `mail/send.ts` as a known miss.
   - **Fix:** run retrieval on every fixture and on this repository (ContextLayer, about 300 files, through the local git source in [`TODO-FEATURE.md`](TODO-FEATURE.md), since it has no GitHub remote) with expansion on, using 5 to 8 requests whose relevant files you list beforehand; record recall per case in `validation-experiments.md`, and consider embeddings only if recall stays under 90%.
 
-## P2 · Production-grade: security, limits, deploy, reliability
+## P2 · Polish and evidence
 
 - [ ] **Hosting and deploy** `P2`
   - **Context:** the app only runs locally; there is no production database, env or migration step.
@@ -26,10 +26,6 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** on a public site, visitors who connect a repository or a Jira site send source code and ticket text to the AI provider, and the app stores excerpts in `analysis.result`. They should be told where it goes and for how long before they connect anything.
   - **Fix:** write a public page covering what is read, sent, stored and for how long, and link each provider's retention terms.
 
-- [ ] **First CI run** `P2`
-  - **Context:** `.github/workflows/ci.yml` mirrors `pnpm check` but the repository has no remote yet, so it has never run on GitHub.
-  - **Fix:** push a branch, fix anything environment-specific (the `pnpm setup` secrets, build env), then make the workflow a required check on `main`.
-
 - [ ] **Threat model** `P2`
   - **Context:** prompt injection through repository and Jira text, tenant isolation and token handling are mitigated piecemeal (see "Security model" in `docs/architecture/overview.md`) but never reviewed as a whole.
   - **Fix:** write `docs/architecture/threat-model.md` (assets, actors, entry points, mitigations, gaps) and file every gap in the matching `TODO-*.md`.
@@ -38,7 +34,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** `src/integrations/jira/oauth.ts` requests `read:jira-work` and `write:jira-work`, which grant broad access.
   - **Fix:** switch the Atlassian app to granular scopes (read issues and projects, write issues only), update the scope list in `oauth.ts` to match, and check that search, create and update still work.
 
-## P3 · Polish and later
+## P3 · Later: optional features and deeper hardening
 
 - [ ] **Configure the nightly eval** `P3`
   - **Context:** `.github/workflows/ai-nightly.yml` runs the prompt-injection subset, but the repository has no remote and no AI secrets, so it has never run.
@@ -64,7 +60,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** listing a truncated tree now falls back to one paginated listing per directory (`walkTree` in `src/integrations/github/tree.ts`), so files are no longer silently lost, but the added round trips are unmeasured.
   - **Fix:** connect a GitHub App to a repository of about 1,000 files and one large enough to truncate the recursive tree, time `listFiles` for both paths, and record the numbers in `docs/engineering/phase-0-feasibility.md`.
 
-## Deferred · not needed to build the product properly
+## Deferred · business validation, not needed for the portfolio
 
 - [~] **Customer discovery: run 8–12 interviews** `Deferred` `E4`
   - **Context:** the guide is ready (`docs/product/customer-discovery.md`) but no interview has happened, so C1 (a real, costly problem) and C6 have no evidence.
