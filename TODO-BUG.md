@@ -2,11 +2,7 @@
 
 Existing behaviour that is wrong: it fails, or silently returns incomplete or incorrect results. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite its finding id (for example `B1`) in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P0 · Core promise: the draft must be correct and the run must not fail
-
-- [ ] **Query expansion or the Jira search can abort the whole analysis** `P0` `B1` `B2`
-  - **Context:** `gatherContext` awaits the expander and runs the Jira search without a catch (`src/core/context/gather.ts:28-33`). `termsSchema` is strict (`.min(5).max(10)`, `src/integrations/ai/generator.ts:23`), so a model returning 4 or 11 terms throws `NoObjectGeneratedError`. A JQL or network error fails the run the same way. Both steps only improve retrieval.
-  - **Fix:** catch both, fall back to the heuristic terms and to no related issues, and log a warning. Relax `termsSchema` to accept 1 to 20 terms and truncate. Add unit tests in `tests/unit/analyze.test.ts` for a throwing expander and a throwing tracker.
+## P0 · Launch blockers: before the site is public
 
 - [ ] **Expanded terms never reach GitHub code search** `P0` `E6` `B4`
   - **Context:** `mergeTerms` appends model terms after the heuristic ones (`src/core/context/terms.ts:106-121`) and `GithubSource.searchContent` keeps only the first 3 terms (`src/integrations/github/source.ts:100-102`). With 3 or more heuristic terms the expansion only affects path scoring.
@@ -20,7 +16,7 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
   - **Context:** `AiGenerator.run` calls `generateText` with no `timeout` and no retry on `NoObjectGeneratedError` (`generator.ts:50-58`), and `jiraRequest` has no `AbortSignal` and ignores 429 (`src/integrations/jira/client.ts:64-76`). A hung provider holds the action until the 10-minute stale rule; one malformed response fails the analysis.
   - **Fix:** pass the AI SDK `timeout` (for example 120 s total), retry once on `NoObjectGeneratedError`, add `AbortSignal.timeout` to Jira requests and one retry on 429 honoring `Retry-After`.
 
-## P1 · Prove it: evaluation and correctness fixes
+## P1 · Quality: make the core promise hold
 
 - [ ] **Related-issue search is too broad** `P1` `B5`
   - **Context:** `searchRelated` builds `text ~ a OR text ~ b …` from every term and orders by `updated DESC` with a limit of 5 (`src/integrations/jira/client.ts:120-128`), so it returns recently updated issues that match any term, not the best matches.
@@ -46,7 +42,7 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
   - **Context:** `restartAnalysis` sets `createdByUserId` to the user who re-ran it (`src/features/analysis/run.ts:114`). With several members per organization, the history shows the wrong author.
   - **Fix:** stop updating `createdByUserId`; add a `lastRunByUserId` column only if the history needs it.
 
-## P3 · Polish and later
+## P3 · Later: optional features and deeper hardening
 
 - [ ] **Alias resolution ignores `extends` in `tsconfig.json`** `P3` `B6`
   - **Context:** `parseAliasConfig` reads only the file's own `compilerOptions` (`src/core/context/paths.ts:61-76`), so aliases defined in a base config are not resolved and imported files are missed in monorepos.

@@ -100,6 +100,32 @@ describe("draftTicket", () => {
   });
 });
 
+describe("draftTicket when a helper step fails", () => {
+  const generator: DraftGenerator = { generate: async () => ({ body: body([]) }) };
+
+  it("falls back to the request's own terms when query expansion throws", async () => {
+    const expander = {
+      expandTerms: async (): Promise<never> => {
+        throw new Error("no object generated");
+      },
+    };
+    const result = await draftTicket({ request: "checkout button", source, tracker, generator, expander });
+    expect(result.candidates.map((candidate) => candidate.reference)).toContain("src/checkout/PayButton.tsx");
+  });
+
+  it("continues without related issues when the tracker search throws", async () => {
+    const failing: IssueTracker = {
+      ...tracker,
+      searchRelated: async () => {
+        throw new Error("jira down");
+      },
+    };
+    const result = await draftTicket({ request: "checkout button", source, tracker: failing, generator });
+    expect(result.candidates.some((candidate) => candidate.kind === "jira_issue")).toBe(false);
+    expect(result.candidates.length).toBeGreaterThan(0);
+  });
+});
+
 describe("auditIssue", () => {
   const auditBody = (
     findingEvidence: string[],

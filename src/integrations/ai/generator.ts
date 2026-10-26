@@ -20,7 +20,8 @@ import {
   EXPANSION_SYSTEM_PROMPT,
 } from "./prompt";
 
-const termsSchema = z.object({ terms: z.array(z.string().min(2).max(48)).min(5).max(10) });
+// Expansion is best-effort: the prompt asks for 5 to 10 terms, but a short or long list must not fail the run.
+const termsSchema = z.object({ terms: z.array(z.string()).min(1).max(30) });
 
 const jsonSchemaInstruction = (schema: z.ZodType) =>
   `Respond with a single JSON object that matches this JSON Schema:\n${JSON.stringify(z.toJSONSchema(schema))}`;

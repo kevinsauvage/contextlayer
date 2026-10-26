@@ -16,6 +16,15 @@ function issueEvidence(issue: Issue): EvidenceCandidate {
   };
 }
 
+async function relatedIssues(tracker: IssueTracker, terms: string[]): Promise<Issue[]> {
+  try {
+    return await tracker.searchRelated(terms, RELATED_ISSUE_LIMIT);
+  } catch (error) {
+    console.warn("[context] related issue search failed; continuing without related issues", error);
+    return [];
+  }
+}
+
 export type GatheredContext = { evidence: Evidence[]; usage?: TokenUsage };
 
 export async function gatherContext(input: {
@@ -25,11 +34,14 @@ export async function gatherContext(input: {
   excludeIssueKey?: string;
   expander?: QueryExpander;
 }): Promise<GatheredContext> {
-  const expanded = input.expander ? await input.expander.expandTerms(input.query) : undefined;
+  const expanded = await input.expander?.expandTerms(input.query).catch((error: unknown) => {
+    console.warn("[context] query expansion failed; using the request's own terms", error);
+    return undefined;
+  });
   const terms = mergeTerms(extractTerms(input.query), expanded?.terms ?? []);
   const [files, issues] = await Promise.all([
     retrieveFileEvidence(terms, input.source),
-    terms.length ? input.tracker.searchRelated(terms, RELATED_ISSUE_LIMIT) : [],
+    terms.length ? relatedIssues(input.tracker, terms) : [],
   ]);
   const related = issues.filter((issue) => issue.key !== input.excludeIssueKey).map(issueEvidence);
   const evidence = [...files, ...related].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
