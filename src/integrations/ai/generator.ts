@@ -1,4 +1,5 @@
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
+import pRetry from "p-retry";
 import { z } from "zod";
 import type {
   AuditGenerator,
@@ -21,6 +22,8 @@ import {
 } from "./prompt";
 
 // Expansion is best-effort: the prompt asks for 5 to 10 terms, but a short or long list must not fail the run.
+const MODEL_TIMEOUT_MS = 120_000;
+
 const termsSchema = z.object({ terms: z.array(z.string()).min(1).max(30) });
 
 const jsonSchemaInstruction = (schema: z.ZodType) =>
@@ -49,12 +52,18 @@ export class AiGenerator implements DraftGenerator, AuditGenerator, QueryExpande
   }
 
   private async run<T>(system: string, prompt: string, schema: z.ZodType<T>): Promise<GeneratorResult<T>> {
-    const { output, usage } = await generateText({
-      model: resolveModel(this.modelId),
-      instructions: withSchemaInstruction(system, schema),
-      prompt,
-      output: Output.object({ schema }),
-    });
+    // A malformed or schema-invalid answer is usually a one-off, so it gets one more try; other errors fail at once.
+    const { output, usage } = await pRetry(
+      () =>
+        generateText({
+          model: resolveModel(this.modelId),
+          instructions: withSchemaInstruction(system, schema),
+          prompt,
+          output: Output.object({ schema }),
+          timeout: MODEL_TIMEOUT_MS,
+        }),
+      { retries: 1, shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error) },
+    );
     return { body: output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 } };
   }
 }

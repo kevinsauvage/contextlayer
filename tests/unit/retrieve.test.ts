@@ -43,14 +43,30 @@ describe("extractTerms", () => {
   });
 });
 
+describe("extractTerms in other languages", () => {
+  it("drops common French words", () => {
+    expect(extractTerms("Ajouter un bouton pour exporter les commandes en CSV sur la page des commandes")).toEqual([
+      "commandes",
+      "ajouter",
+      "bouton",
+      "exporter",
+      "csv",
+    ]);
+  });
+});
+
 describe("mergeTerms", () => {
-  it("appends model terms after the request's own and drops duplicates and unusable values", () => {
+  it("interleaves model terms with the request's own and drops duplicates and unusable values", () => {
     expect(mergeTerms(["reset", "password"], ["Reset", "mailer", "`sendMail`", "two words", "", "mailer"])).toEqual([
       "reset",
-      "password",
       "mailer",
+      "password",
       "sendmail",
     ]);
+  });
+
+  it("puts a model term within the first three, which is all code search uses", () => {
+    expect(mergeTerms(["a1", "b2", "c3", "d4"], ["mailer"]).slice(0, 3)).toContain("mailer");
   });
 
   it("caps how many expanded terms it adds", () => {

@@ -1,8 +1,11 @@
+import { deu, fra, ita, nld, por, spa } from "stopword";
+
 // A term found in a file path says more about relevance than one found in its content.
 export const PATH_WEIGHT = 3;
 
 const MAX_TERMS = 10;
 
+// Instruction words that carry no meaning in a code search.
 const STOPWORDS = new Set([
   "the",
   "and",
@@ -99,7 +102,8 @@ const MAX_TERM_OCCURRENCES = 5;
 export const scoreMatches = (text: string, terms: string[]) =>
   terms.reduce((total, term) => total + Math.min(text.split(term).length - 1, MAX_TERM_OCCURRENCES), 0);
 
-// Expanded terms are appended after the request's own terms, which stay the strongest signal.
+// Expanded terms are interleaved with the request's own terms, which come first: code search only runs on the
+// first few terms, so appending would leave the model's terms unsearched. Scoring ignores the order.
 const MAX_EXPANDED_TERMS = 8;
 const MAX_TERM_LENGTH = 48;
 
@@ -117,13 +121,20 @@ export function mergeTerms(primary: string[], expanded: string[]): string[] {
     extra.push(term);
     if (extra.length === MAX_EXPANDED_TERMS) break;
   }
-  return [...primary, ...extra];
+  const length = Math.max(primary.length, extra.length);
+  return Array.from({ length }, (_, i) => [primary[i], extra[i]])
+    .flat()
+    .filter((term) => term !== undefined);
 }
+
+// Function words of the common request languages: they match nearly every file by substring.
+const OTHER_LANGUAGE_STOPWORDS = new Set([...fra, ...spa, ...deu, ...ita, ...por, ...nld]);
 
 export function extractTerms(text: string, max = MAX_TERMS): string[] {
   const frequency = new Map<string, number>();
   for (const term of normalize(text).split(/[^a-z0-9]+/)) {
-    if (term.length > 2 && !STOPWORDS.has(term)) frequency.set(term, (frequency.get(term) ?? 0) + 1);
+    if (term.length > 2 && !STOPWORDS.has(term) && !OTHER_LANGUAGE_STOPWORDS.has(term))
+      frequency.set(term, (frequency.get(term) ?? 0) + 1);
   }
   const primary = [...frequency]
     .sort((a, b) => b[1] - a[1])

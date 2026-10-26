@@ -32,7 +32,8 @@ AI ticket creation and QA: turns a plain-language request into an evidence-backe
 
 - Comments: avoid them by default. Add one short comment only when the _why_ is non-obvious; never restate what the code does.
 - No duplication (DRY): reuse or extract shared logic and types; derive types from Zod schemas (`z.infer`) instead of redeclaring them.
-- Clean architecture: dependencies point inward (`app` → `features` → `core`; `integrations` implement interfaces `core` defines). `core` imports only `core` and `zod`. ESLint enforces the layer boundaries (`eslint.config.mjs`); fix the import, never disable the rule.
+- Clean architecture: dependencies point inward (`app` → `features` → `core`; `integrations` implement interfaces `core` defines). `core` imports only `core`, `zod` and pure data packages with no I/O (such as `stopword`). ESLint enforces the layer boundaries (`eslint.config.mjs`); fix the import, never disable the rule.
 - Strict TypeScript includes `noUncheckedIndexedAccess`: handle `undefined` from indexing (`first()` in `src/lib`, `?? fallback`, destructuring defaults) instead of asserting non-null.
 - Read form data with `formString()` and Zod error messages with `firstIssueMessage()` (both in `src/lib`).
+- Prefer a maintained npm package over hand-written code whenever one fits (retries, timeouts, parsing, word lists, dates, IDs, validation). Search npm before writing a helper, check its weekly downloads, maintenance and types, and say in the reply why you chose it or why none fit. Hand-write only when no package fits or the code is a few lines.
 - Follow best practices: small single-purpose functions, explicit types at boundaries, descriptive names, early returns, no dead code or speculative abstractions.

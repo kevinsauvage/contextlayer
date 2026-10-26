@@ -2,20 +2,6 @@
 
 Existing behaviour that is wrong: it fails, or silently returns incomplete or incorrect results. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite its finding id (for example `B1`) in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P0 · Launch blockers: before the site is public
-
-- [ ] **Expanded terms never reach GitHub code search** `P0` `E6` `B4`
-  - **Context:** `mergeTerms` appends model terms after the heuristic ones (`src/core/context/terms.ts:106-121`) and `GithubSource.searchContent` keeps only the first 3 terms (`src/integrations/github/source.ts:100-102`). With 3 or more heuristic terms the expansion only affects path scoring.
-  - **Fix:** put the model terms first when searching (or interleave the two lists), keep the cap, and add a test in `tests/unit/github-source.test.ts` that a model term is searched. Re-measure recall (see "Measure retrieval recall after query expansion" in [`TODO-NON-CODE.md`](TODO-NON-CODE.md)).
-
-- [ ] **Heuristic term extraction is English only** `P0` `B3`
-  - **Context:** stopwords and synonyms in `src/core/context/terms.ts:6-83` are English. `extractTerms("Ajouter un bouton pour exporter les commandes en CSV…")` returns `["commandes","ajouter","bouton","pour","exporter","les","csv","sur","des"]`, and substring matching makes "les", "des", "est" and "sur" match almost every file.
-  - **Fix:** use the `stopword` package (all languages) instead of the hand list, match terms under 5 characters on word boundaries, and add a French fixture with its expected files to `tests/fixtures/`.
-
-- [ ] **No timeout, no retry on a malformed model response, no 429 handling** `P0` `B10` `B12`
-  - **Context:** `AiGenerator.run` calls `generateText` with no `timeout` and no retry on `NoObjectGeneratedError` (`generator.ts:50-58`), and `jiraRequest` has no `AbortSignal` and ignores 429 (`src/integrations/jira/client.ts:64-76`). A hung provider holds the action until the 10-minute stale rule; one malformed response fails the analysis.
-  - **Fix:** pass the AI SDK `timeout` (for example 120 s total), retry once on `NoObjectGeneratedError`, add `AbortSignal.timeout` to Jira requests and one retry on 429 honoring `Retry-After`.
-
 ## P1 · Quality: make the core promise hold
 
 - [ ] **Related-issue search is too broad** `P1` `B5`

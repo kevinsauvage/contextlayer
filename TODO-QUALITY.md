@@ -2,13 +2,7 @@
 
 Tests, evals and fixtures: code that changes no product behaviour but proves it. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P0 · Core promise: the draft must be correct and the run must not fail
-
-- [ ] **Quote check for verified claims** `P0` `C3` `B7`
-  - **Context:** `validateEvidenceReferences` (`src/core/evidence/validate.ts:41-63`) only checks that cited ids exist and that `verified` claims cite something. It never checks that a cited excerpt supports the claim, so C3 ("no fabricated claim survives validation") rests on the judge alone.
-  - **Fix:** in `core/evidence`, add a check that every backticked identifier and every quoted string in a `verified` claim appears in at least one cited excerpt, reported as an `EvidenceIssue` that blocks approval like the existing ones. Cover it in `tests/unit/validate-evidence.test.ts`, assert it on the existing fixtures, and update C3 in `phase-0-decision.md`.
-
-## P1 · Prove it: evaluation and correctness fixes
+## P1 · Quality: make the core promise hold
 
 - [ ] **Fair baseline in the evaluation** `P1` `C2` `E2`
   - **Context:** the baseline in `tests/evaluation/baseline.eval.ts` receives only the ticket title and no repository, and the judge prompt scores `evidenceTraceability` as "text without citations scores 0", so the baseline loses by construction. The 45 vs 12 vs 11 result cannot support C2. The real alternative is an AI that can read the code.
@@ -18,7 +12,7 @@ Tests, evals and fixtures: code that changes no product behaviour but proves it.
   - **Context:** evals run on `DirectorySource`, which scores all content with all terms, while production uses `GithubSource` (code search on at most 3 terms). The fake tracker in `tests/evaluation/fixtures.ts` returns every related issue whatever the query. Fixture repositories have 2 to 4 files, so recall is trivially high.
   - **Fix:** add this repository at a pinned commit as a large fixture (checked out by the eval, not copied) with 5 to 8 requests and their relevant files, make the fake tracker filter by the query terms, run `GithubSource` against a fixture-backed fake of the GitHub client (tree, contents, a capped code search), and add one French request. Record recall per case in `validation-experiments.md`. Pairs with "Local git source" in [`TODO-FEATURE.md`](TODO-FEATURE.md).
 
-## P2 · Production-grade: security, limits, deploy, reliability
+## P2 · Polish and evidence
 
 - [~] **End-to-end smoke test** `P2`
   - **Context:** the draft workspace and the chat now have React Testing Library tests (`tests/components/`: approval, confirmation with unresolved items, autosave, the unsaved-changes prompt, sending and the discard-edits confirmation), but no test drives the running app through sign-up, a project and a publish. The app has no way to run on fake GitHub, Jira and model providers, so a browser test would need real credentials.

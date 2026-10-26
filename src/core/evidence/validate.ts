@@ -37,10 +37,36 @@ export function validateAuditFindings(findings: (Claim & { category: string })[]
   });
 }
 
-// Schema validation checks structure only; this checks that cited evidence exists.
+const BACKTICKED = /`([^`\n]+)`/g;
+const DOUBLE_QUOTED = /"([^"\n]+)"|“([^”\n]+)”/g;
+
+const normalize = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
+
+// Identifiers and quoted strings in a claim are literal claims about the code.
+function quotedTokens(text: string): string[] {
+  const quoted = [...text.matchAll(DOUBLE_QUOTED)].map(([, straight = "", curly = ""]) => straight || curly);
+  return [...text.matchAll(BACKTICKED)]
+    .map(([, token = ""]) => token)
+    .concat(quoted)
+    .map(normalize)
+    .filter(Boolean);
+}
+
+// A verified claim that quotes something no cited source contains cannot be verified by those sources.
+function unsupportedQuotes(claim: Claim, evidence: Map<string, Evidence>): string[] {
+  const sources = claim.evidenceIds.flatMap((id) => {
+    const item = evidence.get(id);
+    return item ? [normalize(`${item.reference}\n${item.excerpt}`)] : [];
+  });
+  if (!sources.length) return [];
+  return quotedTokens(claim.text).filter((token) => !sources.some((source) => source.includes(token)));
+}
+
+// Schema validation checks structure only; this checks that cited evidence exists and supports what is quoted.
 export function validateEvidenceReferences(evidence: Evidence[], sections: ClaimSections): EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
   const known = new Set<string>();
+  const byId = new Map(evidence.map((item) => [item.id, item]));
 
   evidence.forEach((item, i) => {
     if (known.has(item.id)) issues.push({ path: `evidence[${i}].id`, message: `Evidence ${item.id} is listed twice.` });
@@ -57,6 +83,14 @@ export function validateEvidenceReferences(evidence: Evidence[], sections: Claim
       }
       if (claim.status === "verified" && claim.evidenceIds.length === 0) {
         issues.push({ path, message: `${label} is marked Verified but cites no evidence.` });
+      }
+      if (claim.status === "verified") {
+        for (const token of unsupportedQuotes(claim, byId)) {
+          issues.push({
+            path,
+            message: `${label} is marked Verified but quotes "${token}", which its cited evidence does not contain.`,
+          });
+        }
       }
     });
   }

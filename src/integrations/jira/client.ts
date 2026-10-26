@@ -1,4 +1,5 @@
 import "server-only";
+import ky, { HTTPError } from "ky";
 import { z } from "zod";
 import type { Issue, IssueTracker, PublishedIssue } from "@/core/context/source";
 import { TrackerRejectedError } from "@/core/errors";
@@ -32,6 +33,7 @@ const rejectionSchema = z.object({
 const ISSUE_FIELDS = ["summary", "description", "status", "updated"];
 const PREFERRED_ISSUE_TYPE = "Task";
 const PROJECTS_PER_PAGE = 100;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 // Jira answers 401 when the token was revoked or the grant was removed: that needs a new consent, not a retry.
 export class JiraApiError extends Error {
@@ -62,17 +64,25 @@ type Site = { cloudId: string; siteUrl: string };
 type JiraRequest = { method?: string; body?: unknown };
 
 async function jiraRequest(site: Site, accessToken: string, path: string, init: JiraRequest = {}): Promise<unknown> {
-  const response = await fetch(`https://api.atlassian.com/ex/jira/${site.cloudId}/rest/api/3${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      accept: "application/json",
-      ...(init.body ? { "content-type": "application/json" } : {}),
-    },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-  });
-  if (!response.ok) throw new JiraApiError(response.status, await response.text());
-  return response.status === 204 ? null : response.json();
+  try {
+    const response = await ky(`https://api.atlassian.com/ex/jira/${site.cloudId}/rest/api/3${path}`, {
+      method: init.method ?? "GET",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        accept: "application/json",
+        ...(init.body ? { "content-type": "application/json" } : {}),
+      },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+      timeout: REQUEST_TIMEOUT_MS,
+      // A 429 means Jira did not process the request, so every method is safe to retry; ky honors Retry-After.
+      retry: { limit: 2, statusCodes: [429], methods: ["get", "post", "put", "delete"] },
+    });
+    return response.status === 204 ? null : await response.json();
+  } catch (error) {
+    if (!(error instanceof HTTPError)) throw error;
+    const detail = typeof error.data === "string" ? error.data : JSON.stringify(error.data ?? "");
+    throw new JiraApiError(error.response.status, detail);
+  }
 }
 
 export async function listJiraProjects(site: Site, accessToken: string): Promise<JiraProject[]> {

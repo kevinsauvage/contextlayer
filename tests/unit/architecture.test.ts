@@ -14,7 +14,8 @@ type Rule = {
 };
 
 const RULES: Record<string, Rule> = {
-  core: { layers: ["core"], packages: ["zod"] },
+  // stopword is a pure word list, so it does not break the "no I/O in core" intent.
+  core: { layers: ["core"], packages: ["zod", "stopword"] },
   lib: { layers: ["lib"], packages: ["cn", "zod"] },
   infrastructure: { layers: ["core", "infrastructure", "lib"] },
   integrations: { layers: ["core", "infrastructure", "integrations", "lib"] },

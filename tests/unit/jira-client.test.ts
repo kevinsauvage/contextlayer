@@ -9,12 +9,36 @@ const auth = (accessToken = "at-1") => ({ accessToken: async () => accessToken }
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
+// ky hands fetch a Request; the tests read the same url, method and body they always did.
+const stubFetch = (handler: (url: string, init: RequestInit) => Response | Promise<Response>) =>
+  vi.stubGlobal("fetch", async (request: Request) =>
+    handler(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: (await request.text()) || undefined,
+    }),
+  );
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("JiraClient", () => {
+  it("retries a read once Jira answers 429", async () => {
+    let calls = 0;
+    stubFetch(() => {
+      calls += 1;
+      return calls === 1
+        ? new Response("slow down", { status: 429, headers: { "retry-after": "0" } })
+        : json({ issues: [] });
+    });
+
+    await new JiraClient(site, "SHOP", auth()).searchRelated(["cart"], 5);
+
+    expect(calls).toBe(2);
+  });
+
   it("builds one escaped JQL term per search term", async () => {
     const bodies: unknown[] = [];
-    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+    stubFetch(async (_url: string, init: RequestInit) => {
       bodies.push(JSON.parse((init.body ?? "{}") as string));
       return json({ issues: [] });
     });
@@ -31,7 +55,7 @@ describe("JiraClient", () => {
   });
 
   it("maps an issue to text and a browse URL", async () => {
-    vi.stubGlobal("fetch", async () =>
+    stubFetch(async () =>
       json({
         key: "SHOP-7",
         fields: {
@@ -58,7 +82,7 @@ describe("JiraClient", () => {
 
   it("creates a Task in the project with an ADF description", async () => {
     const requests: { url: string; init: RequestInit }[] = [];
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+    stubFetch(async (url: string, init: RequestInit) => {
       requests.push({ url, init });
       return init.method === "POST"
         ? json({ key: "SHOP-9" }, 201)
@@ -95,7 +119,7 @@ describe("JiraClient", () => {
     const onUnauthorized = vi.fn(async () => {
       throw new ReconnectRequiredError("Jira site");
     });
-    vi.stubGlobal("fetch", async () => new Response("token revoked", { status: 401 }));
+    stubFetch(async () => new Response("token revoked", { status: 401 }));
 
     const tracker = new JiraClient(site, "SHOP", { accessToken: async () => "at-1", onUnauthorized });
 
@@ -104,13 +128,13 @@ describe("JiraClient", () => {
   });
 
   it("surfaces a 401 when the caller cannot mark the connection", async () => {
-    vi.stubGlobal("fetch", async () => new Response("token revoked", { status: 401 }));
+    stubFetch(async () => new Response("token revoked", { status: 401 }));
 
     await expect(new JiraClient(site, "SHOP", auth()).getIssue("SHOP-7")).rejects.toThrow("Jira API error 401");
   });
 
   it("maps a 400 on a write to the field message Jira returned", async () => {
-    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) =>
+    stubFetch(async (_url: string, init: RequestInit) =>
       init.method === "POST"
         ? json({ errorMessages: [], errors: { summary: "The summary is too long." } }, 400)
         : json({ issueTypes: [{ name: "Task", subtask: false }] }),
@@ -132,7 +156,7 @@ describe("JiraClient", () => {
 
   it("reads the field message from a rejection body longer than the logged excerpt", async () => {
     const errors = { summary: "The summary is too long.", description: "x".repeat(400) };
-    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) =>
+    stubFetch(async (_url: string, init: RequestInit) =>
       init.method === "PUT" ? json({ errorMessages: [], errors }, 400) : json({}),
     );
     const draft = {
@@ -153,7 +177,7 @@ describe("JiraClient", () => {
 describe("listJiraProjects", () => {
   it("pages through the search until the last page", async () => {
     const starts: string[] = [];
-    vi.stubGlobal("fetch", async (url: string) => {
+    stubFetch(async (url: string) => {
       const startAt = new URL(url).searchParams.get("startAt") ?? "0";
       starts.push(startAt);
       return startAt === "0"
@@ -177,7 +201,7 @@ describe("listJiraProjects", () => {
 
   it("stops after one page when the site omits the last-page flag", async () => {
     let calls = 0;
-    vi.stubGlobal("fetch", async () => {
+    stubFetch(async () => {
       calls += 1;
       return json({ values: [{ key: "A", name: "Alpha" }] });
     });
@@ -189,12 +213,12 @@ describe("listJiraProjects", () => {
 
 describe("getJiraProject", () => {
   it("returns null once the project is deleted", async () => {
-    vi.stubGlobal("fetch", async () => new Response("not found", { status: 404 }));
+    stubFetch(async () => new Response("not found", { status: 404 }));
     expect(await getJiraProject(site, "at-1", "GONE")).toBeNull();
   });
 
   it("rethrows other failures", async () => {
-    vi.stubGlobal("fetch", async () => new Response("boom", { status: 500 }));
+    stubFetch(async () => new Response("boom", { status: 500 }));
     await expect(getJiraProject(site, "at-1", "SHOP")).rejects.toThrow("Jira API error 500");
   });
 });
