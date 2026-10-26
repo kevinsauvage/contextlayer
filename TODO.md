@@ -9,19 +9,21 @@ The backlog is split by kind of work, one `TODO-<KIND>.md` file each. Add a new 
 | [`TODO-BUG.md`](TODO-BUG.md)           | Code: existing behaviour that is wrong or silently incomplete     |
 | [`TODO-FEATURE.md`](TODO-FEATURE.md)   | Code: new application behaviour                                   |
 | [`TODO-QUALITY.md`](TODO-QUALITY.md)   | Code: tests, evals and fixtures                                   |
+| [`TODO-REFACTOR.md`](TODO-REFACTOR.md) | Code: structure and cleanup that change no behaviour              |
 | [`TODO-NON-CODE.md`](TODO-NON-CODE.md) | No code: research, decisions, manual reviews, config, docs, infra |
 
 Each item has a **Context** (why it matters) and a **Fix** (how to close it), and carries its priority tag.
 
-**Markers** `[ ]` open · `[~]` partly done · **Tags** `P#` priority · `C#` [Phase 0 criterion](docs/product/phase-0-decision.md) · `E#` [experiment](docs/product/validation-experiments.md) · `H#` [hypothesis](docs/product/business-hypotheses.md)
+**Markers** `[ ]` open · `[~]` partly done · **Tags** `P#` priority (`Deferred`: kept for later, not scheduled) · `C#` [Phase 0 criterion](docs/product/phase-0-decision.md) · `E#` [experiment](docs/product/validation-experiments.md) · `H#` [hypothesis](docs/product/business-hypotheses.md) · `B#` [finding in the 2026-10-26 audit](docs/engineering/project-audit-2026-10-26.md)
 
 ## At a glance
 
-| Priority | Goal                                                              | Bug | Feature | Quality | Non-code |
-| -------- | ----------------------------------------------------------------- | --: | ------: | ------: | -------: |
-| P0       | Decide whether to build (evidence for the go / pivot / stop rule) |   0 |       0 |       0 |        3 |
-| P1       | Prove the product (quality, retrieval, cost)                      |   0 |       0 |       0 |        3 |
-| P2       | Connect and deliver (real teams, real credentials)                |   0 |       5 |       0 |        2 |
-| P3       | Harden and validate (security, operations, pilot)                 |   0 |       6 |       1 |        5 |
+| Priority | Goal                                                                             | Bug | Feature | Quality | Refactor | Non-code |
+| -------- | -------------------------------------------------------------------------------- | --: | ------: | ------: | -------: | -------: |
+| P0       | Core promise: the draft must be correct and the run must not fail                |   4 |       0 |       1 |        0 |        0 |
+| P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes        |   6 |       1 |       2 |        0 |        1 |
+| P2       | Production-grade: security, limits, deploy, reliability                          |   0 |       6 |       1 |        2 |        7 |
+| P3       | Polish and later                                                                 |   2 |       7 |       0 |        4 |        6 |
+| Deferred | Business validation and the demo clone, not needed to build the product properly |   0 |       1 |       0 |        0 |        5 |
 
-**Phase 0 unblockers:** C1 ← E4 interviews · C2 ← E3 blind scoring · C3 ← fixtures and forbidden-claim checks.
+**Order of work:** P0 first (the core promise), then P1 (prove it), then P2 (production-grade; do the migration squash and dependency fixes before the production database exists). Rationale in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md), section 6.
