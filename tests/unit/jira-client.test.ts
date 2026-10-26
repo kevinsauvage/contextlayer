@@ -49,9 +49,26 @@ describe("JiraClient", () => {
       {
         jql: 'project = "SHOP" AND (text ~ "cart \\"total\\"") ORDER BY updated DESC',
         fields: ["summary", "description", "status", "updated"],
-        maxResults: 5,
+        maxResults: 20,
       },
     ]);
+  });
+
+  it("searches with the five strongest terms and keeps the issues that match the most", async () => {
+    const issue = (key: string, summary: string) => ({ key, fields: { summary, status: { name: "Done" } } });
+    let jql = "";
+    stubFetch((_url, init) => {
+      jql = (JSON.parse(init.body as string) as { jql: string }).jql;
+      return json({ issues: [issue("SHOP-1", "Unrelated"), issue("SHOP-2", "Cart total rounding")] });
+    });
+
+    const found = await new JiraClient(site, "SHOP", auth()).searchRelated(
+      ["cart", "total", "a1", "b2", "c3", "ignored"],
+      1,
+    );
+
+    expect(jql).not.toContain("ignored");
+    expect(found.map((item) => item.key)).toEqual(["SHOP-2"]);
   });
 
   it("maps an issue to text and a browse URL", async () => {

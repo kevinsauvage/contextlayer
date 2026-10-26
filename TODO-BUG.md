@@ -4,10 +4,6 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
 
 ## P1 · Quality: make the core promise hold
 
-- [ ] **Related-issue search is too broad** `P1` `B5`
-  - **Context:** `searchRelated` builds `text ~ a OR text ~ b …` from every term and orders by `updated DESC` with a limit of 5 (`src/integrations/jira/client.ts:120-128`), so it returns recently updated issues that match any term, not the best matches.
-  - **Fix:** query with the 5 strongest terms, ask for 20 issues, re-rank locally by how many terms each summary and description contains, and keep the top 5. Cover it in `tests/unit/jira-client.test.ts`.
-
 - [ ] **Prompt escaping alters code excerpts** `P1` `B8`
   - **Context:** `asText` turns every `<` into `&lt;` (`src/integrations/ai/prompt.ts:7,60`), so JSX and generics reach the model altered while the prompt requires quoting exactly.
   - **Fix:** stop escaping content. Wrap each source in a boundary tag with a random per-request token (and tell the model that only that token closes a block), keep escaping for attribute values, and add a prompt test with JSX and an injected closing tag.

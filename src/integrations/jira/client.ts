@@ -34,6 +34,8 @@ const ISSUE_FIELDS = ["summary", "description", "status", "updated"];
 const PREFERRED_ISSUE_TYPE = "Task";
 const PROJECTS_PER_PAGE = 100;
 const REQUEST_TIMEOUT_MS = 30_000;
+const SEARCH_TERMS = 5;
+const SEARCH_POOL = 20;
 
 // Jira answers 401 when the token was revoked or the grant was removed: that needs a new consent, not a retry.
 export class JiraApiError extends Error {
@@ -127,14 +129,30 @@ export class JiraClient implements IssueTracker {
     },
   ) {}
 
+  // `text ~` ordered by recency favors issues that match any one term, so Jira returns a pool and the issues
+  // that contain the most terms (a summary hit counting double) are kept.
   async searchRelated(terms: string[], limit: number): Promise<Issue[]> {
-    const text = terms.map((term) => `text ~ ${jqlString(term)}`).join(" OR ");
+    const used = terms.slice(0, SEARCH_TERMS);
+    const text = used.map((term) => `text ~ ${jqlString(term)}`).join(" OR ");
     const jql = `project = ${jqlString(this.projectKey)} AND (${text}) ORDER BY updated DESC`;
     const result = await this.call("/search/jql", {
       method: "POST",
-      body: { jql, fields: ISSUE_FIELDS, maxResults: limit },
+      body: { jql, fields: ISSUE_FIELDS, maxResults: Math.max(limit, SEARCH_POOL) },
     });
-    return searchSchema.parse(result).issues.map((issue) => this.toIssue(issue));
+    const issues = searchSchema.parse(result).issues.map((issue) => this.toIssue(issue));
+    const relevance = (issue: Issue) => {
+      const summary = issue.summary.toLowerCase();
+      const description = issue.description.toLowerCase();
+      return used.reduce(
+        (total, term) => total + (summary.includes(term) ? 2 : 0) + (description.includes(term) ? 1 : 0),
+        0,
+      );
+    };
+    return issues
+      .map((issue) => ({ issue, score: relevance(issue) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ issue }) => issue);
   }
 
   async getIssue(key: string): Promise<Issue> {
