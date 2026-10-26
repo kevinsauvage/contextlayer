@@ -95,7 +95,6 @@ export async function startAnalysis(args: StartArgs): Promise<string> {
 
 type RestartArgs = {
   db: Database;
-  userId: string;
   input: StoredAnalysisInput;
   rerunId: string;
   execute: Execute;
@@ -111,7 +110,6 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
     .set({
       status: "running",
       input: args.input,
-      createdByUserId: args.userId,
       model,
       runToken,
       startedAt: new Date(),

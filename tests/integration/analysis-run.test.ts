@@ -31,7 +31,7 @@ const start = (request: string, execute: Execute) =>
   startAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute });
 
 const restart = (request: string, execute: Execute, rerunId: string) =>
-  restartAnalysis({ db, userId: "u1", input: { request }, execute, rerunId });
+  restartAnalysis({ db, input: { request }, execute, rerunId });
 
 // `startAnalysis` returns the id only once its run finished, so a pending run is found by its stored input.
 async function waitForRow(request: string): Promise<string> {
@@ -124,6 +124,14 @@ describe("running an analysis", () => {
       result: { title: "Hero" },
       error: null,
     });
+  });
+
+  it("keeps the original author when someone re-runs the analysis", async () => {
+    const id = await start("author", async () => ({ result: { title: "T" }, issues: [] }));
+    await restart("author", async () => ({ result: { title: "T2" }, issues: [] }), id);
+
+    const [row] = await db.select().from(schema.analysis).where(eq(schema.analysis.id, id));
+    expect(row?.createdByUserId).toBe("u1");
   });
 
   it("refuses to re-run an analysis that is already running", async () => {

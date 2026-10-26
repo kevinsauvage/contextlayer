@@ -77,13 +77,12 @@ async function redraft(
       runningError: "This analysis is still running",
     });
     if ("error" in loaded) return loaded;
-    const { db, userId, project, analysis } = loaded;
+    const { db, project, analysis } = loaded;
     const input = readAnalysisInput(analysis);
     const next = change({ request: requestOf(input), answers: answersOf(input) });
 
     await restartAnalysis({
       db,
-      userId,
       input: next.answers.length ? next : { request: next.request },
       execute: () => draftFromRequest(db, project, next.request, next.answers),
       rerunId: analysisId,
