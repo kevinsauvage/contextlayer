@@ -37,15 +37,63 @@ export function sectionsToAdf(sections: TicketSection[]) {
   return { type: "doc", version: 1, content };
 }
 
-const BLOCK_TYPES = new Set(["paragraph", "heading", "codeBlock", "blockquote"]);
+const BLOCK_TYPES = new Set(["paragraph", "heading", "blockquote", "panel"]);
+const LINK_TYPES = new Set(["inlineCard", "blockCard", "embedCard"]);
+
+const attributeText = (attrs: AdfNode["attrs"], ...keys: string[]) => {
+  for (const key of keys) {
+    const value = attrs?.[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return "";
+};
+
+const dateOf = (attrs: AdfNode["attrs"]) => {
+  const stamp = Number(attrs?.timestamp);
+  return Number.isFinite(stamp) && stamp > 0 ? new Date(stamp).toISOString().slice(0, 10) : "";
+};
+
+const children = (node: AdfNode) => node.content ?? [];
+const itemText = (item: AdfNode) => children(item).map(adfToText).join("").trim();
 
 export function adfToText(node: unknown): string {
   if (!node || typeof node !== "object") return "";
-  const { type, text: value, content, attrs } = node as AdfNode;
-  if (type === "text") return value ?? "";
-  if (type === "hardBreak") return "\n";
-  if (type === "inlineCard") return typeof attrs?.url === "string" ? attrs.url : "";
-  const inner = (content ?? []).map(adfToText).join("");
-  if (type === "listItem") return `- ${inner.trim()}\n`;
-  return type && BLOCK_TYPES.has(type) ? `${inner}\n` : inner;
+  const adf = node as AdfNode;
+  const { type, text: value, attrs } = adf;
+  switch (type) {
+    case "text":
+      return value ?? "";
+    case "hardBreak":
+      return "\n";
+    case "mention":
+    case "status":
+      return attributeText(attrs, "text");
+    case "emoji":
+      return attributeText(attrs, "text", "shortName");
+    case "date":
+      return dateOf(attrs);
+    case "inlineCard":
+    case "blockCard":
+    case "embedCard":
+      return attributeText(attrs, "url");
+    case "codeBlock":
+      return `\`\`\`\n${children(adf).map(adfToText).join("")}\n\`\`\`\n`;
+    case "bulletList":
+      return children(adf)
+        .map((item) => `- ${itemText(item)}\n`)
+        .join("");
+    case "orderedList":
+      return children(adf)
+        .map((item, index) => `${index + 1}. ${itemText(item)}\n`)
+        .join("");
+    case "tableRow":
+      return `${children(adf)
+        .map((cell) => adfToText(cell).trim().replace(/\n+/g, " "))
+        .join(" | ")}\n`;
+    default: {
+      const inner = children(adf).map(adfToText).join("");
+      if (type === "listItem") return `- ${inner.trim()}\n`;
+      return type && (BLOCK_TYPES.has(type) || LINK_TYPES.has(type)) ? `${inner}\n` : inner;
+    }
+  }
 }

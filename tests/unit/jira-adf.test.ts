@@ -76,6 +76,48 @@ describe("ADF", () => {
     ]);
   });
 
+  it("keeps mentions, status lozenges, emoji, dates, ordered lists, code blocks and table cells", () => {
+    const text = (value: string) => ({ type: "text", text: value });
+    const cell = (value: string) => ({ type: "tableCell", content: [{ type: "paragraph", content: [text(value)] }] });
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mention", attrs: { id: "1", text: "@Sam" } },
+            text(" set "),
+            { type: "status", attrs: { text: "BLOCKED", color: "red" } },
+            { type: "emoji", attrs: { shortName: ":warning:", text: "⚠️" } },
+            text(" due "),
+            { type: "date", attrs: { timestamp: "1792800000000" } },
+          ],
+        },
+        {
+          type: "orderedList",
+          content: [
+            { type: "listItem", content: [{ type: "paragraph", content: [text("first")] }] },
+            { type: "listItem", content: [{ type: "paragraph", content: [text("second")] }] },
+          ],
+        },
+        { type: "codeBlock", content: [text("npm test")] },
+        {
+          type: "table",
+          content: [
+            { type: "tableRow", content: [cell("Plan"), cell("Limit")] },
+            { type: "tableRow", content: [cell("Free"), cell("10")] },
+          ],
+        },
+      ],
+    };
+
+    const out = adfToText(doc);
+    expect(out).toContain("@Sam set BLOCKED⚠️ due 2026-10-");
+    expect(out).toContain("1. first\n2. second\n");
+    expect(out).toContain("```\nnpm test\n```");
+    expect(out).toContain("Plan | Limit\nFree | 10\n");
+  });
+
   it("tolerates empty or missing descriptions", () => {
     expect(adfToText(null)).toBe("");
     expect(adfToText({ type: "doc", content: [] })).toBe("");

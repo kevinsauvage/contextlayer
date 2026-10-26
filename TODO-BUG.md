@@ -4,10 +4,6 @@ Existing behaviour that is wrong: it fails, or silently returns incomplete or in
 
 ## P1 · Quality: make the core promise hold
 
-- [ ] **Jira text extraction drops content** `P1` `B11`
-  - **Context:** `adfToText` (`src/integrations/jira/adf.ts:42-51`) loses `mention`, `status`, `emoji` and `date` nodes and joins table cells without a separator, so audits read damaged ticket text.
-  - **Fix:** render those nodes from their `attrs.text`, separate table cells and rows, and extend `tests/unit/jira-adf.test.ts`.
-
 - [ ] **A re-run overwrites the analysis author** `P1` `B15`
   - **Context:** `restartAnalysis` sets `createdByUserId` to the user who re-ran it (`src/features/analysis/run.ts:114`). With several members per organization, the history shows the wrong author.
   - **Fix:** stop updating `createdByUserId`; add a `lastRunByUserId` column only if the history needs it.
