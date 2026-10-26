@@ -2,15 +2,8 @@ import "server-only";
 import type { Octokit } from "octokit";
 import type { ContextSource, LineRange } from "@/core/context/source";
 import { getGithubApp, type RepoRef } from "./app";
+import { isReadablePath, MAX_FILE_BYTES, SEARCH_RESULTS, searchableTerms } from "../source-filters";
 import { walkTree, type TreeEntry } from "./tree";
-
-const MAX_FILE_BYTES = 100_000;
-const MAX_SEARCH_TERMS = 3;
-const SEARCH_RESULTS = 20;
-const TEXT_EXTENSIONS =
-  /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
-const IGNORED_PATH =
-  /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)\/|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|\.min\./;
 
 export class GithubSource implements ContextSource {
   private constructor(
@@ -54,7 +47,7 @@ export class GithubSource implements ContextSource {
       )
       .filter((path) => this.inScope(path) && path !== this.subdirectory)
       .map((path) => this.relativePath(path))
-      .filter((path) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path));
+      .filter(isReadablePath);
   }
 
   private async treeEntries(): Promise<TreeEntry[]> {
@@ -92,14 +85,11 @@ export class GithubSource implements ContextSource {
     return data as unknown as string;
   }
 
-  // A bare number or a hex colour names a value, not an identifier a text search can find.
   // Code search has no OR: ANDing every term finds almost nothing, so run one query per term, best effort.
   async searchContent(terms: string[]): Promise<string[]> {
     const repo = `repo:${this.repo.owner}/${this.repo.name}`;
     const scope = this.subdirectory ? ` path:${this.subdirectory}` : "";
-    const searchable = terms
-      .filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term))
-      .slice(0, MAX_SEARCH_TERMS);
+    const searchable = searchableTerms(terms);
     const paths: string[] = [];
     for (const term of searchable) {
       try {

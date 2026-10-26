@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { auditIssue, draftTicket, type AuditResult, type CreationResult } from "@/core/analysis/analyze";
 import { AiGenerator } from "@/integrations/ai/generator";
-import { DirectorySource } from "@/integrations/filesystem/directory-source";
+import { GitSource } from "@/integrations/git/git-source";
 import { getEnv } from "@/infrastructure/env";
 import { requestOf, trackerOf, type LoadedCase } from "./fixtures";
 
@@ -30,7 +30,7 @@ const auditText = (report: AuditResult["report"]) =>
     2,
   );
 
-async function runCase(c: LoadedCase, source: DirectorySource, generator: AiGenerator): Promise<CaseRun> {
+async function runCase(c: LoadedCase, source: GitSource, generator: AiGenerator): Promise<CaseRun> {
   const tracker = trackerOf(c);
   if (c.kind === "audit") {
     if (!c.issue) throw new Error(`fixture ${c.id} is an audit case without an issue`);
@@ -51,7 +51,7 @@ async function runCase(c: LoadedCase, source: DirectorySource, generator: AiGene
 // Drafts a fixture with the current pipeline and writes results/<case>.json, which the blind review export reads.
 export async function draftCase(c: LoadedCase): Promise<CaseRun & CaseMetrics> {
   const startedAt = Date.now();
-  const run = await runCase(c, new DirectorySource(c.repoDir), new AiGenerator(getEnv().AI_MODEL));
+  const run = await runCase(c, await GitSource.open(c.repoDir), new AiGenerator(getEnv().AI_MODEL));
   const latencyMs = Date.now() - startedAt;
 
   const retrieved = new Set(run.result.candidates.map((e) => `repo/${e.reference}`));

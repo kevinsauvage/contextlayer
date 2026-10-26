@@ -2,13 +2,7 @@
 
 New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P1 · Prove it: evaluation and correctness fixes
-
-- [ ] **Local git source for development and evals only** `P1` `E6`
-  - **Context:** `DirectorySource` is used only by tests and evals but sits in `src/integrations/filesystem/`, walks the tree without honoring `.gitignore`, and scores every file's content. Measuring recall on this repository needs a source that reads a local checkout, because it has no GitHub remote yet. Production keeps reading GitHub through `GithubSource`; this source is not for the deployed site.
-  - **Fix:** add a `GitSource` implementing `ContextSource` over a local checkout (`git ls-files`, `git grep` for `searchContent`, `git rev-parse HEAD` for `revision`), use it in `tests/evaluation/draft-case.ts` and for the recall runs, keep it out of the provider registry, and delete `DirectorySource` with its duplicated extension list.
-
-## P2 · Production-grade: security, limits, deploy, reliability
+## P2 · Polish and evidence
 
 - [ ] **Store the retrieval candidates with each analysis** `P2` `E6` `B9`
   - **Context:** `draftFromRequest` returns only the draft, issues, usage and revision (`src/features/ticket-creation/actions.ts:39`) and the audit action does the same, so the candidates `draftTicket` and `auditIssue` retrieve are dropped. When a run misses a file there is no way to see what was retrieved or why.
@@ -34,7 +28,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
   - **Context:** `startAnalysis` and `restartAnalysis` await the whole run inside a Server Action (`src/features/analysis/run.ts`), which takes 10–40 s. The user sees only a pending label, the client's action queue is blocked (autosave, publish and the next message wait; see the autosave bug in [`TODO-BUG.md`](TODO-BUG.md)), a closed tab loses the redirect, and the lease, stale-run and run-token code exists to recover from dead requests.
   - **Fix:** have the action insert the row, schedule the run with `after()` from `next/server`, and redirect at once. Write a `step` column (reading code, related issues, drafting, validating) as the run advances, and poll the row from the analysis page with `router.refresh()` every 2 s while it is `running`, rendering the steps as a checklist. Then simplify `run.ts` where the stale rules are no longer needed. Keep `maxDuration` on the page: `after()` runs inside the same host time limit (`after.md`). If runs approach that limit, move to Vercel Workflow or Queues and keep the polling. Test it on the real host, since a closed tab must not stop the run.
 
-## P3 · Polish and later
+## P3 · Later: optional features and deeper hardening
 
 - [ ] **Bring-your-own AI key per organization** `P3`
   - **Context:** some customers will not accept code going to our provider account (see the data-flow page in [`TODO-NON-CODE.md`](TODO-NON-CODE.md)).
@@ -64,7 +58,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
   - **Context:** create analyses have `TicketChat` and structured answers; audits show the proposed ticket's questions read-only and cannot be re-run in place.
   - **Fix:** generalise `refineTicket` and `answerQuestions` to accept the audit kind (pass refinements and answers to `auditIssue`), and show `TicketChat` in `AuditView`.
 
-## Deferred · not needed to build the product properly
+## Deferred · business validation, not needed for the portfolio
 
 - [ ] **Analysis history and usage metrics** `Deferred` `E5`
   - **Context:** there is no view across projects, and no data on how often drafts are published unchanged; the concierge pilot needs both.

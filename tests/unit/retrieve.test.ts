@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { retrieveFileEvidence } from "@/core/context/retrieve";
 import { extractTerms, mergeTerms } from "@/core/context/terms";
-import { DirectorySource } from "@/integrations/filesystem/directory-source";
+import { GitSource } from "@/integrations/git/git-source";
 import { first } from "@/lib/first";
 import { loadEvaluationCases, requestOf } from "../evaluation/fixtures";
 
@@ -83,7 +83,7 @@ describe("retrieveContext on fixtures", () => {
   it.each(loadEvaluationCases().map((c) => [c.id, c] as const))(
     "%s: finds at least one expected file",
     async (_id, c) => {
-      const found = await retrieveFileEvidence(extractTerms(c.title), new DirectorySource(c.repoDir));
+      const found = await retrieveFileEvidence(extractTerms(c.title), await GitSource.open(c.repoDir));
       const references = found.map((e) => `repo/${e.reference}`);
       expect(c.expected.relevantFiles.some((f) => references.includes(f))).toBe(true);
     },
@@ -91,7 +91,7 @@ describe("retrieveContext on fixtures", () => {
 
   it("returns an empty list when nothing matches", async () => {
     const c = first(loadEvaluationCases(), "evaluation case");
-    expect(await retrieveFileEvidence(extractTerms("zzzxqy"), new DirectorySource(c.repoDir))).toEqual([]);
+    expect(await retrieveFileEvidence(extractTerms("zzzxqy"), await GitSource.open(c.repoDir))).toEqual([]);
   });
 });
 
@@ -169,7 +169,7 @@ describe("following imports", () => {
       loadEvaluationCases().filter((c) => c.id === "banner-title"),
       "banner fixture",
     );
-    const found = await retrieveFileEvidence(extractTerms(requestOf(c)), new DirectorySource(c.repoDir));
+    const found = await retrieveFileEvidence(extractTerms(requestOf(c)), await GitSource.open(c.repoDir));
     expect(found.map((e) => `repo/${e.reference}`)).toContain("repo/src/content/site.ts");
   });
 

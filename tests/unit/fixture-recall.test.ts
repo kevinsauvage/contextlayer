@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gatherContext } from "@/core/context/gather";
-import { DirectorySource } from "@/integrations/filesystem/directory-source";
+import { GitSource } from "@/integrations/git/git-source";
 import { loadEvaluationCases, requestOf, trackerOf } from "../evaluation/fixtures";
 
 // Files retrieval is known to miss, each tracked in TODO-FEATURE.md; anything else missing is a regression.
@@ -15,7 +15,7 @@ describe("fixture retrieval recall", () => {
     const query = c.kind === "audit" && c.issue ? `${c.issue.summary} ${c.issue.description}` : requestOf(c);
     const { evidence } = await gatherContext({
       query,
-      source: new DirectorySource(c.repoDir),
+      source: await GitSource.open(c.repoDir),
       tracker: trackerOf(c),
       excludeIssueKey: c.issue?.key,
     });
