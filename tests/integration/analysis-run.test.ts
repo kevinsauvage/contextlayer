@@ -1,13 +1,11 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
-import { estimateCostUsd } from "@/core/analysis/pricing";
 import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
-import { getEnv } from "@/infrastructure/env";
 import { migratedDb, seedConnections, seedOrgs, seedProject } from "../helpers/db";
 
 let db: Database;
@@ -77,29 +75,36 @@ describe("source revisions", () => {
   });
 });
 
-describe("cost", () => {
-  it("records the price of the run's tokens for the configured model", async () => {
+describe("usage", () => {
+  it("records the run's tokens, which the page prices at render time", async () => {
     const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
-    const id = await start("cost", async () => ({ result: {}, issues: [], usage }));
+    const id = await start("usage", async () => ({ result: {}, issues: [], usage }));
 
-    expect((await getAnalysis(db, "orgA", id))?.analysis.costUsd).toBe(estimateCostUsd(getEnv().AI_MODEL, usage));
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+    });
   });
 
-  it("clears the previous cost when a re-run starts", async () => {
-    const id = await start("cost again", async () => ({
+  it("clears the previous tokens when a failed re-run starts", async () => {
+    const id = await start("usage again", async () => ({
       result: {},
       issues: [],
       usage: { inputTokens: 1000, outputTokens: 1000 },
     }));
     await restart(
-      "cost again",
+      "usage again",
       async () => {
         throw new Error("model timed out");
       },
       id,
     );
 
-    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({ status: "failed", costUsd: null });
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      inputTokens: null,
+      outputTokens: null,
+    });
   });
 });
 

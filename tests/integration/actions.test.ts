@@ -77,6 +77,7 @@ const sourceProvider: SourceProvider = {
   authorizeUrl: () => "https://github.test/authorize",
   complete: async () => ({ status: "cancelled" }),
   listResources: async () => [],
+  scopeResource: (id, subdirectory) => (subdirectory ? `${id}#${subdirectory}` : id),
   getResource: async (_ctx, id) =>
     id === "o/r" ? { id, label: "o/r" } : id === "o/r#apps/web" ? { id, label: "o/r · apps/web" } : null,
   openSource: async () => {

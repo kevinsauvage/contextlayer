@@ -1,7 +1,6 @@
 import "server-only";
 import { and, eq, lt, ne, or, sql } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
-import { estimateCostUsd } from "@/core/analysis/pricing";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
@@ -34,13 +33,7 @@ async function applyOutcome(
 }
 
 // Runs the model call and records its outcome; a failure lands on the row instead of escaping as an error page.
-async function recordOutcome(
-  db: Database,
-  id: string,
-  runToken: string,
-  model: string,
-  execute: Execute,
-): Promise<void> {
+async function recordOutcome(db: Database, id: string, runToken: string, execute: Execute): Promise<void> {
   const startedAt = Date.now();
   try {
     const { result, issues, usage, revision } = await execute();
@@ -51,7 +44,6 @@ async function recordOutcome(
       evidenceIssues: issues,
       inputTokens: usage?.inputTokens,
       outputTokens: usage?.outputTokens,
-      costUsd: estimateCostUsd(model, usage),
       latencyMs: Date.now() - startedAt,
     });
   } catch (error) {
@@ -89,7 +81,7 @@ export async function startAnalysis(args: StartArgs): Promise<string> {
       })
       .returning({ id: analysis.id }),
   );
-  await recordOutcome(args.db, row.id, runToken, model, args.execute);
+  await recordOutcome(args.db, row.id, runToken, args.execute);
   return row.id;
 }
 
@@ -121,7 +113,6 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
       evidenceIssues: null,
       inputTokens: null,
       outputTokens: null,
-      costUsd: null,
       latencyMs: null,
       error: null,
     })
@@ -133,6 +124,6 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
     )
     .returning({ id: analysis.id });
   if (!row) throw new AnalysisAlreadyRunningError();
-  await recordOutcome(args.db, row.id, runToken, model, args.execute);
+  await recordOutcome(args.db, row.id, runToken, args.execute);
   return row.id;
 }

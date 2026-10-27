@@ -1,10 +1,5 @@
 import "server-only";
-import {
-  parseResourceScope,
-  RESOURCE_SCOPE_SEPARATOR,
-  type CompleteResult,
-  type SourceProvider,
-} from "@/core/integrations/provider";
+import { isSafeSubdirectory, type CompleteResult, type SourceProvider } from "@/core/integrations/provider";
 import {
   getInstallationDirectory,
   getInstallationRepo,
@@ -41,14 +36,31 @@ export function selectGithubAccounts(
 
 type ParsedRepo = { owner: string; name: string; subdirectory?: string };
 
-// `owner/repo` or `owner/repo#apps/web`: a malformed scope returns an empty owner so the provider refuses it
-// instead of silently reading the whole repository.
+// GitHub resource ids may narrow a repository to one folder with `owner/repo#apps/web`.
+const SCOPE_SEPARATOR = "#";
+
+const trimSlashes = (path: string) => path.replace(/^\/+|\/+$/g, "");
+
+function splitScope(resourceId: string): { id: string; subdirectory?: string } {
+  const at = resourceId.indexOf(SCOPE_SEPARATOR);
+  return at === -1
+    ? { id: resourceId }
+    : { id: resourceId.slice(0, at), subdirectory: trimSlashes(resourceId.slice(at + 1)) };
+}
+
+// A malformed scope returns an empty owner so the provider refuses it instead of silently reading the whole
+// repository.
 function parseGithubResourceId(resourceId: string): ParsedRepo {
-  const scope = parseResourceScope(resourceId);
-  const hasScope = resourceId.includes(RESOURCE_SCOPE_SEPARATOR);
-  if (hasScope && !scope.subdirectory) return { owner: "", name: "" };
-  const [owner = "", name = ""] = scope.resourceId.split("/");
-  return { owner, name, subdirectory: scope.subdirectory };
+  const { id, subdirectory } = splitScope(resourceId);
+  if (subdirectory !== undefined && !isSafeSubdirectory(subdirectory)) return { owner: "", name: "" };
+  const [owner = "", name = ""] = id.split("/");
+  return { owner, name, subdirectory };
+}
+
+function scopeResource(resourceId: string, subdirectory: string | undefined): string {
+  const { id } = splitScope(resourceId);
+  const path = trimSlashes((subdirectory ?? "").trim());
+  return path && isSafeSubdirectory(path) ? `${id}${SCOPE_SEPARATOR}${path}` : id;
 }
 
 const labelOf = (owner: string, name: string, subdirectory?: string) =>
@@ -66,6 +78,8 @@ export const githubProvider: SourceProvider = {
   supportsSubdirectory: true,
 
   isConfigured: isGithubConfigured,
+
+  scopeResource,
 
   // GitHub does not call back for an app that is already installed, so "connect" signs the user in to find
   // their installations, and "add" goes straight to the install page.

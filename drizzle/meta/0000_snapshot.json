@@ -1,5 +1,5 @@
 {
-  "id": "674a113a-caa7-43af-903c-7675c89b53bb",
+  "id": "a283622d-22e8-4c7b-acd3-67db24ae0201",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -738,12 +738,6 @@
         "output_tokens": {
           "name": "output_tokens",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cost_usd": {
-          "name": "cost_usd",
-          "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },

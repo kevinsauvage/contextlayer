@@ -35,6 +35,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm knip
+      - run: pnpm deps:check
       - run: pnpm test:coverage
       - run: pnpm build
         env:

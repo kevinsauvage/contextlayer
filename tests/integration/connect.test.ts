@@ -36,6 +36,7 @@ const provider = (complete: () => Promise<CompleteResult>): SourceProvider => ({
   authorizeUrl: () => "https://github.test/authorize",
   complete: async () => complete(),
   listResources: async () => [],
+  scopeResource: (id) => id,
   openSource: async () => {
     throw new Error("unused");
   },

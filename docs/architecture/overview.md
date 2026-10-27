@@ -21,7 +21,7 @@ components ─▶ features (actions), core (types), infrastructure/auth/client
 | `components`     | UI; calls feature actions, uses the browser auth client                                        | `components`, `core`, `features`, `lib`, `infrastructure/auth/client` |
 | `lib`            | Framework-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)      | `lib` only (`cn` and a type-only `zod` are the allowed packages)      |
 
-`eslint.config.mjs` enforces these rules with `no-restricted-imports`, plus `import/no-cycle`; `tests/unit/architecture.test.ts` asserts the same matrix from the real import graph, so a weakened ESLint rule still fails CI. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator. `app` never imports a provider or adapter: server actions and the two OAuth routes resolve one through `providerById` in `src/features/integrations/resolve.ts`, which is also the seam tests replace.
+`.dependency-cruiser.cjs` enforces these rules on the real import graph (`pnpm deps:check`, run by `pnpm check` and CI): layers, the `core`/`lib` package allow-lists and cycles; ESLint keeps `no-restricted-globals` for the same purity. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator. `app` never imports a provider or adapter: server actions and the two OAuth routes resolve one through `providerById` in `src/features/integrations/resolve.ts`, which is also the seam tests replace.
 
 ## The analysis pipeline
 
@@ -51,17 +51,17 @@ Every statement in a draft is a claim with a status: `verified | inferred | unkn
 
 Better Auth owns users, sessions, organizations, members and invitations (`src/infrastructure/db/schema/auth.ts`). Users switch organizations from the header; invitations are shared as links (`/invitations/<id>`) until an email provider exists. Owners and admins manage members and roles, a member can leave an organization, and an owner can delete one after typing its name. The organization is the tenant boundary: every query in `src/features` is scoped by `organizationId`, and `tests/integration/tenant-isolation.test.ts` proves it against PGlite running the real migrations.
 
-| Table                    | Purpose                                                                                                                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent                                    |
-| `project`                | One source connection + resource (repository, optionally `owner/repo#apps/web`) and one tracker connection + resource (Jira project), with display labels                         |
-| `analysis`               | Input (request, answers and follow-ups, or issue key), AI result, user-edited result, evidence issues, model, tokens, estimated cost, latency, error, published issue key and URL |
+| Table                    | Purpose                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_connection` | One connected account per provider (GitHub installation, Jira site): label, metadata, status, encrypted tokens, `grant_id` shared by a consent                                            |
+| `project`                | One source connection + resource (repository, optionally `owner/repo#apps/web`) and one tracker connection + resource (Jira project), with display labels                                 |
+| `analysis`               | Input (request, answers and follow-ups, or issue key), AI result, user-edited result, evidence issues, model, tokens (priced at render time), latency, error, published issue key and URL |
 
 ## Integrations
 
 Providers live behind two `core` contracts (`src/core/integrations/provider.ts`): a `SourceProvider` opens a `ContextSource` for a resource, a `TrackerProvider` opens an `IssueTracker` and parses issue keys. Both share the connect flow (`authorizeUrl`, `complete`, optional `refresh`) and `listResources`. `src/integrations/registry.ts` lists the providers; everything else is generic:
 
-- Routes: `/api/integrations/[provider]/connect`, `/api/integrations/[provider]/callback` and `/api/integrations/connections/[id]/resources`.
+- Routes: `/api/integrations/[provider]/connect` and `/api/integrations/[provider]/callback`; the new-project page lists resources on the server (`ProjectFormSection` inside `Suspense`), so no handler is needed.
 - `src/features/integrations`: storing accounts (`connections.ts`), the OAuth flow with provider-bound, return-path-carrying state (`oauth-flow.ts`), token access with a grant-level row lock so rotating refresh tokens are never used twice (`access.ts`), and resolving a project's connections (`resolve.ts`).
 - UI: the integrations page and the new-project wizard render from `integrationsOverview`, so a new provider appears without UI changes.
 
@@ -81,9 +81,8 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 
 ## Testing strategy
 
-| Kind         | Location                          | Runs in `pnpm check` | Notes                                                                                                      |
-| ------------ | --------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Unit         | `tests/unit`                      | yes                  | Pure logic with fake generator, source and tracker                                                         |
-| Architecture | `tests/unit/architecture.test.ts` | yes                  | Recomputes the layer matrix from the real `src` imports, so a weakened ESLint rule still fails CI          |
-| Integration  | `tests/integration`               | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
-| Evaluation   | `tests/evaluation`                | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |
+| Kind        | Location            | Runs in `pnpm check` | Notes                                                                                                      |
+| ----------- | ------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Unit        | `tests/unit`        | yes                  | Pure logic with fake generator, source and tracker                                                         |
+| Integration | `tests/integration` | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
+| Evaluation  | `tests/evaluation`  | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |

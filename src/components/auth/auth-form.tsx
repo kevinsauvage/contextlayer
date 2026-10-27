@@ -1,8 +1,8 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { asRoute } from "@/components/as-route";
 import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
   const router = useRouter();
   const { run, pending, error } = useMutation();
   const signingUp = mode === "sign-up";
-  const destination = safePath(next, "/projects") as Route;
+  const destination = asRoute(safePath(next, "/projects"));
   const otherMode = `${signingUp ? "/sign-in" : "/sign-up"}${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   function submit(formData: FormData) {
@@ -68,7 +68,7 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
       </Button>
       <p className="text-sm text-muted-foreground">
         {signingUp ? "Already have an account? " : "No account yet? "}
-        <Link href={otherMode as Route} className="underline">
+        <Link href={asRoute(otherMode)} className="underline">
           {signingUp ? "Sign in" : "Sign up"}
         </Link>
       </p>

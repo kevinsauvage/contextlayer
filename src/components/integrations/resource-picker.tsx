@@ -1,85 +1,35 @@
 "use client";
 
 import { RotateCw, Search } from "lucide-react";
-import { useEffect, useState } from "react";
-import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Resource } from "@/core/integrations/provider";
-
-const resourcesSchema = z.array(z.object({ id: z.string(), label: z.string() }));
-const errorSchema = z.object({ error: z.string() });
-
-type Loaded = { key: string; resources: Resource[]; error?: string };
-
-async function fetchResources(connectionId: string): Promise<Omit<Loaded, "key">> {
-  try {
-    const response = await fetch(`/api/integrations/connections/${connectionId}/resources`);
-    const json: unknown = await response.json();
-    if (!response.ok)
-      return { resources: [], error: errorSchema.safeParse(json).data?.error ?? "Could not load the list" };
-    return { resources: resourcesSchema.parse(json) };
-  } catch {
-    return { resources: [], error: "Could not load the list. Check your connection and retry." };
-  }
-}
-
-function useResources(connectionId: string) {
-  const [attempt, setAttempt] = useState(0);
-  const [loaded, setLoaded] = useState<Loaded>();
-  const key = `${connectionId}:${attempt}`;
-  useEffect(() => {
-    let cancelled = false;
-    void fetchResources(connectionId).then((result) => {
-      if (!cancelled) setLoaded({ key, ...result });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [connectionId, key]);
-  const ready = loaded?.key === key;
-  return {
-    resources: ready ? loaded.resources : [],
-    error: ready ? loaded.error : undefined,
-    loading: !ready,
-    retry: () => setAttempt((n) => n + 1),
-  };
-}
+import type { Resource, ResourceList } from "@/core/integrations/provider";
 
 type Props = {
-  connectionId: string;
   name: string;
   noun: string;
   emptyHint: string;
+  list: ResourceList;
   onSelect: (resource: Resource) => void;
 };
 
-export function ResourcePicker({ connectionId, name, noun, emptyHint, onSelect }: Props) {
-  const { resources, error, loading, retry } = useResources(connectionId);
+// Only filters and selects: the list itself is loaded by the Server Component that renders it.
+export function ResourcePicker({ name, noun, emptyHint, list, onSelect }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string>();
-  // The checked radio stays rendered so filtering never drops the selection from the form.
-  const visible = resources.filter(
-    (r) => r.id === selected || r.label.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const resources = "resources" in list ? list.resources : [];
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-2" aria-busy="true" aria-label={`Loading ${noun} list`}>
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
-  if (error) {
+  if ("error" in list) {
     return (
       <div
         role="alert"
         className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive"
       >
-        {error}
-        <Button type="button" variant="outline" size="sm" onClick={retry}>
+        {list.error}
+        <Button type="button" variant="outline" size="sm" onClick={() => router.refresh()}>
           <RotateCw /> Retry
         </Button>
       </div>
@@ -87,6 +37,11 @@ export function ResourcePicker({ connectionId, name, noun, emptyHint, onSelect }
   }
   if (!resources.length)
     return <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">{emptyHint}</p>;
+
+  // The checked radio stays rendered so filtering never drops the selection from the form.
+  const visible = resources.filter(
+    (r) => r.id === selected || r.label.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   return (
     <fieldset className="flex flex-col gap-2">

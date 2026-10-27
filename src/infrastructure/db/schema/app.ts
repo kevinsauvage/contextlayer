@@ -1,16 +1,5 @@
 import { relations } from "drizzle-orm";
-import {
-  doublePrecision,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
@@ -99,7 +88,6 @@ export const analysis = pgTable(
     model: text("model"),
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
-    costUsd: doublePrecision("cost_usd"),
     latencyMs: integer("latency_ms"),
     error: text("error"),
     publishedIssueKey: text("published_issue_key"),

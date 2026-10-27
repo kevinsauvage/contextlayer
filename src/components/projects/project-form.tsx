@@ -9,7 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import type { ProviderKind, Resource } from "@/core/integrations/provider";
+import type { ProviderKind, Resource, ResourceList } from "@/core/integrations/provider";
 import { connectHref } from "@/features/integrations/notices";
 import type { ProviderOverview } from "@/features/integrations/overview";
 import { createProject } from "@/features/projects/actions";
@@ -22,6 +22,7 @@ type StepProps = {
   title: string;
   description: string;
   providers: ProviderOverview[];
+  resourceLists: Record<string, ResourceList>;
   onResource: (resource: Resource) => void;
   scoped?: boolean;
 };
@@ -49,7 +50,7 @@ function ConnectLinks({ providers }: { providers: ProviderOverview[] }) {
   );
 }
 
-function ConnectionStep({ step, kind, title, description, providers, onResource, scoped }: StepProps) {
+function ConnectionStep({ step, kind, title, description, providers, resourceLists, onResource, scoped }: StepProps) {
   const options = providers.flatMap((provider) =>
     provider.connections.map((connection) => ({ ...connection, provider })),
   );
@@ -112,7 +113,7 @@ function ConnectionStep({ step, kind, title, description, providers, onResource,
           )}
           <ResourcePicker
             key={current.id}
-            connectionId={current.id}
+            list={resourceLists[current.id] ?? { error: "This connection was not loaded" }}
             name={`${field}ResourceId`}
             noun={current.provider.resourceNoun}
             emptyHint={`No ${current.provider.resourceNoun} is visible to this ${current.provider.name} ${current.provider.accountNoun}. Grant access in ${current.provider.name}, then reload.`}
@@ -137,7 +138,15 @@ function ConnectionStep({ step, kind, title, description, providers, onResource,
 // The project name follows the chosen repository until the user types their own.
 const nameFromResource = (resource: Resource) => resource.label.split("/").at(-1) ?? resource.label;
 
-export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]; trackers: ProviderOverview[] }) {
+export function ProjectForm({
+  sources,
+  trackers,
+  resourceLists,
+}: {
+  sources: ProviderOverview[];
+  trackers: ProviderOverview[];
+  resourceLists: Record<string, ResourceList>;
+}) {
   const [state, action, pending] = useActionState(createProject, {});
   const [name, setName] = useState("");
   const [nameEdited, setNameEdited] = useState(false);
@@ -151,6 +160,7 @@ export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]
         title="Code"
         description="The repository ContextLayer reads for evidence."
         providers={sources}
+        resourceLists={resourceLists}
         scoped
         onResource={(resource) => {
           if (!nameEdited) setName(nameFromResource(resource));
@@ -162,6 +172,7 @@ export function ProjectForm({ sources, trackers }: { sources: ProviderOverview[]
         title="Tickets"
         description="Where related issues are searched and approved tickets are written."
         providers={trackers}
+        resourceLists={resourceLists}
         onResource={() => undefined}
       />
       <section className="flex flex-col gap-2 rounded-xl border p-4">

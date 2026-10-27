@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   isSafeSubdirectory,
-  withResourceSubdirectory,
   type ConnectionContext,
   type IntegrationProvider,
   type Resource,
@@ -55,7 +54,7 @@ export async function createProject(_: ActionState, formData: FormData): Promise
       return { error: "Enter a folder path inside the repository, without . or .. segments" };
     if (subdirectory && !source.provider.supportsSubdirectory)
       return { error: `${source.provider.name} does not support narrowing a repository to a folder` };
-    const sourceResourceId = withResourceSubdirectory(input.data.sourceResourceId, subdirectory);
+    const sourceResourceId = source.provider.scopeResource(input.data.sourceResourceId, subdirectory);
     const [repository, board] = await Promise.all([
       resolveResource(source.provider, source.context, sourceResourceId),
       resolveResource(tracker.provider, tracker.context, input.data.trackerResourceId),

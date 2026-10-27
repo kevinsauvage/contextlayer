@@ -16,6 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { plainInline } from "@/core/requirements/render";
 import { isFollowUp, type Clarification } from "@/core/requirements/schemas";
+import { estimateCostUsd } from "@/features/analysis/cost";
 import { answersOf, firstLine, requestOf } from "@/features/analysis/input";
 import { readAnalysis, revisionChange, shortRevision } from "@/features/analysis/read";
 import { getAnalysis } from "@/features/projects/queries";
@@ -55,6 +56,11 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   const { analysis, project, db, content, draftTitle, request, heading } = loaded;
   const { trackerName } = await projectIntegrations(db, project);
   const canRefine = analysis.kind === "create" && !analysis.publishedIssueKey && analysis.status !== "running";
+  // Cost is derived when the page renders, not stored: the price table may change without touching a row.
+  const costUsd =
+    analysis.inputTokens === null || analysis.outputTokens === null
+      ? null
+      : estimateCostUsd(analysis.model, { inputTokens: analysis.inputTokens, outputTokens: analysis.outputTokens });
 
   const header = (
     <PageHeader
@@ -77,7 +83,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           analysis.model ?? "Unknown model",
           `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
           `${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`,
-          ...(analysis.costUsd === null ? [] : [`$${analysis.costUsd.toFixed(4)}`]),
+          ...(costUsd === null ? [] : [`$${costUsd.toFixed(4)}`]),
           ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
         ].join(" · ")
       }

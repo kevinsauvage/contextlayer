@@ -17,26 +17,13 @@ const PROVIDER_DESCRIPTOR_KEYS = [
 
 export type Resource = { id: string; label: string };
 
-// A source resource may be narrowed to one directory with `owner/repo#apps/web`; providers that support it parse
-// the suffix, and everything else keeps the bare id.
-export const RESOURCE_SCOPE_SEPARATOR = "#";
+// A connection's resources, or why they could not be read (a revoked grant, a provider outage).
+export type ResourceList = { resources: Resource[] } | { error: string };
 
 export const isSafeSubdirectory = (path: string) =>
   path.length > 0 &&
   !/[#?]/.test(path) &&
   !path.split("/").some((part) => part === "" || part === ".." || part === ".");
-
-export function parseResourceScope(resourceId: string): { resourceId: string; subdirectory?: string } {
-  const [id = "", ...rest] = resourceId.split(RESOURCE_SCOPE_SEPARATOR);
-  const subdirectory = rest.join(RESOURCE_SCOPE_SEPARATOR).replace(/^\/+|\/+$/g, "");
-  return subdirectory && isSafeSubdirectory(subdirectory) ? { resourceId: id, subdirectory } : { resourceId: id };
-}
-
-export function withResourceSubdirectory(resourceId: string, subdirectory: string | undefined): string {
-  const { resourceId: base } = parseResourceScope(resourceId);
-  const path = (subdirectory ?? "").trim().replace(/^\/+|\/+$/g, "");
-  return path && isSafeSubdirectory(path) ? `${base}${RESOURCE_SCOPE_SEPARATOR}${path}` : base;
-}
 
 export type OAuthTokens = { accessToken: string; refreshToken: string; expiresAt: Date };
 
@@ -87,6 +74,9 @@ type BaseProvider = {
 export type SourceProvider = BaseProvider & {
   kind: "source";
   openSource(ctx: ConnectionContext, resourceId: string): Promise<ContextSource>;
+  // Folds a folder restriction into the resource id in this provider's own notation; providers that cannot narrow
+  // a repository return the id unchanged.
+  scopeResource(resourceId: string, subdirectory: string | undefined): string;
 };
 
 export type TrackerProvider = BaseProvider & {

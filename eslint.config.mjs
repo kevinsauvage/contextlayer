@@ -3,28 +3,6 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import tseslint from "typescript-eslint";
 
-const forbidLayers = (message, ...groups) => ({
-  "no-restricted-imports": ["error", { patterns: groups.map((group) => ({ group, message })) }],
-});
-
-const appLayers = (...names) => names.flatMap((name) => [`@/${name}`, `@/${name}/**`]);
-
-// Packages that only belong outside core and lib: frameworks, I/O and auth.
-const FRAMEWORK_PACKAGES = [
-  "next",
-  "react",
-  "react-dom",
-  "server-only",
-  "drizzle-orm",
-  "postgres",
-  "octokit",
-  "ai",
-  "better-auth",
-  "@ai-sdk",
-];
-
-const frameworkPatterns = FRAMEWORK_PACKAGES.flatMap((name) => [`${name}`, `${name}/**`]);
-
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -55,7 +33,6 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "import/no-cycle": ["error", { ignoreExternal: true }],
       "import/no-duplicates": "error",
       eqeqeq: ["error", "always"],
       "no-console": ["error", { allow: ["warn", "error"] }],
@@ -67,7 +44,8 @@ const eslintConfig = defineConfig([
   // Fakes implement async interfaces without awaiting anything.
   { files: ["tests/**"], rules: { "@typescript-eslint/require-await": "off" } },
 
-  // Dependencies point inward: app → features → core. See AGENTS.md.
+  // Layer boundaries and the core/lib package allow-lists live in .dependency-cruiser.cjs (`pnpm deps:check`):
+  // one mechanism, run by `pnpm check` and CI. ESLint keeps only what is about globals, not imports.
   {
     files: ["src/core/**"],
     rules: {
@@ -77,89 +55,6 @@ const eslintConfig = defineConfig([
         { name: "process", message: "core is pure: configuration belongs in infrastructure." },
         { name: "Buffer", message: "core is pure: no Node I/O belongs here." },
         { name: "setTimeout", message: "core is pure: timing belongs in the caller." },
-      ],
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: appLayers("app", "components", "features", "infrastructure", "integrations", "lib"),
-              message: "core is pure: it may only import from core.",
-            },
-            {
-              group: ["node:*"],
-              message: "core is pure: no filesystem, crypto or other Node I/O belongs here.",
-            },
-            {
-              group: frameworkPatterns,
-              message: "core is pure: framework and I/O packages belong in features, infrastructure or integrations.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  // The app wires use cases: pages render components and features, and never reach for an adapter.
-  {
-    files: ["src/app/**"],
-    rules: forbidLayers("app wires features; providers and adapters stay behind them.", appLayers("integrations")),
-  },
-  {
-    files: ["src/features/**"],
-    rules: forbidLayers("features must not depend on the UI layers.", appLayers("app", "components")),
-  },
-  {
-    files: ["src/integrations/**"],
-    rules: forbidLayers(
-      "integrations implement core interfaces and must not depend on features or the UI.",
-      appLayers("app", "components", "features"),
-    ),
-  },
-  {
-    files: ["src/infrastructure/**"],
-    rules: forbidLayers(
-      "infrastructure must not depend on features, integrations or the UI.",
-      appLayers("app", "components", "features", "integrations"),
-    ),
-  },
-  {
-    files: ["src/components/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: appLayers("app", "integrations"),
-              message:
-                "components render features (actions, queries), core types and lib; adapters stay behind features.",
-            },
-            {
-              regex: "^@/infrastructure/(?!auth/client$)",
-              message: "components may only use the browser auth client from infrastructure.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/lib/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: appLayers("app", "components", "core", "features", "infrastructure", "integrations"),
-              message: "lib is a leaf: it must not import from application layers.",
-            },
-            {
-              group: frameworkPatterns,
-              message: "lib holds framework-free helpers; a Next, database or provider package belongs in a layer.",
-            },
-          ],
-        },
       ],
     },
   },

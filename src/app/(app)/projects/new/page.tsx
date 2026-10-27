@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ConnectNotice } from "@/components/integrations/connect-notice";
 import { PageHeader } from "@/components/page-header";
-import { ProjectForm } from "@/components/projects/project-form";
+import { ProjectFormSkeleton } from "@/components/projects/project-form-skeleton";
 import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
+import { ProjectFormSection } from "./project-form-section";
 
 export const metadata: Metadata = { title: "New project" };
 
@@ -31,7 +33,13 @@ export default async function Page({ searchParams }: PageProps<"/projects/new">)
         description="A project pairs one repository with one issue tracker project. Analyses use both."
       />
       <ConnectNotice params={params} providerNames={providerNames(overview)} />
-      <ProjectForm sources={ofKind(overview, "source")} trackers={ofKind(overview, "tracker")} />
+      <Suspense fallback={<ProjectFormSkeleton />}>
+        <ProjectFormSection
+          organizationId={organizationId}
+          sources={ofKind(overview, "source")}
+          trackers={ofKind(overview, "tracker")}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -92,7 +92,6 @@ CREATE TABLE "analysis" (
 	"model" text,
 	"input_tokens" integer,
 	"output_tokens" integer,
-	"cost_usd" double precision,
 	"latency_ms" integer,
 	"error" text,
 	"published_issue_key" text,

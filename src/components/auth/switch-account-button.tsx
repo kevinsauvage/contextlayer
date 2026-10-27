@@ -1,7 +1,7 @@
 "use client";
 
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { asRoute } from "@/components/as-route";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/infrastructure/auth/client";
 
@@ -12,7 +12,7 @@ export function SwitchAccountButton({ next }: { next: string }) {
       variant="outline"
       onClick={async () => {
         await authClient.signOut();
-        router.push(`/sign-in?next=${encodeURIComponent(next)}` as Route);
+        router.push(asRoute(`/sign-in?next=${encodeURIComponent(next)}`));
         router.refresh();
       }}
     >

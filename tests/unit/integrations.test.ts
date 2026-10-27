@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { connectHref, connectNoticeUrl, readConnectNotice } from "@/features/integrations/notices";
-import { selectGithubAccounts } from "@/integrations/github/provider";
+import { githubProvider, selectGithubAccounts } from "@/integrations/github/provider";
 import { parseJiraIssueKey } from "@/integrations/jira/provider";
 import { safePath } from "@/lib/safe-path";
+
+describe("GitHub resource scopes", () => {
+  const scope = (id: string, folder?: string) => githubProvider.scopeResource(id, folder);
+
+  it("appends a folder as a # suffix and trims stray slashes", () => {
+    expect(scope("acme/shop", "apps/web")).toBe("acme/shop#apps/web");
+    expect(scope("acme/shop", "/apps/web/")).toBe("acme/shop#apps/web");
+  });
+
+  it("keeps the bare repository for an empty, absolute or unsafe folder", () => {
+    expect(scope("acme/shop", undefined)).toBe("acme/shop");
+    expect(scope("acme/shop", "")).toBe("acme/shop");
+    expect(scope("acme/shop#apps/web", "apps/admin")).toBe("acme/shop#apps/admin");
+    expect(scope("acme/shop", "../etc")).toBe("acme/shop");
+  });
+});
 
 describe("GitHub account selection", () => {
   const accounts = [
