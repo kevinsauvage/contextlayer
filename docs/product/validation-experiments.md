@@ -82,8 +82,23 @@ ContextLayer wins 5 of 6 and ties `banner-title`. Per criterion (of 12 each): fa
 - **Method:** 2 to 3 teams connect a real repository and Jira project for 3 weeks. Track analyses created, drafts edited before publishing, published tickets, time to start-ready, and a weekly 5-question survey.
 - **Success:** unprompted use in week 3; median edit distance small enough that users call the draft "mostly right"; at least one team asks to keep it.
 
-## E6: Retrieval recall on real repositories (planned)
+## E6: Retrieval recall on real repositories (done 2026-10-27, below target)
 
 - **Tests:** H8.
-- **Method:** on each pilot repository, a developer lists the files a ticket should touch for 10 past tickets; compare with `retrievalRecall`.
-- **Success:** at least 90% recall after LLM query expansion. If not, prototype embeddings behind the `ContextSource` interface and re-measure.
+- **Method:** `pnpm eval tests/evaluation/recall.eval.ts` runs production retrieval, query expansion included, over every committed case and writes `results/<case>.recall.json`. Six cases read this repository at a pinned commit (323 files); the rest are three-file fixtures. A case declares the files a good ticket must touch, and `knownMisses` records what the keyword path misses without a model, so a file the expanded run loses is written as `unexpected`.
+- **Result (2026-10-27, generator `deepseek-flash`):** 35 of 49 expected files retrieved (71%), against a 90% target. Expansion costs about 300 input and 210 output tokens per case and changed the outcome twice in each direction: it found `src/features/integrations/connections.ts` and `src/app/(app)/projects/page.tsx`, and it lost `src/infrastructure/db/schema/app.ts` and `src/app/(app)/projects/[projectId]/page.tsx` that the keyword path had found.
+
+| Case                     | Recall | Missed                                                                             |
+| ------------------------ | ------ | ---------------------------------------------------------------------------------- |
+| repo-analysis-candidates | 0.25   | `ticket-creation/actions.ts`, `analysis/run.ts`, `db/schema/app.ts` (`unexpected`) |
+| repo-daily-cap           | 0.00   | `analysis/run.ts`, `ticket-creation/actions.ts`, `infrastructure/env.ts`           |
+| repo-dark-mode           | 0.33   | `app/layout.tsx`, `app/(app)/layout.tsx`                                           |
+| repo-disconnect-impact   | 0.33   | `integrations/actions.ts`, `components/integrations/disconnect-button.tsx`         |
+| repo-progress-count      | 0.00   | `projects/[projectId]/page.tsx` (`unexpected`), `projects/queries.ts`              |
+| repo-project-search      | 0.50   | `projects/queries.ts`                                                              |
+| password-reset           | 0.67   | `mail/send.ts` (three-file fixture, missed with and without expansion)             |
+
+The other 13 cases retrieved every expected file. The expansion pays for itself nowhere: it is net zero on this set, so the recall gap is a ranking problem (docs, `TODO-*.md` and `DECISIONS.md` match request words in their paths and content), not a vocabulary problem. `unexpected` non-empty on two cases is a regression, filed in [`TODO-BUG.md`](../TODO-BUG.md).
+
+- **Limits:** the "real repository" cases are this project, whose docs share the product's vocabulary with the requests; a pilot repository and a developer-written file list (the original method) are still missing. Six cases is small, and the pinned commit ages.
+- **Success:** at least 90% recall after LLM query expansion — **not met (71%)**. Next: prototype embeddings behind the `ContextSource` interface and re-measure; the vocabulary expansion does not close the gap.

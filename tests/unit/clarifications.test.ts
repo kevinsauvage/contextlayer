@@ -26,8 +26,7 @@ describe("merging answers across rounds", () => {
 });
 
 describe("analysis input", () => {
-  it("reads requests stored before the rename as title", () => {
-    expect(requestOf(readAnalysisInput({ kind: "create", input: { title: "Old" } }))).toBe("Old");
+  it("reads a stored request and its answers", () => {
     expect(requestOf(readAnalysisInput({ kind: "create", input: { request: "New", answers: [] } }))).toBe("New");
     expect(answersOf(readAnalysisInput({ kind: "create", input: { request: "x" } }))).toEqual([]);
   });
@@ -37,7 +36,7 @@ describe("analysis input", () => {
       kind: "audit",
       issueKey: "KAN-4",
     });
-    expect(readAnalysisInput({ kind: "audit", input: { title: "Old" } })).toBeNull();
+    expect(readAnalysisInput({ kind: "audit", input: { request: "Old" } })).toBeNull();
   });
 });
 

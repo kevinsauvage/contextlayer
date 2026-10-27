@@ -4,10 +4,6 @@ Code structure and cleanup that change no behaviour: dead code, duplication, too
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Remove legacy compatibility code and squash the migrations before the first deploy** `P2`
-  - **Context:** the legacy `title` input (`src/core/analysis/schemas.ts:11`, `src/features/analysis/input.ts:15`) only serves rows from before 2026-10-23, and eight migrations include three backfills (`drizzle/0003` to `0005`). Until the first production deploy the only data is local, so this is safe now and unsafe after: once the site has real rows, migrations may only be added.
-  - **Fix:** delete the legacy schema and the `title` branch in `readAnalysisInput`, reset the local database, and regenerate a single migration with `pnpm db:generate`. Do it before the production database is created.
-
 - [ ] **Next.js housekeeping** `P2`
   - **Context:** several settings and conventions differ from the installed Next.js docs: three `as Route` casts bypass `typedRoutes` (for example `src/components/auth/auth-form.tsx:19,71`); there is no `global-error.tsx`; `src/app/(app)/error.tsx:10` points users to "support"; the environment is validated on first use instead of at startup; `next.config.ts:15-20` uses `@tailwindcss/turbopack` where the docs use `@tailwindcss/postcss`.
   - **Fix:** keep the two `maxDuration` exports (a serverless host enforces that limit), replace the casts with a helper that returns a typed `Route`, add `global-error.tsx`, fix the error copy, call `getEnv()` from `instrumentation.ts`, and decide whether to keep the Turbopack loader (record it in `DECISIONS.md`).

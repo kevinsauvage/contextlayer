@@ -27,6 +27,8 @@ describe.skipIf(!hasModel)("retrieval recall", () => {
     });
     const retrieved = new Set(evidence.map((item) => `repo/${item.reference}`));
     const missed = c.expected.relevantFiles.filter((file) => !retrieved.has(file));
+    // A file the keyword path finds and expansion loses is a regression of the expansion, not a known miss.
+    const unexpected = missed.filter((file) => !c.expected.knownMisses.includes(file));
 
     mkdirSync(RESULTS_DIR, { recursive: true });
     const recall = 1 - missed.length / c.expected.relevantFiles.length;
@@ -39,6 +41,7 @@ describe.skipIf(!hasModel)("retrieval recall", () => {
           expected: c.expected.relevantFiles,
           retrieved: [...retrieved],
           missed,
+          unexpected,
           recall,
           usage,
         },

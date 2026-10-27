@@ -2,21 +2,15 @@
 
 Research, decisions, manual reviews, configuration and documentation: work that ships no application code. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
 
-## P1 · Quality: make the core promise hold
-
-- [ ] **Measure retrieval recall after query expansion** `P1` `E6`
-  - **Context:** retrieval asks the model for 5–10 code-search terms and merges them with `extractTerms`, but recall has never been measured on real code. The harness now exists (`tests/evaluation/recall.eval.ts`, which writes `results/<case>.recall.json`), and six retrieval cases read this repository at a pinned commit. Without expansion the deterministic path already misses every expected file in three of those six, so the expansion is what this measurement is about.
-  - **Fix:** run `pnpm eval tests/evaluation/recall.eval.ts` over every fixture and the large checkouts, and record recall and the missed files per case in `validation-experiments.md` (E6). Add a file the expanded run misses to that case's `knownMisses` if the model-free run found it, and consider embeddings only if recall stays under 90%.
-
 ## P2 · Polish and evidence
+
+- [ ] **Prototype embeddings retrieval and re-measure recall** `P2` `E6` `H8`
+  - **Context:** keyword retrieval with query expansion reaches 71% recall on the committed cases, against the 90% E6 target, and expansion is net zero; the misses are ranking misses on a 323-file repository. [`DECISIONS.md`](DECISIONS.md) allows a vector index once measurement justifies it, and E6 says to prototype embeddings when recall stays under 90%.
+  - **Fix:** add an embedding-based `ContextSource` implementation (or a hybrid ranker behind the same interface), measure with `pnpm eval tests/evaluation/recall.eval.ts` on the same cases, and record the comparison in E6. Keep keyword retrieval when embeddings do not beat it.
 
 - [ ] **Hosting and deploy** `P2`
   - **Context:** the app only runs locally; there is no production database, env or migration step.
   - **Fix:** pick a host (Vercel with managed Postgres from the Marketplace fits the stack), document production env vars, run `drizzle-kit migrate` as a deploy step, and register the production callback URLs with GitHub and Atlassian.
-
-- [ ] **Dependency hygiene before the first deploy** `P2`
-  - **Context:** the patch updates and the high `pnpm audit --prod` finding were closed on 2026-10-26; one moderate finding remains (`esbuild` through `better-auth` > `drizzle-kit`) and `shadcn` still sits in `dependencies` although only its CSS is imported (`src/app/globals.css:3`). `pnpm audit --prod` is not part of CI, so a new advisory would go unnoticed.
-  - **Fix:** move `shadcn` to `devDependencies`, update `better-auth` when the `esbuild` finding is fixed upstream, re-run the audit, and add `pnpm audit --prod` to `.github/workflows/ci.yml`.
 
 - [ ] **Production readiness check** `P2`
   - **Context:** the app has only run on one machine. Several settings are fine locally and wrong on a host: the database pool is `max: 10` per process (`src/infrastructure/db/client.ts:11`), the sign-in rate limiter keeps counters in memory (`node_modules/better-auth/dist/api/rate-limiter/index.mjs:6`), and OAuth redirect URIs come from `BETTER_AUTH_URL` (`src/features/integrations/oauth-flow.ts:13`). The existing "Hosting and deploy" item covers the host and migrations but not these.

@@ -5,3 +5,14 @@ allowBuilds:
   sharp: false
   simple-git-hooks: false
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - "@shadcn/registry@0.2.1"
+  - shadcn@4.23.0
+  - "@better-auth/core@1.7.14"
+  - "@better-auth/drizzle-adapter@1.7.14"
+  - "@better-auth/kysely-adapter@1.7.14"
+  - "@better-auth/memory-adapter@1.7.14"
+  - "@better-auth/mongo-adapter@1.7.14"
+  - "@better-auth/prisma-adapter@1.7.14"
+  - "@better-auth/telemetry@1.7.14"
+  - better-auth@1.7.14

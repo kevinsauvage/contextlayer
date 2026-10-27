@@ -1,5 +1,6 @@
 CREATE TYPE "public"."analysis_kind" AS ENUM('create', 'audit');--> statement-breakpoint
 CREATE TYPE "public"."analysis_status" AS ENUM('running', 'completed', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."connection_status" AS ENUM('active', 'needs_reconnect');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -86,45 +87,52 @@ CREATE TABLE "analysis" (
 	"status" "analysis_status" DEFAULT 'running' NOT NULL,
 	"input" jsonb NOT NULL,
 	"result" jsonb,
+	"edited_result" jsonb,
 	"evidence_issues" jsonb,
 	"model" text,
 	"input_tokens" integer,
 	"output_tokens" integer,
+	"cost_usd" double precision,
 	"latency_ms" integer,
 	"error" text,
 	"published_issue_key" text,
+	"published_issue_url" text,
+	"publishing_since" timestamp,
+	"run_token" text,
+	"source_revision" text,
+	"previous_source_revision" text,
+	"started_at" timestamp DEFAULT now() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "github_installation" (
-	"id" bigint PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
-	"account_login" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "jira_connection" (
+CREATE TABLE "integration_connection" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" text NOT NULL,
-	"cloud_id" text NOT NULL,
-	"site_url" text NOT NULL,
-	"site_name" text NOT NULL,
-	"access_token_enc" text NOT NULL,
-	"refresh_token_enc" text NOT NULL,
-	"expires_at" timestamp NOT NULL,
+	"provider" text NOT NULL,
+	"external_id" text NOT NULL,
+	"label" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"status" "connection_status" DEFAULT 'active' NOT NULL,
+	"access_token_enc" text,
+	"refresh_token_enc" text,
+	"grant_id" uuid,
+	"token_expires_at" timestamp,
 	"connected_by_user_id" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"exclusive_key" text
 );
 --> statement-breakpoint
 CREATE TABLE "project" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" text NOT NULL,
 	"name" text NOT NULL,
-	"github_installation_id" bigint NOT NULL,
-	"repo_owner" text NOT NULL,
-	"repo_name" text NOT NULL,
-	"jira_connection_id" uuid NOT NULL,
-	"jira_project_key" text NOT NULL,
+	"source_connection_id" uuid NOT NULL,
+	"source_resource_id" text NOT NULL,
+	"source_resource_label" text NOT NULL,
+	"tracker_connection_id" uuid NOT NULL,
+	"tracker_resource_id" text NOT NULL,
+	"tracker_resource_label" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -136,12 +144,11 @@ ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("us
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "analysis" ADD CONSTRAINT "analysis_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "analysis" ADD CONSTRAINT "analysis_created_by_user_id_user_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "github_installation" ADD CONSTRAINT "github_installation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "jira_connection" ADD CONSTRAINT "jira_connection_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "jira_connection" ADD CONSTRAINT "jira_connection_connected_by_user_id_user_id_fk" FOREIGN KEY ("connected_by_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_connection" ADD CONSTRAINT "integration_connection_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_connection" ADD CONSTRAINT "integration_connection_connected_by_user_id_user_id_fk" FOREIGN KEY ("connected_by_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "project" ADD CONSTRAINT "project_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "project" ADD CONSTRAINT "project_github_installation_id_github_installation_id_fk" FOREIGN KEY ("github_installation_id") REFERENCES "public"."github_installation"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "project" ADD CONSTRAINT "project_jira_connection_id_jira_connection_id_fk" FOREIGN KEY ("jira_connection_id") REFERENCES "public"."jira_connection"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project" ADD CONSTRAINT "project_source_connection_id_integration_connection_id_fk" FOREIGN KEY ("source_connection_id") REFERENCES "public"."integration_connection"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project" ADD CONSTRAINT "project_tracker_connection_id_integration_connection_id_fk" FOREIGN KEY ("tracker_connection_id") REFERENCES "public"."integration_connection"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> statement-breakpoint
@@ -151,6 +158,10 @@ CREATE UNIQUE INDEX "organization_slug_uidx" ON "organization" USING btree ("slu
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "analysis_project_created_idx" ON "analysis" USING btree ("project_id","created_at");--> statement-breakpoint
-CREATE INDEX "github_installation_org_idx" ON "github_installation" USING btree ("organization_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "jira_connection_org_cloud_idx" ON "jira_connection" USING btree ("organization_id","cloud_id");--> statement-breakpoint
-CREATE INDEX "project_org_idx" ON "project" USING btree ("organization_id");
+CREATE UNIQUE INDEX "integration_connection_org_provider_external_idx" ON "integration_connection" USING btree ("organization_id","provider","external_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "integration_connection_exclusive_key_idx" ON "integration_connection" USING btree ("exclusive_key");--> statement-breakpoint
+CREATE INDEX "integration_connection_org_idx" ON "integration_connection" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "integration_connection_grant_idx" ON "integration_connection" USING btree ("grant_id");--> statement-breakpoint
+CREATE INDEX "project_org_idx" ON "project" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "project_source_connection_idx" ON "project" USING btree ("source_connection_id");--> statement-breakpoint
+CREATE INDEX "project_tracker_connection_idx" ON "project" USING btree ("tracker_connection_id");

@@ -11,8 +11,7 @@ export function readAnalysisInput(analysis: Pick<Analysis, "kind" | "input">): A
   if (!parsed.success) return null;
   const stored = parsed.data;
   if (analysis.kind === "audit") return "issueKey" in stored ? { kind: "audit", issueKey: stored.issueKey } : null;
-  if ("request" in stored) return { kind: "create", request: stored.request, answers: stored.answers ?? [] };
-  return "title" in stored ? { kind: "create", request: stored.title, answers: [] } : null;
+  return "request" in stored ? { kind: "create", request: stored.request, answers: stored.answers ?? [] } : null;
 }
 
 // What the user asked for, whether that is a request or an audited issue key.

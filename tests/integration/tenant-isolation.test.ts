@@ -25,7 +25,7 @@ beforeAll(async () => {
   const analysis = first(
     await db
       .insert(schema.analysis)
-      .values({ projectId: project.id, createdByUserId: "u1", kind: "create", input: { title: "t" } })
+      .values({ projectId: project.id, createdByUserId: "u1", kind: "create", input: { request: "t" } })
       .returning(),
   );
   Object.assign(ids, {
