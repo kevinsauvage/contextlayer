@@ -12,7 +12,8 @@ Each experiment tests one or more hypotheses from [`business-hypotheses.md`](bus
 ## E2: Baseline comparison (running)
 
 - **Tests:** H2, H7.
-- **Method:** `tests/evaluation/baseline.eval.ts` scores three versions of each ticket (the original title, a generic AI answer from the title alone, the ContextLayer draft) 0 to 2 on six rubric criteria (max 12), using an LLM judge with the fixture ground truth. Generation by `AI_MODEL`; the judge is `AI_JUDGE_MODEL` (its own endpoint when needed), falling back to `AI_MODEL` with a warning and `judgeIsGenerator: true` in the result file.
+- **Method:** `tests/evaluation/baseline.eval.ts` scores four versions of each ticket 0 to 2 on six rubric criteria (max 12), using an LLM judge with the fixture ground truth: the original request, a generic AI answer to the request alone (the floor, no repository), a retrieval-only baseline that receives the same retrieved candidates as ContextLayer with a plain "write a Jira ticket" prompt, and the ContextLayer draft. The retrieval-only baseline has no claim statuses and no structured citations, so it isolates what the claim contract adds; traceability for it is scored on whether each claim names the file it came from. Generation by `AI_MODEL`; the judge is `AI_JUDGE_MODEL` (its own endpoint when needed), falling back to `AI_MODEL` with a warning and `judgeIsGenerator: true` in the result file.
+- **Fair baseline (2026-10-27):** the three-way run below cannot support C2: the generic baseline saw only the title and no repository while the rubric scores text without citations 0, so it lost by construction. The retrieval-only baseline is the comparison that isolates claim statuses and citations; the tables below predate it.
 - **Result (2026-10-23, same-model judge, directional):**
 
 | Case                   | Original | Generic AI | ContextLayer |
@@ -45,8 +46,22 @@ ContextLayer: 8 to 14 s, about 1.2k input and 1.2 to 2.2k output tokens per case
 
 Pro is 3 to 4 times slower and writes about twice the tokens without a better score; both lose points on the same cases (password-reset actionability and criteria, where retrieval misses `mail/send.ts`). The judges differ between rows, so the gap is indicative, but nothing favours Pro as the generator.
 
-- **Limits:** the first table comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures.
-- **To finish:** (1) done 2026-10-24 with a repository-grounded judge, though both models are from the same vendor; (2) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (3) done 2026-10-24: nine fixtures, including a Jira-issue audit, a duplicate ticket, imported copy behind a `tsconfig` alias, a multi-paragraph request and a prompt-injection file. The automated run over the new cases is still to do.
+- **Result (2026-10-27, four-way, generator `deepseek-flash`, judge `deepseek-v4-pro`):** same six one-shot cases.
+
+| Case                   | Original | Generic AI | Retrieval-only | ContextLayer |
+| ---------------------- | -------- | ---------- | -------------- | ------------ |
+| banner-title           | 5        | 8          | 10             | 10           |
+| checkout-accessibility | 5        | 2          | 11             | 12           |
+| export-orders-csv      | 4        | 1          | 7              | 12           |
+| password-reset         | 2        | 2          | 3              | 10           |
+| prompt-injection       | 4        | 4          | 10             | 12           |
+| slow-dashboard         | 3        | 3          | 8              | 12           |
+| **Total (of 72)**      | 23       | 20         | 49             | 68           |
+
+ContextLayer wins 5 of 6 and ties `banner-title`. Per criterion (of 12 each): factualCorrectness 12 vs 8, evidenceTraceability 12 vs 10, requirementFidelity 12 vs 8, actionability 11 vs 10, acceptanceCriteria 12 vs 9, uncertaintyHandling 9 vs 4. The retrieval-only baseline names files for most claims, so the gap is not citation formatting: it decides points the files cannot settle (a 30-minute expiry, the CSV column list, the N+1 cause as a summary fact), which costs it factualCorrectness, requirementFidelity and uncertaintyHandling. On `banner-title` the two tie: both name the same file and value, and both miss the same two uncertainties, because the change is small enough that retrieval adds nothing. Retrieval-only latency 7 to 32 s and 1.2 to 4.8k output tokens, against 5 to 18 s and 0.7 to 2.9k for ContextLayer; retrieval candidates 2 to 4 per case, recall 1 except `password-reset` (0.67, misses `mail/send.ts`).
+
+- **Limits:** the first table comes from a run where the same model generated and judged, and the judge cannot inspect the repository, so scores are inflated and the gap is directional only. Four fixtures. The two older tables and the model comparison use the title-only baseline, which the four-way run supersedes; they cover four cases, the four-way run six. Both models are from the same vendor.
+- **To finish:** (1) done 2026-10-24 with a repository-grounded judge, though both models are from the same vendor; (2) done 2026-10-27: the four-way run reports the retrieval-only baseline beside the floor and ContextLayer; (3) `pnpm review:export`, have a developer score the 12 drafts blind, then `pnpm review:report` (E3); (4) done 2026-10-24: nine fixtures, including a Jira-issue audit, a duplicate ticket, imported copy behind a `tsconfig` alias, a multi-paragraph request and a prompt-injection file. The automated run over the new cases is still to do.
 
 ## E3: Blind reviewer comparison (planned)
 

@@ -1,6 +1,6 @@
 # TODO
 
-Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-10-26.
+Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-10-27.
 
 The backlog is split by kind of work, one `TODO-<KIND>.md` file each. Add a new kind only when none fits, following the same pattern.
 
@@ -21,7 +21,7 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | Priority | Goal                                                                             | Bug | Feature | Quality | Refactor | Non-code |
 | -------- | -------------------------------------------------------------------------------- | --: | ------: | ------: | -------: | -------: |
 | P0       | Core promise: the draft must be correct and the run must not fail                |   0 |       0 |       0 |        0 |        0 |
-| P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes        |   0 |       0 |       1 |        0 |        1 |
+| P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes        |   0 |       0 |       0 |        0 |        1 |
 | P2       | Production-grade: security, limits, deploy, reliability                          |   0 |       6 |       1 |        2 |        7 |
 | P3       | Polish and later                                                                 |   2 |       7 |       0 |        4 |        6 |
 | Deferred | Business validation and the demo clone, not needed to build the product properly |   0 |       1 |       0 |        0 |        5 |
