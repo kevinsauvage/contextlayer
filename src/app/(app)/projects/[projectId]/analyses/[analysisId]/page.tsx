@@ -152,19 +152,19 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           <div className="order-first flex flex-col gap-6 lg:order-none">
             {analysis.status === "completed" ? (
               <>
-                <EvidenceWarnings issues={analysis.evidenceIssues ?? []} />
                 {!analysis.publishedIssueKey && (
                   <ProvisionalNotice questions={questions.length} claims={needsClarification} />
                 )}
                 {!analysis.publishedIssueKey && <RevisionNotice change={revisionChange(analysis)} />}
-                {canRefine && <OpenQuestions decided={decided} />}
                 <CreationView
                   analysis={analysis}
                   draft={content.draft}
                   trackerName={trackerName}
                   trackerKey={project.trackerResourceId}
                   questionsAnchored={canRefine && questions.length > 0}
+                  issues={analysis.evidenceIssues ?? []}
                 />
+                {canRefine && <OpenQuestions decided={decided} />}
               </>
             ) : (
               <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">

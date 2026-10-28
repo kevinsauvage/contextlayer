@@ -79,7 +79,7 @@ export function ProviderCard({ provider, isAdmin }: Props) {
               href={connectHref(provider.id)}
               className={buttonVariants({ variant: connections.length && !needsReconnect ? "outline" : "default" })}
             >
-              {connections.length ? "Reconnect" : `Connect ${provider.name}`}
+              {needsReconnect ? "Reconnect" : connections.length ? "Refresh access" : `Connect ${provider.name}`}
             </a>
             {provider.canAddAccount && connections.length > 0 && (
               <a href={connectHref(provider.id, { add: true })} className={buttonVariants({ variant: "ghost" })}>

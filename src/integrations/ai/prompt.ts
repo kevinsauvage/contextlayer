@@ -47,6 +47,7 @@ Find: ambiguous or underspecified requirements, missing or non-testable acceptan
 Rules:
 ${SHARED_RULES}
 - Report a finding only when you can explain it; do not pad the list. A "conflict_with_code" or "existing_implementation_or_duplicate" finding must be verified with evidence.
+- The audited ticket is the first evidence item. Cite it for a finding about the ticket itself (a missing description, a vague title, missing acceptance criteria); cite code evidence for anything about the repository.
 - The proposed ticket keeps the original intent and must not add requirements the original and context do not support.`;
 
 const contextBlock = (candidates: Evidence[]) =>

@@ -1,12 +1,13 @@
 import { publishedOf, type AnalysisViewProps } from "@/components/analysis/analysis-view";
 import { DraftWorkspace } from "@/components/analysis/draft-workspace";
 import { OutdatedResult } from "@/components/analysis/outdated-result";
+import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { publishTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
 
-type Props = AnalysisViewProps & { draft: TicketDraft | null; questionsAnchored: boolean };
+type Props = AnalysisViewProps & { draft: TicketDraft | null; questionsAnchored: boolean; issues: EvidenceIssue[] };
 
-export function CreationView({ analysis, draft, trackerName, trackerKey, questionsAnchored }: Props) {
+export function CreationView({ analysis, draft, trackerName, trackerKey, questionsAnchored, issues }: Props) {
   if (!draft) return <OutdatedResult subject="draft" action="Send a message in the conversation to run it again." />;
   return (
     <DraftWorkspace
@@ -19,6 +20,7 @@ export function CreationView({ analysis, draft, trackerName, trackerKey, questio
       projectLabel={trackerKey}
       published={publishedOf(analysis)}
       questionsAnchored={questionsAnchored}
+      issues={issues}
       projectId={analysis.projectId}
     />
   );

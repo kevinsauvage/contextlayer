@@ -5,13 +5,13 @@ import { ActionForm } from "@/components/action-form";
 import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge";
 import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { getProject, listAnalyses } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
-import { createAuditAnalysis } from "@/features/ticket-audit/actions";
 import { createTicketAnalysis } from "@/features/ticket-creation/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
@@ -33,6 +33,11 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
       <PageHeader
         breadcrumb={<Link href="/projects">Projects</Link>}
         title={project.name}
+        actions={
+          <Link href={`/projects/${project.id}/audit`} className={buttonVariants({ variant: "outline" })}>
+            Audit a ticket
+          </Link>
+        }
         description={
           <span className="flex flex-wrap gap-x-4 gap-y-1">
             <span className="flex items-center gap-1.5">
@@ -62,29 +67,16 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
         </Alert>
       )}
 
-      <div className="grid items-start gap-4 md:grid-cols-[3fr_2fr]">
-        <ActionForm
-          action={createTicketAnalysis.bind(null, project.id)}
-          name="request"
-          title="Draft a ticket"
-          description="Describe what you need, in a line or a few paragraphs: what should change, where, why, and any constraints. ContextLayer finds evidence in the code and drafts the ticket."
-          placeholder={
-            'Change the home page hero heading to "Hello, I\'m Kévin".\nKeep the gradient on the second line.'
-          }
-          multiline
-          submitLabel="Investigate"
-          pendingLabel="Investigating…"
-        />
-        <ActionForm
-          action={createAuditAnalysis.bind(null, project.id)}
-          name="issueKey"
-          title="Audit a ticket"
-          description={`Check an existing ${integrations.trackerName} ticket against the code. Paste its key or link.`}
-          placeholder={integrations.issueKeyExample}
-          submitLabel="Audit"
-          pendingLabel="Auditing…"
-        />
-      </div>
+      <ActionForm
+        action={createTicketAnalysis.bind(null, project.id)}
+        name="request"
+        title="Draft a ticket"
+        description="Describe what you need, in a line or a few paragraphs: what should change, where, why, and any constraints. ContextLayer reads the code and drafts the ticket."
+        placeholder={'Change the home page hero heading to "Hello, I\'m Kévin".\nKeep the gradient on the second line.'}
+        multiline
+        submitLabel="Draft ticket"
+        pendingLabel="Drafting…"
+      />
 
       <section className="flex flex-col gap-3" aria-labelledby="history-heading">
         <h2 id="history-heading" className="font-medium">
@@ -92,7 +84,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]"
         </h2>
         {analyses.length === 0 ? (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No analyses yet. Draft or audit a ticket above to get started.
+            No analyses yet. Draft a ticket above, or audit an existing one.
           </p>
         ) : (
           <ul className="flex flex-col divide-y rounded-lg border">

@@ -24,11 +24,24 @@ const EVIDENCE_REQUIRED_CATEGORIES: Record<string, string> = {
   existing_implementation_or_duplicate: "an existing implementation or duplicate",
 };
 
-// A conflict or a duplicate is a claim about the code that only evidence can settle, whatever the model's status.
+// Findings that describe the ticket itself: the ticket is the source, so no code excerpt can support them.
+const TICKET_INTRINSIC_CATEGORIES = new Set(["ambiguity", "missing_acceptance_criteria", "needs_human_decision"]);
+
+export const isTicketIntrinsic = (claim: Claim): boolean =>
+  "category" in claim && TICKET_INTRINSIC_CATEGORIES.has(String(claim.category));
+
+// A conflict or a duplicate is a claim about the code that only evidence can settle. A finding that says the
+// question cannot be answered ("unknown", "needs_clarification") asserts nothing, so it is allowed to say so.
 export function validateAuditFindings(findings: (Claim & { category: string })[]): EvidenceIssue[] {
   return findings.flatMap((finding, i) => {
     const label = EVIDENCE_REQUIRED_CATEGORIES[finding.category];
-    if (!label || finding.status === "verified") return [];
+    if (
+      !label ||
+      finding.status === "verified" ||
+      finding.status === "unknown" ||
+      finding.status === "needs_clarification"
+    )
+      return [];
     return [
       {
         path: `findings[${i}]`,
@@ -83,8 +96,17 @@ function unsupportedQuotes(claim: Claim, evidence: Map<string, Evidence>): strin
   return quotedTokens(claim.text).filter((token) => !sources.some((source) => contains(source, token)));
 }
 
+type ReferenceOptions = {
+  // Claims whose source is not the repository (a finding about the ticket itself) need no cited evidence.
+  evidenceFree?: (claim: Claim) => boolean;
+};
+
 // Schema validation checks structure only; this checks that cited evidence exists and supports what is quoted.
-export function validateEvidenceReferences(evidence: Evidence[], sections: ClaimSections): EvidenceIssue[] {
+export function validateEvidenceReferences(
+  evidence: Evidence[],
+  sections: ClaimSections,
+  options: ReferenceOptions = {},
+): EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
   const known = new Set<string>();
   const byId = new Map(evidence.map((item) => [item.id, item]));
@@ -102,7 +124,7 @@ export function validateEvidenceReferences(evidence: Evidence[], sections: Claim
         if (!known.has(id))
           issues.push({ path, message: `${label} cites evidence ${id}, which is not in the evidence list.` });
       }
-      if (claim.status === "verified" && claim.evidenceIds.length === 0) {
+      if (claim.status === "verified" && claim.evidenceIds.length === 0 && !options.evidenceFree?.(claim)) {
         issues.push({ path, message: `${label} is marked Verified but cites no evidence.` });
       }
       if (claim.status === "verified") {

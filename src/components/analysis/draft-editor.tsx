@@ -17,6 +17,8 @@ type Props = {
   trackerName: string;
   // When the open questions are answered in their own block, they are not edited here too.
   questionsAnchored?: boolean;
+  // Section an evidence warning points at, so a click can show where to fix it.
+  highlight?: "description" | "acceptanceCriteria" | null;
 };
 
 type ClaimStatusFieldProps = { claim: Claim; label: string; onChange: (status: ClaimStatus) => void };
@@ -55,7 +57,14 @@ function ClaimStatusField({ claim, label, onChange }: ClaimStatusFieldProps) {
   );
 }
 
-export function DraftEditor({ draft, onChange, disabled: published, trackerName, questionsAnchored = false }: Props) {
+export function DraftEditor({
+  draft,
+  onChange,
+  disabled: published,
+  trackerName,
+  questionsAnchored = false,
+  highlight = null,
+}: Props) {
   const patch = (changes: Partial<TicketDraft>) => onChange({ ...draft, ...changes });
 
   return (
@@ -74,6 +83,8 @@ export function DraftEditor({ draft, onChange, disabled: published, trackerName,
       </div>
 
       <EditableList
+        id="edit-description"
+        highlight={highlight === "description"}
         title="Description"
         itemLabel="Description paragraph"
         hint={`Verified claims need cited evidence. Every other status is labelled in ${trackerName}.`}
@@ -98,6 +109,8 @@ export function DraftEditor({ draft, onChange, disabled: published, trackerName,
       />
 
       <EditableList
+        id="edit-acceptanceCriteria"
+        highlight={highlight === "acceptanceCriteria"}
         title="Acceptance criteria"
         itemLabel="Acceptance criterion"
         items={draft.acceptanceCriteria}
@@ -167,7 +180,7 @@ export function DraftEditor({ draft, onChange, disabled: published, trackerName,
             <a href={`#${OPEN_QUESTIONS_ANCHOR}`} className="font-medium text-foreground underline underline-offset-2">
               Open questions
             </a>
-            .
+            {" below."}
           </p>
         </section>
       ) : (

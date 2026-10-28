@@ -187,7 +187,7 @@ export function TicketPreview({ draft, trackerName, projectLabel, issueKey, stat
             <section key={section.heading ?? index} className="flex flex-col gap-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-sm font-semibold">{section.heading ?? "Description"}</h3>
-                {questionsAnchored && section.openQuestions && <QuestionsLink>Answer these above</QuestionsLink>}
+                {questionsAnchored && section.openQuestions && <QuestionsLink>Answer these below</QuestionsLink>}
               </div>
               {section.paragraphs?.map((paragraph, i) => (
                 <p key={i}>

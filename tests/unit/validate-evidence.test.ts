@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Claim, Evidence } from "@/core/evidence/schemas";
-import { validateEvidenceReferences, validateOpenQuestions } from "@/core/evidence/validate";
+import {
+  isTicketIntrinsic,
+  validateAuditFindings,
+  validateEvidenceReferences,
+  validateOpenQuestions,
+} from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
 
 const evidence: Evidence[] = [{ id: "e1", kind: "code", reference: "src/PayButton.tsx", excerpt: "<button/>" }];
@@ -137,5 +142,23 @@ describe("validateOpenQuestions", () => {
       "description[0]",
       "acceptanceCriteria[0]",
     ]);
+  });
+});
+
+describe("audit findings", () => {
+  const finding = (category: string, status: Claim["status"]) => ({ text: "x", status, evidenceIds: [], category });
+
+  it("lets a finding about the ticket itself be verified without code evidence", () => {
+    const claims = [finding("ambiguity", "verified"), finding("missing_acceptance_criteria", "verified")];
+    expect(claims.every(isTicketIntrinsic)).toBe(true);
+    expect(validateEvidenceReferences([], { findings: claims }, { evidenceFree: isTicketIntrinsic })).toEqual([]);
+  });
+
+  it("still requires evidence for a verified code claim", () =>
+    expect(validateEvidenceReferences([], { description: [claim({})] })).toHaveLength(1));
+
+  it("allows a duplicate finding that says it cannot be determined, and flags one asserted without proof", () => {
+    expect(validateAuditFindings([finding("existing_implementation_or_duplicate", "unknown")])).toEqual([]);
+    expect(validateAuditFindings([finding("existing_implementation_or_duplicate", "inferred")])).toHaveLength(1);
   });
 });

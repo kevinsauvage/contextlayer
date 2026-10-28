@@ -4,6 +4,7 @@ import type { ContextSource, Issue, IssueTracker } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import {
   citedEvidence,
+  isTicketIntrinsic,
   validateAuditFindings,
   validateEvidenceReferences,
   validateOpenQuestions,
@@ -58,15 +59,29 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
     excludeIssueKey: issue.key,
     ...input,
   });
-  const { body, usage } = await input.generator.audit({ issue, candidates: context.evidence });
+  // The audited ticket is the first source: a finding about the ticket itself (no description, vague title) can only
+  // cite the ticket, not a code excerpt.
+  const candidates = [
+    {
+      kind: "jira_issue" as const,
+      reference: issue.key,
+      url: issue.url,
+      excerpt: `${issue.summary} [${issue.status}]\n${issue.description || "(no description)"}`.slice(0, 1500),
+    },
+    ...context.evidence,
+  ].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
+  const { body, usage } = await input.generator.audit({ issue, candidates });
 
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };
-  const report: AuditReport = { ...body, evidence: citedEvidence(context.evidence, sections) };
-  const issues = [...validateEvidenceReferences(report.evidence, sections), ...validateAuditFindings(report.findings)];
+  const report: AuditReport = { ...body, evidence: citedEvidence(candidates, sections) };
+  const issues = [
+    ...validateEvidenceReferences(report.evidence, sections, { evidenceFree: isTicketIntrinsic }),
+    ...validateAuditFindings(report.findings),
+  ];
   return {
     issue,
     report,
-    candidates: context.evidence,
+    candidates,
     issues,
     usage: addUsage(context.usage, usage),
     revision: input.source.revision,

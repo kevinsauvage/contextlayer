@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DraftEditor } from "@/components/analysis/draft-editor";
+import { EvidenceWarnings } from "@/components/analysis/evidence-warnings";
 import { useOptionalRefinement } from "@/components/analysis/refinement-context";
 import { TicketPreview } from "@/components/analysis/ticket-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
+import type { EvidenceIssue } from "@/core/evidence/validate";
 import { withoutIncompleteItems, type TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 import type { ActionState } from "@/lib/action-state";
@@ -54,6 +56,8 @@ type Props = {
   published: { key: string | null; url: string | null };
   // True when the open questions are answered in a block above the preview.
   questionsAnchored?: boolean;
+  // Claims whose quotes the evidence does not support; approval is blocked until they are fixed.
+  issues?: EvidenceIssue[];
 };
 
 export function DraftWorkspace({
@@ -67,6 +71,7 @@ export function DraftWorkspace({
   save,
   published: initialPublished,
   questionsAnchored = false,
+  issues = [],
 }: Props) {
   const [draft, setDraft] = useState(initial);
   const [result, setResult] = useState<PublishResult>(
@@ -74,14 +79,29 @@ export function DraftWorkspace({
   );
   const { run, pending } = useMutation();
   const router = useRouter();
+  const [tab, setTab] = useState("preview");
+  const [highlight, setHighlight] = useState<"description" | "acceptanceCriteria" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const published = Boolean(result.issueUrl);
   const refinement = useOptionalRefinement();
+  const updating = refinement?.updating ?? false;
   const edited = !published && JSON.stringify(draft) !== JSON.stringify(initial);
   const setDraftEdited = refinement?.setDraftEdited;
   const unappliedAnswers = refinement?.answered.length ?? 0;
   const { unresolved, labelled } = readinessOf(draft, unappliedAnswers);
   const target = existingKey ? `Updates ${existingKey}` : `Creates a new issue in ${projectLabel}`;
+
+  // An evidence warning is a link into the editor: show the section it points at and mark it.
+  const showClaim = (path: string) => {
+    const section = path.startsWith("acceptanceCriteria") ? "acceptanceCriteria" : "description";
+    setTab("edit");
+    setHighlight(section);
+    setTimeout(
+      () => document.getElementById(`edit-${section}`)?.scrollIntoView({ block: "center", behavior: "smooth" }),
+      0,
+    );
+    setTimeout(() => setHighlight(null), 2500);
+  };
 
   useEffect(() => setDraftEdited?.(edited), [edited, setDraftEdited]);
   useWarnBeforeLeaving(edited);
@@ -114,7 +134,8 @@ export function DraftWorkspace({
   };
   return (
     <div className="flex flex-col gap-4">
-      <Tabs defaultValue="preview" className="gap-4">
+      <EvidenceWarnings issues={issues} onSelect={showClaim} />
+      <Tabs value={tab} onValueChange={setTab} className="gap-4">
         <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="edit" disabled={published}>
@@ -144,6 +165,7 @@ export function DraftWorkspace({
             disabled={published}
             trackerName={trackerName}
             questionsAnchored={questionsAnchored}
+            highlight={highlight}
           />
         </TabsContent>
       </Tabs>
@@ -200,8 +222,12 @@ export function DraftWorkspace({
               </p>
             </div>
             {!confirming && (
-              <Button disabled={pending} onClick={() => (unresolved.length ? setConfirming(true) : approve())}>
-                {pending ? "Publishing…" : publishLabel}
+              <Button
+                disabled={pending || updating}
+                title={updating ? "The draft is being redrafted" : undefined}
+                onClick={() => (unresolved.length ? setConfirming(true) : approve())}
+              >
+                {pending ? "Publishing…" : updating ? "Waiting for the draft…" : publishLabel}
               </Button>
             )}
           </div>

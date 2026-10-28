@@ -21,6 +21,8 @@ type Refinement = {
   answered: Clarification[];
   canRefine: boolean;
   sent: Sent | null;
+  // A redraft is in flight: the draft on screen is about to be replaced.
+  updating: boolean;
   errorFor: (origin: Origin) => string | undefined;
   send: (origin: Origin, message?: string, onSuccess?: () => void) => void;
   // Redrafting replaces the draft, so a send with manual edits waits for confirmation.
@@ -94,6 +96,7 @@ export function RefinementProvider({ questions, canRefine, refine, children }: P
         answered,
         canRefine,
         sent: pending ? sent : null,
+        updating: pending,
         errorFor: (origin) => (sent?.origin === origin ? error : undefined),
         send,
         setDraftEdited,

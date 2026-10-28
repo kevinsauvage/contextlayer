@@ -4,6 +4,8 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 type Props<T> = {
+  id?: string;
+  highlight?: boolean;
   title: string;
   // Singular name for one entry, e.g. "Acceptance criterion"; numbered to label each item.
   itemLabel: string;
@@ -19,6 +21,8 @@ type Props<T> = {
 const FIELDS = "textarea, input, select";
 
 export function EditableList<T>({
+  id,
+  highlight = false,
   title,
   itemLabel,
   hint,
@@ -53,7 +57,10 @@ export function EditableList<T>({
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <section
+      id={id}
+      className={`flex scroll-mt-24 flex-col gap-3 rounded-lg ${highlight ? "ring-2 ring-destructive ring-offset-2" : ""}`}
+    >
       <div>
         <h3 className="font-medium">{title}</h3>
         {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
