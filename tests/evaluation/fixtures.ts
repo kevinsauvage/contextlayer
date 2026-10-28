@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { Issue, IssueTracker } from "@/core/context/source";
@@ -23,8 +24,19 @@ export function loadEvaluationCases(): LoadedCase[] {
 export const sourceOf = (c: LoadedCase) => GitSource.open(c.repoDir, c.repository?.commit);
 
 // `relevantFiles` are written relative to the case directory; only the part below `repo/` names a file.
-export const fileExists = (c: LoadedCase, relative: string) =>
-  existsSync(path.join(c.repoDir, relative.replace(/^repo\//, "")));
+// A pinned case is checked at its commit, not in the working tree, which has moved on since.
+export const fileExists = (c: LoadedCase, relative: string) => {
+  const file = relative.replace(/^repo\//, "");
+  if (c.repository) {
+    try {
+      execFileSync("git", ["cat-file", "-e", `${c.repository.commit}:${file}`], { cwd: c.repoDir, stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return existsSync(path.join(c.repoDir, file));
+};
 
 // A case may have a full request; the title is its short label (and the whole request when shorter).
 export const requestOf = (c: EvaluationCase) => c.request ?? c.title;

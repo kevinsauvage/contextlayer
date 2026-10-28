@@ -265,7 +265,7 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 
 ## Project routes and review fixes (2026-10-28)
 
-- Auditing moved to `/projects/[id]/audit`: the project page keeps only the draft form and links to it · the two forms shipped together on every project view, and the page now imports one action instead of two. The audit page carries its own header, tracker name and key example.
+- The project page is split into three tabs, `Draft`, `Audit` and `History`, under `(work)/layout.tsx` · each route ships one form or the list, the project header and reconnect alert load once in the layout, and the tab strip makes the other two reachable without a link hidden in a corner. The analysis page stays outside the group, so it keeps its own header.
 - A finding that describes the ticket itself (`ambiguity`, `missing_acceptance_criteria`, `needs_human_decision`) may be `verified` without a code excerpt, and the audited ticket is now the first evidence item so it can be cited · a KAN-1 audit of a placeholder ticket was blocked because "the ticket has no description" cannot cite a repository file. A duplicate/conflict finding that honestly says `unknown` is no longer flagged; only one asserted as fact without evidence is.
 - Approve is disabled while a redraft is in flight (`useOptionalRefinement().updating`) · the button only knew about its own publish mutation, so the stale draft could be published during the 50–60 s redraft.
 - Evidence warnings moved inside the draft workspace and each claim issue is a button: it opens Edit, scrolls to the section and rings it for a moment · the alert said "fix these in Edit" but pointed at nothing.

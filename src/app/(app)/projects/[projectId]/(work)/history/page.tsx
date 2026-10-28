@@ -1,90 +1,41 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ActionForm } from "@/components/action-form";
 import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge";
 import { DeleteProjectButton } from "@/components/projects/delete-project-button";
-import { PageHeader } from "@/components/page-header";
-import { buttonVariants } from "@/components/ui/button";
-import { ProviderIcon } from "@/components/integrations/provider-icon";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { getProject, listAnalyses } from "@/features/projects/queries";
-import { projectIntegrations } from "@/features/projects/view";
-import { createTicketAnalysis } from "@/features/ticket-creation/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
-export const maxDuration = 300;
+export const metadata: Metadata = { title: "History" };
 
-export const metadata: Metadata = { title: "Project" };
-
-export default async function Page({ params }: PageProps<"/projects/[projectId]">) {
+export default async function Page({ params }: PageProps<"/projects/[projectId]/history">) {
   const { projectId } = await params;
   const { organizationId, isAdmin } = await requireOrgContext();
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
   if (!project) notFound();
-  const [analyses, integrations] = await Promise.all([listAnalyses(db, project.id), projectIntegrations(db, project)]);
+  const analyses = await listAnalyses(db, project.id);
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        breadcrumb={<Link href="/projects">Projects</Link>}
-        title={project.name}
-        actions={
-          <Link href={`/projects/${project.id}/audit`} className={buttonVariants({ variant: "outline" })}>
-            Audit a ticket
-          </Link>
-        }
-        description={
-          <span className="flex flex-wrap gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1.5">
-              <ProviderIcon kind="source" className="size-3.5" />
-              {integrations.sourceName} · {project.sourceResourceLabel}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <ProviderIcon kind="tracker" className="size-3.5" />
-              {integrations.trackerName} · {project.trackerResourceLabel}
-            </span>
-          </span>
-        }
-      />
-
-      {integrations.needsReconnect && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            A connection used by this project expired.{" "}
-            {isAdmin ? (
-              <Link href="/settings/integrations" className="underline">
-                Reconnect it in Integrations
-              </Link>
-            ) : (
-              "Ask an organization admin to reconnect it."
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <ActionForm
-        action={createTicketAnalysis.bind(null, project.id)}
-        name="request"
-        title="Draft a ticket"
-        description="Describe what you need, in a line or a few paragraphs: what should change, where, why, and any constraints. ContextLayer reads the code and drafts the ticket."
-        placeholder={'Change the home page hero heading to "Hello, I\'m Kévin".\nKeep the gradient on the second line.'}
-        multiline
-        submitLabel="Draft ticket"
-        pendingLabel="Drafting…"
-      />
-
       <section className="flex flex-col gap-3" aria-labelledby="history-heading">
         <h2 id="history-heading" className="font-medium">
           History
         </h2>
         {analyses.length === 0 ? (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No analyses yet. Draft a ticket above, or audit an existing one.
+            Nothing yet.{" "}
+            <Link href={`/projects/${project.id}`} className="underline underline-offset-2">
+              Draft a ticket
+            </Link>{" "}
+            or{" "}
+            <Link href={`/projects/${project.id}/audit`} className="underline underline-offset-2">
+              audit an existing one
+            </Link>
+            .
           </p>
         ) : (
           <ul className="flex flex-col divide-y rounded-lg border">

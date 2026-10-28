@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { PageHeader } from "@/components/page-header";
 import { getProject } from "@/features/projects/queries";
 import { projectIntegrations } from "@/features/projects/view";
 import { createAuditAnalysis } from "@/features/ticket-audit/actions";
@@ -23,16 +21,11 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <PageHeader
-        breadcrumb={<Link href={`/projects/${project.id}`}>{project.name}</Link>}
-        title="Audit a ticket"
-        description={`Check an existing ${integrations.trackerName} ticket against the code: what it leaves ambiguous, what it gets wrong, and what it should say instead.`}
-      />
       <ActionForm
         action={createAuditAnalysis.bind(null, project.id)}
         name="issueKey"
-        title={`${integrations.trackerName} ticket`}
-        description="Paste the ticket key or its link."
+        title={`Audit an existing ${integrations.trackerName} ticket`}
+        description={`Check it against the code: what it leaves ambiguous, what it gets wrong, and what it should say instead. Paste the key or the link.`}
         placeholder={integrations.issueKeyExample}
         submitLabel="Audit ticket"
         pendingLabel="Auditing…"
