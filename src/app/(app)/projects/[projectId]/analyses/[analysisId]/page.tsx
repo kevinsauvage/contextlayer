@@ -123,6 +123,11 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
     (refinement): refinement is Clarification => !isFollowUp(refinement) && refinement.answer !== "",
   );
   const questions = analysis.status === "completed" ? (content.draft?.openQuestions ?? []) : [];
+  const needsClarification = content.draft
+    ? [...content.draft.description, ...content.draft.acceptanceCriteria].filter(
+        (claim) => claim.status === "needs_clarification",
+      ).length
+    : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,6 +153,9 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
             {analysis.status === "completed" ? (
               <>
                 <EvidenceWarnings issues={analysis.evidenceIssues ?? []} />
+                {!analysis.publishedIssueKey && (
+                  <ProvisionalNotice questions={questions.length} claims={needsClarification} />
+                )}
                 {!analysis.publishedIssueKey && <RevisionNotice change={revisionChange(analysis)} />}
                 {canRefine && <OpenQuestions decided={decided} />}
                 <CreationView
@@ -168,6 +176,25 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           </div>
         </div>
       </RefinementProvider>
+    </div>
+  );
+}
+
+const plural = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
+
+// Says up front that the draft is not settled yet, instead of leaving the state to the counts by the approve button.
+function ProvisionalNotice({ questions, claims }: { questions: number; claims: number }) {
+  if (!questions && !claims) return null;
+  const parts = [
+    questions ? plural(questions, "open question", "open questions") : "",
+    claims ? plural(claims, "claim needs clarification", "claims need clarification") : "",
+  ].filter(Boolean);
+  return (
+    <div role="status" className="flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+      <p className="font-medium">Provisional draft — {parts.join(" and ")}</p>
+      <p className="text-muted-foreground">
+        Answer below and the draft regenerates; nothing is sent until you approve.
+      </p>
     </div>
   );
 }

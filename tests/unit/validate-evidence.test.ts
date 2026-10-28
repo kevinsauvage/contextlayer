@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Claim, Evidence } from "@/core/evidence/schemas";
-import { validateEvidenceReferences } from "@/core/evidence/validate";
+import { validateEvidenceReferences, validateOpenQuestions } from "@/core/evidence/validate";
+import type { TicketDraft } from "@/core/requirements/schemas";
 
 const evidence: Evidence[] = [{ id: "e1", kind: "code", reference: "src/PayButton.tsx", excerpt: "<button/>" }];
 const claim = (overrides: Partial<Claim>): Claim => ({
@@ -88,4 +89,53 @@ describe("validateEvidenceReferences", () => {
 
   it("flags duplicate evidence ids", () =>
     expect(validate(claim({}), [...evidence, ...evidence])[0]?.message).toMatch(/listed twice/));
+});
+
+describe("validateOpenQuestions", () => {
+  const draft = (text: string, options: string[]): TicketDraft => ({
+    title: "Add rate limiting",
+    description: [{ text, status: "inferred", evidenceIds: [] }],
+    acceptanceCriteria: [],
+    assumptions: [],
+    openQuestions: [
+      {
+        question: "What should a caller receive?",
+        impact: "A fixed code changes the API contract.",
+        options: options.map((option) => ({ text: option, recommended: false })),
+      },
+    ],
+    evidence: [],
+  });
+
+  it("flags a claim that states a value the open question offers", () => {
+    const [issue] = validateOpenQuestions(
+      draft("Requests are rejected with 429.", ["429 Too Many Requests", "403 Forbidden"]),
+    );
+    expect(issue?.message).toBe(
+      'Description paragraph 1 states "429", which open question 1 asks; leave it undecided until the question is answered.',
+    );
+  });
+
+  it("accepts a claim that leaves the value open", () => {
+    expect(
+      validateOpenQuestions(draft("Requests are rejected with the agreed status code.", ["429 Too Many Requests"])),
+    ).toEqual([]);
+  });
+
+  it("ignores a question without options and aims its warning at the right claim", () => {
+    expect(validateOpenQuestions(draft("Nothing decided.", []))).toEqual([]);
+    const withOptions = draft("Requests are rejected with 429.", ["429 Too Many Requests"]);
+    withOptions.acceptanceCriteria = [
+      {
+        text: "A limited caller sees 429.",
+        status: "needs_clarification",
+        evidenceIds: [],
+        requiresProductDecision: true,
+      },
+    ];
+    expect(validateOpenQuestions(withOptions).map((issue) => issue.path)).toEqual([
+      "description[0]",
+      "acceptanceCriteria[0]",
+    ]);
+  });
 });

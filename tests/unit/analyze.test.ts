@@ -81,6 +81,27 @@ describe("draftTicket", () => {
     ]);
   });
 
+  it("flags a claim that decides a value the draft still asks about", async () => {
+    const result = await run({
+      ...body([]),
+      description: [{ text: "A limited caller is rejected with 429.", status: "inferred", evidenceIds: [] }],
+      openQuestions: [
+        {
+          question: "What should a limited caller receive?",
+          impact: "A fixed code settles the API contract.",
+          options: [
+            { text: "429 Too Many Requests with a JSON body", recommended: true },
+            { text: "403 Forbidden", recommended: false },
+          ],
+        },
+      ],
+    });
+
+    expect(result.issues.map((issue) => issue.message)).toContain(
+      'Description paragraph 1 states "429", which open question 1 asks; leave it undecided until the question is answered.',
+    );
+  });
+
   it("flags a verified claim that cites nothing", async () => {
     expect((await run(body([]))).issues[0]?.message).toMatch(/cites no evidence/);
   });

@@ -1,3 +1,4 @@
+import { draftSections, type TicketDraft } from "@/core/requirements/schemas";
 import type { Claim, Evidence } from "./schemas";
 
 export type EvidenceIssue = { path: string; message: string };
@@ -111,6 +112,46 @@ export function validateEvidenceReferences(evidence: Evidence[], sections: Claim
             message: `${label} is marked Verified but quotes "${token}", which its cited evidence does not contain.`,
           });
         }
+      }
+    });
+  }
+  return issues;
+}
+
+// A value an option offers is not settled while the question is open: a claim that states it has decided for the
+// user. Only decisive tokens are compared — numbers, codes and quoted snippets — so ordinary words shared with the
+// question do not produce a warning.
+const DECISIVE_NUMBER = /\b\d{2,4}\b/g;
+const DECISIVE_QUOTED = /`([^`\n]+)`|"([^"\n]+)"/g;
+
+const decisiveTokens = (text: string): string[] => {
+  const numbers = [...text.matchAll(DECISIVE_NUMBER)].map(([token]) => token);
+  const quoted = [...text.matchAll(DECISIVE_QUOTED)].map(([, backticked = "", straight = ""]) =>
+    (backticked || straight).trim(),
+  );
+  return [...new Set([...numbers, ...quoted].filter((token) => token.length > 1))];
+};
+
+export function validateOpenQuestions(draft: TicketDraft): EvidenceIssue[] {
+  const open = draft.openQuestions
+    .map((question, index) => ({
+      index,
+      tokens: (question.options ?? []).flatMap((option) => decisiveTokens(option.text)),
+    }))
+    .filter((question) => question.tokens.length > 0);
+  if (!open.length) return [];
+
+  const issues: EvidenceIssue[] = [];
+  for (const [section, claims] of Object.entries(draftSections(draft))) {
+    claims.forEach((claim, i) => {
+      const text = claim.text.toLowerCase();
+      for (const question of open) {
+        const hit = question.tokens.find((token) => text.includes(token.toLowerCase()));
+        if (hit)
+          issues.push({
+            path: `${section}[${i}]`,
+            message: `${itemLabel(section, i)} states "${hit}", which open question ${question.index + 1} asks; leave it undecided until the question is answered.`,
+          });
       }
     });
   }
