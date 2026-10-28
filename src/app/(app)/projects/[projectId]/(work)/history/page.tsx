@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge";
-import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { getProject, listAnalyses } from "@/features/projects/queries";
@@ -13,7 +12,7 @@ export const metadata: Metadata = { title: "History" };
 
 export default async function Page({ params }: PageProps<"/projects/[projectId]/history">) {
   const { projectId } = await params;
-  const { organizationId, isAdmin } = await requireOrgContext();
+  const { organizationId } = await requireOrgContext();
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
   if (!project) notFound();
@@ -59,16 +58,6 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           </ul>
         )}
       </section>
-
-      {isAdmin && (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-destructive/30 p-4">
-          <div>
-            <h2 className="font-medium">Delete project</h2>
-            <p className="text-sm text-muted-foreground">Removes the project and its analysis history.</p>
-          </div>
-          <DeleteProjectButton projectId={project.id} name={project.name} />
-        </section>
-      )}
     </div>
   );
 }
