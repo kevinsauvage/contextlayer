@@ -52,10 +52,8 @@ export default async function ProjectLayout({ params, children }: LayoutProps<"/
         </Alert>
       )}
 
-      <div className="grid items-start gap-6 md:grid-cols-[11rem_minmax(0,1fr)]">
-        <ProjectTabs projectId={project.id} />
-        <div className="flex min-w-0 flex-col gap-6">{children}</div>
-      </div>
+      <ProjectTabs projectId={project.id} />
+      <div className="flex min-w-0 flex-col gap-6">{children}</div>
     </div>
   );
 }

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { asRoute } from "@/components/as-route";
+import { cn } from "@/lib/utils";
 
-// The four things a project does, as a left rail on wide screens and a scrollable strip on phones.
+// The four sections of a project, as an underlined strip under its header.
 export function ProjectTabs({ projectId }: { projectId: string }) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
@@ -16,18 +17,18 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
   ].map((tab) => ({ ...tab, active: pathname === tab.href }));
 
   return (
-    <nav
-      aria-label="Ticket work"
-      className="flex gap-1 overflow-x-auto rounded-lg border p-1 md:w-full md:flex-col md:overflow-visible"
-    >
+    <nav aria-label="Project sections" className="flex gap-1 overflow-x-auto border-b">
       {tabs.map((tab) => (
         <Link
           key={tab.href}
           href={asRoute(tab.href)}
           aria-current={tab.active ? "page" : undefined}
-          className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
-            tab.active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={cn(
+            "-mb-px shrink-0 border-b-2 px-3 py-2 text-sm transition-colors",
+            tab.active
+              ? "border-brand font-medium text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
         >
           {tab.label}
         </Link>

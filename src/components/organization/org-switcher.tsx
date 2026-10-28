@@ -17,7 +17,15 @@ import { authClient } from "@/infrastructure/auth/client";
 
 type Organization = { id: string; name: string; role: string };
 
-export function OrgSwitcher({ organizations, activeId }: { organizations: Organization[]; activeId: string }) {
+export function OrgSwitcher({
+  organizations,
+  activeId,
+  className,
+}: {
+  organizations: Organization[];
+  activeId: string;
+  className?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const active = organizations.find((org) => org.id === activeId);
@@ -32,7 +40,13 @@ export function OrgSwitcher({ organizations, activeId }: { organizations: Organi
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" className="max-w-56 gap-2 px-2" aria-label="Switch organization" />}
+        render={
+          <Button
+            variant="ghost"
+            className={`max-w-56 justify-start gap-2 px-2 ${className ?? ""}`}
+            aria-label="Switch organization"
+          />
+        }
         disabled={pending}
       >
         <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary text-[0.65rem] font-semibold text-primary-foreground">

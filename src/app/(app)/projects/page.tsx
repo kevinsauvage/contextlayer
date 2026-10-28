@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/page-header";
 import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { SetupChecklist } from "@/components/integrations/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
 import { listProjects } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
@@ -78,27 +77,34 @@ export default async function Page() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {projects.map(({ project, sourceProvider, trackerProvider }) => (
             <li key={project.id}>
-              <Link href={`/projects/${project.id}`} className="group block rounded-xl focus-visible:outline-2">
-                <Card className="h-full transition-colors group-hover:bg-muted/40">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-2">
-                      <span className="truncate">{project.name}</span>
-                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                    </CardTitle>
-                    <CardDescription className="flex flex-col gap-1">
-                      <span className="flex items-center gap-1.5 truncate">
-                        <ProviderIcon kind="source" className="size-3.5" />
-                        {project.sourceResourceLabel}
-                        <span className="sr-only">on {names[sourceProvider]}</span>
+              <Link
+                href={`/projects/${project.id}`}
+                className="group flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:outline-2"
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted/70 text-sm font-semibold text-muted-foreground">
+                  {project.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="truncate font-medium">{project.name}</span>
+                  <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <ProviderIcon kind="source" className="size-3.5 shrink-0" />
+                      <span className="truncate">
+                        {names[sourceProvider]} · {project.sourceResourceLabel}
                       </span>
-                      <span className="flex items-center gap-1.5 truncate">
-                        <ProviderIcon kind="tracker" className="size-3.5" />
-                        {project.trackerResourceLabel}
-                        <span className="sr-only">on {names[trackerProvider]}</span>
+                    </span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <ProviderIcon kind="tracker" className="size-3.5 shrink-0" />
+                      <span className="truncate">
+                        {names[trackerProvider]} · {project.trackerResourceLabel}
                       </span>
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
+                    </span>
+                  </span>
+                </span>
+                <ArrowRight
+                  aria-hidden
+                  className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                />
               </Link>
             </li>
           ))}
