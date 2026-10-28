@@ -2,7 +2,11 @@
   "id": "password-reset",
   "title": "Add password reset",
   "expected": {
-    "relevantFiles": ["repo/src/auth/login.ts", "repo/docs/adr/0003-no-magic-links.md", "repo/src/mail/send.ts"],
+    "relevantFiles": [
+      "repo/src/auth/login.ts",
+      "repo/docs/adr/0003-no-magic-links.md",
+      "repo/src/mail/send.ts"
+    ],
     "verifiedFacts": [
       "Login exists with email and password; no reset flow exists",
       "Magic-link login was rejected in ADR 0003",
@@ -16,7 +20,6 @@
     "forbiddenClaims": [
       "A specific token expiry (e.g. 15 minutes) presented as a requirement",
       "Proposing magic links as the mechanism"
-    ],
-    "knownMisses": ["repo/src/mail/send.ts"]
+    ]
   }
 }

@@ -82,23 +82,25 @@ ContextLayer wins 5 of 6 and ties `banner-title`. Per criterion (of 12 each): fa
 - **Method:** 2 to 3 teams connect a real repository and Jira project for 3 weeks. Track analyses created, drafts edited before publishing, published tickets, time to start-ready, and a weekly 5-question survey.
 - **Success:** unprompted use in week 3; median edit distance small enough that users call the draft "mostly right"; at least one team asks to keep it.
 
-## E6: Retrieval recall on real repositories (done 2026-10-27, below target)
+## E6: Retrieval recall on real repositories (done 2026-10-28, target met with an agent)
 
 - **Tests:** H8.
-- **Method:** `pnpm eval tests/evaluation/recall.eval.ts` runs production retrieval, query expansion included, over every committed case and writes `results/<case>.recall.json`. Six cases read this repository at a pinned commit (323 files); the rest are three-file fixtures. A case declares the files a good ticket must touch, and `knownMisses` records what the keyword path misses without a model, so a file the expanded run loses is written as `unexpected`.
-- **Result (2026-10-27, generator `deepseek-flash`):** 35 of 49 expected files retrieved (71%), against a 90% target. Expansion costs about 300 input and 210 output tokens per case and changed the outcome twice in each direction: it found `src/features/integrations/connections.ts` and `src/app/(app)/projects/page.tsx`, and it lost `src/infrastructure/db/schema/app.ts` and `src/app/(app)/projects/[projectId]/page.tsx` that the keyword path had found.
+- **Method:** `pnpm eval tests/evaluation/recall.eval.ts` runs production retrieval over every committed case and writes `results/<case>.recall.json`: an evidence agent reads the repository through tools (list, search, read) and names the files to cite, with no keyword fallback: when the agent fails, the analysis fails and can be re-run. Six cases read this repository at a pinned commit (323 files); the rest are small copied repositories. A case declares the files a good ticket must touch, and the eval records which of them the run missed.
+- **Result before the agent (2026-10-28, keyword retrieval, generator `deepseek-flash`, 21 cases):** 37 of 51 expected files retrieved (73%). Expansion costs about 300 input and 210 output tokens per case and changed the outcome twice in each direction: it found `src/features/integrations/connections.ts` and `src/app/(app)/projects/page.tsx`, and it lost `src/infrastructure/db/schema/app.ts` and `src/app/(app)/projects/[projectId]/page.tsx` that the keyword path had found. The two extra files are the new `remove-quoted-value` case, which pins a failure seen on a real run: the request quoted the value to remove, the file holding that value (`sections.ts` in a portfolio's content config) never reached the model, and the draft kept the badge.
 
-| Case                     | Recall | Missed                                                                             |
-| ------------------------ | ------ | ---------------------------------------------------------------------------------- |
-| repo-analysis-candidates | 0.25   | `ticket-creation/actions.ts`, `analysis/run.ts`, `db/schema/app.ts` (`unexpected`) |
-| repo-daily-cap           | 0.00   | `analysis/run.ts`, `ticket-creation/actions.ts`, `infrastructure/env.ts`           |
-| repo-dark-mode           | 0.33   | `app/layout.tsx`, `app/(app)/layout.tsx`                                           |
-| repo-disconnect-impact   | 0.33   | `integrations/actions.ts`, `components/integrations/disconnect-button.tsx`         |
-| repo-progress-count      | 0.00   | `projects/[projectId]/page.tsx` (`unexpected`), `projects/queries.ts`              |
-| repo-project-search      | 0.50   | `projects/queries.ts`                                                              |
-| password-reset           | 0.67   | `mail/send.ts` (three-file fixture, missed with and without expansion)             |
+| Case                     | Recall | Missed                                                                     |
+| ------------------------ | ------ | -------------------------------------------------------------------------- |
+| repo-analysis-candidates | 0.25   | `ticket-creation/actions.ts`, `analysis/run.ts`, `db/schema/app.ts`        |
+| repo-daily-cap           | 0.00   | `analysis/run.ts`, `ticket-creation/actions.ts`, `infrastructure/env.ts`   |
+| repo-dark-mode           | 0.33   | `app/layout.tsx`, `app/(app)/layout.tsx`                                   |
+| repo-disconnect-impact   | 0.33   | `integrations/actions.ts`, `components/integrations/disconnect-button.tsx` |
+| repo-progress-count      | 0.00   | `projects/[projectId]/page.tsx`, `projects/queries.ts`                     |
+| repo-project-search      | 0.50   | `projects/queries.ts`                                                      |
+| password-reset           | 0.67   | `mail/send.ts` (three-file fixture, missed with and without expansion)     |
 
-The other 13 cases retrieved every expected file. The expansion pays for itself nowhere: it is net zero on this set, so the recall gap is a ranking problem (docs, `TODO-*.md` and `DECISIONS.md` match request words in their paths and content), not a vocabulary problem. `unexpected` non-empty on two cases is a regression, filed in [`TODO-BUG.md`](../TODO-BUG.md).
+The other 13 cases retrieved every expected file. The expansion pays for itself nowhere: it is net zero on this set, so the recall gap is a ranking problem (docs, `TODO-*.md` and `DECISIONS.md` match request words in their paths and content), not a vocabulary problem.
+
+- **Result with the evidence agent (2026-10-28, `deepseek-flash`, 21 cases):** 48 of 51 expected files (94%), **target met**. The agent costs 2 to 38k input and 0.6 to 1.8k output tokens per case (about $0.001 to $0.007 at list price) and 9 to 15 s. The selection is not deterministic: three runs scored 48, 50 and 48 files, and which files are missed moves between them (this run: `repo-analysis-candidates` missed `ticket-creation/actions.ts` and `db/schema/app.ts`; `repo-daily-cap` missed `infrastructure/env.ts`) — read the range, not the decimal.
 
 - **Limits:** the "real repository" cases are this project, whose docs share the product's vocabulary with the requests; a pilot repository and a developer-written file list (the original method) are still missing. Six cases is small, and the pinned commit ages.
-- **Success:** at least 90% recall after LLM query expansion — **not met (71%)**. Next: prototype embeddings behind the `ContextSource` interface and re-measure; the vocabulary expansion does not close the gap.
+- **Success:** at least 90% recall — keyword retrieval reached 71%, the evidence agent 94% — **met**. The remaining two misses are files the agent did not open, which a stronger reading strategy (or a larger step budget) addresses before a vector index does.

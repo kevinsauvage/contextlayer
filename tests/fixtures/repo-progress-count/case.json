@@ -1,15 +1,21 @@
 {
   "id": "repo-progress-count",
   "kind": "retrieval",
-  "title": "Compter les analyses en cours dans l'en-tête du projet",
-  "request": "Affiche le nombre d'analyses en cours dans l'en-tête de la page projet, à côté du nom.",
-  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
-  "tags": ["retrieval", "large", "french"],
+  "title": "Compter les analyses en cours dans l'en-t\u00eate du projet",
+  "request": "Affiche le nombre d'analyses en cours dans l'en-t\u00eate de la page projet, \u00e0 c\u00f4t\u00e9 du nom.",
+  "repository": {
+    "root": "../../..",
+    "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3"
+  },
+  "tags": [
+    "retrieval",
+    "large",
+    "french"
+  ],
   "expected": {
     "relevantFiles": [
       "repo/src/app/(app)/projects/[projectId]/page.tsx",
       "repo/src/features/projects/queries.ts"
-    ],
-    "knownMisses": ["repo/src/features/projects/queries.ts"]
+    ]
   }
 }

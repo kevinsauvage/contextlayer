@@ -37,10 +37,16 @@ describe("evaluation fixtures", () => {
     for (const file of c.expected.relevantFiles) expect(fileExists(c, file), file).toBe(true);
   });
 
-  it("measures every retrieval case on a pinned checkout", () => {
+  it("measures retrieval on large checkouts and on a copied repository", () => {
     const retrieval = cases.filter((c) => c.kind === "retrieval");
     expect(retrieval.length).toBeGreaterThanOrEqual(5);
-    for (const c of retrieval) expect(c.repository?.commit, c.id).toMatch(/^[0-9a-f]{40}$/);
+    // Large cases read a pinned commit; a small copied repo needs none.
+    for (const c of retrieval.filter((c) => c.tags.includes("large")))
+      expect(c.repository?.commit, c.id).toMatch(/^[0-9a-f]{40}$/);
+    expect(
+      retrieval.some((c) => !c.repository),
+      "a copied repo case",
+    ).toBe(true);
     // One request in another language: stopwords and term extraction differ from the English fixtures.
     expect(retrieval.some((c) => c.tags.includes("french"))).toBe(true);
   });

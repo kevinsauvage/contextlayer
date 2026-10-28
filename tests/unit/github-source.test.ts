@@ -180,8 +180,8 @@ describe("GithubSource.urlFor", () => {
   });
 });
 
-// The evaluations read a local checkout, but the app reads GitHub; this proves the fixture's files are still found
-// through the API path, including its capped code search.
+// The evaluations read a local checkout, but the app reads GitHub; this proves the fixture's files are still read
+// through the API path, and that an agent's search is capped by the provider.
 describe("GithubSource on a fixture repository", () => {
   const c = first(
     loadEvaluationCases().filter((candidate) => candidate.id === "banner-title"),
@@ -208,15 +208,23 @@ describe("GithubSource on a fixture repository", () => {
     };
   });
 
-  it("retrieves the files the ticket must change through the API, with a capped code search", async () => {
+  it("serves the files the agent asks for, with a capped code search", async () => {
+    const source = await connect();
     const { evidence } = await gatherContext({
       query: requestOf(c),
-      source: await connect(),
+      source,
       tracker: trackerOf(c),
+      selector: {
+        select: async () => ({
+          paths: c.expected.relevantFiles.map((file) => file.replace(/^repo\//, "")),
+        }),
+      },
     });
 
     const retrieved = evidence.map((item) => `repo/${item.reference}`);
     for (const file of c.expected.relevantFiles) expect(retrieved, file).toContain(file);
+
+    await source.searchContent(["banner", "title", "hero", "extra"]);
     expect(github.searchCalls.length).toBeLessThanOrEqual(3);
   });
 });

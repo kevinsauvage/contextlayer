@@ -52,6 +52,26 @@ function quotedTokens(text: string): string[] {
     .filter(Boolean);
 }
 
+// A bare tag (`<p>`) names the element; the source carries it with attributes or children, so the tag has to be
+// there, not a byte-identical opening tag.
+const BARE_TAG = /^<\/?([a-z][a-z0-9-]*)>$/;
+const SELECTOR = /^#([a-z][\w-]*)$/i;
+const PATH = /^[a-z0-9_$-]+(?:\.[a-z0-9_$-]+)+$/i;
+
+const pathMatches = (source: string, path: string) => path.split(".").every((part) => source.includes(part));
+
+// The claim may name the source's own notation rather than repeat it: a selector for an id, a dotted path for a
+// nested value, or that path with its value appended. Paraphrases still fail, which is the point of the check.
+const contains = (source: string, token: string) => {
+  if (source.includes(token)) return true;
+  const tag = BARE_TAG.exec(token)?.[1];
+  if (tag) return new RegExp(`<${tag}(?=[\\s/>])`).test(source) || source.includes(`</${tag}>`);
+  const id = SELECTOR.exec(token)?.[1];
+  if (id) return source.includes(`id="${id}"`) || source.includes(`id='${id}'`);
+  const [path = ""] = token.split(": ");
+  return PATH.test(path) && pathMatches(source, path);
+};
+
 // A verified claim that quotes something no cited source contains cannot be verified by those sources.
 function unsupportedQuotes(claim: Claim, evidence: Map<string, Evidence>): string[] {
   const sources = claim.evidenceIds.flatMap((id) => {
@@ -59,7 +79,7 @@ function unsupportedQuotes(claim: Claim, evidence: Map<string, Evidence>): strin
     return item ? [normalize(`${item.reference}\n${item.excerpt}`)] : [];
   });
   if (!sources.length) return [];
-  return quotedTokens(claim.text).filter((token) => !sources.some((source) => source.includes(token)));
+  return quotedTokens(claim.text).filter((token) => !sources.some((source) => contains(source, token)));
 }
 
 // Schema validation checks structure only; this checks that cited evidence exists and supports what is quoted.

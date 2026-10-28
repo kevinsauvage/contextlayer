@@ -8,7 +8,7 @@ import { draftTicket } from "@/core/analysis/analyze";
 import { citedEvidence } from "@/core/evidence/validate";
 import { clarificationSchema, draftBodySchema, draftSections, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
-import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
+import { defaultGenerator, defaultSelector, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
@@ -34,7 +34,7 @@ const draftFromRequest = async (db: Database, project: Project, request: string,
     answers,
     ...(await buildProjectContext(db, project)),
     generator,
-    expander: generator,
+    selector: defaultSelector(),
   });
   return { result: draft, issues, usage, revision };
 };

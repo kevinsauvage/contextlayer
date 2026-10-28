@@ -5,7 +5,7 @@ import { auditIssue } from "@/core/analysis/analyze";
 import { issueUpdatedAtOf } from "@/core/audit/schemas";
 import { TrackerRejectedError } from "@/core/errors";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
-import { defaultGenerator, loadAnalysis, loadProject } from "@/features/analysis/context";
+import { defaultGenerator, defaultSelector, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { readAnalysisInput } from "@/features/analysis/input";
 import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
@@ -38,7 +38,7 @@ export async function createAuditAnalysis(projectId: string, _: ActionState, for
           issueKey,
           ...(await buildProjectContext(db, project)),
           generator,
-          expander: generator,
+          selector: defaultSelector(),
         });
         // The issue's timestamp travels with the report so applying it can detect edits made in Jira since.
         return { result: { ...report, issueUpdatedAt: issue.updated }, issues, usage, revision };

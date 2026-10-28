@@ -3,10 +3,18 @@
   "kind": "retrieval",
   "title": "Filter projects by name",
   "request": "Let me filter the project list by name so I can find one quickly when there are many.",
-  "repository": { "root": "../../..", "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3" },
-  "tags": ["retrieval", "large"],
+  "repository": {
+    "root": "../../..",
+    "commit": "086d633a13d5169edc8f371ced14034b6d81e3c3"
+  },
+  "tags": [
+    "retrieval",
+    "large"
+  ],
   "expected": {
-    "relevantFiles": ["repo/src/app/(app)/projects/page.tsx", "repo/src/features/projects/queries.ts"],
-    "knownMisses": ["repo/src/app/(app)/projects/page.tsx", "repo/src/features/projects/queries.ts"]
+    "relevantFiles": [
+      "repo/src/app/(app)/projects/page.tsx",
+      "repo/src/features/projects/queries.ts"
+    ]
   }
 }

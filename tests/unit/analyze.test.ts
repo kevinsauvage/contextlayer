@@ -41,6 +41,8 @@ const body = (evidenceIds: string[]): DraftBody => ({
 
 const drafting = (b: DraftBody): DraftGenerator => ({ generate: async () => ({ body: b }) });
 
+const selector = { select: async () => ({ paths: ["src/checkout/PayButton.tsx"] }) };
+
 it("reports the revision the source read", async () => {
   const pinned: ContextSource = { ...source, revision: "abc123" };
   const result = await draftTicket({
@@ -48,13 +50,15 @@ it("reports the revision the source read", async () => {
     source: pinned,
     tracker,
     generator: drafting(body([])),
+    selector,
   });
 
   expect(result.revision).toBe("abc123");
 });
 
 describe("draftTicket", () => {
-  const run = (b: DraftBody) => draftTicket({ request: "checkout button", source, tracker, generator: drafting(b) });
+  const run = (b: DraftBody) =>
+    draftTicket({ request: "checkout button", source, tracker, generator: drafting(b), selector });
 
   it("attaches only cited candidates as evidence", async () => {
     const result = await run(body(["e1"]));
@@ -80,38 +84,60 @@ describe("draftTicket", () => {
   it("flags a verified claim that cites nothing", async () => {
     expect((await run(body([]))).issues[0]?.message).toMatch(/cites no evidence/);
   });
+});
 
-  it("merges expanded search terms and bills their tokens with the draft", async () => {
-    const mailer: ContextSource = {
-      listFiles: async () => ["src/mailer.ts"],
-      readFile: async () => "export function sendMailer() {}",
+describe("draftTicket with an evidence agent", () => {
+  const generator: DraftGenerator = { generate: async () => ({ body: body([]) }) };
+
+  it("cites the files the agent names, with excerpts cut from the real source", async () => {
+    const selector = {
+      select: async () => ({ paths: ["src/other.ts"], usage: { inputTokens: 900, outputTokens: 60 } }),
     };
-    const generator: DraftGenerator = {
-      generate: async () => ({ body: body([]), usage: { inputTokens: 100, outputTokens: 50 } }),
+    const result = await draftTicket({ request: "checkout button", source, tracker, generator, selector });
+
+    expect(result.candidates.map((candidate) => candidate.reference)).toContain("src/other.ts");
+    // The agent never supplies text: the excerpt comes from the file.
+    expect(result.candidates.find((candidate) => candidate.reference === "src/other.ts")?.excerpt).toBe("unrelated");
+    expect(result.usage).toEqual({ inputTokens: 900, outputTokens: 60 });
+  });
+
+  it("drops a path the repository does not have", async () => {
+    const strict: ContextSource = {
+      listFiles: async () => ["src/checkout/PayButton.tsx"],
+      readFile: async (path) => {
+        if (!path.startsWith("src/checkout/")) throw new Error(`no such file: ${path}`);
+        return "<button><Icon /></button>";
+      },
     };
-    const expander = {
-      expandTerms: async () => ({ terms: ["mailer"], usage: { inputTokens: 10, outputTokens: 4 } }),
+    const selector = { select: async () => ({ paths: ["src/invented.ts"] }) };
+    const result = await draftTicket({ request: "checkout button", source: strict, tracker, generator, selector });
+
+    expect(result.candidates.some((candidate) => candidate.reference === "src/invented.ts")).toBe(false);
+    expect(result.candidates.every((candidate) => candidate.kind === "jira_issue")).toBe(true);
+  });
+
+  it("fails the run when the agent fails instead of drafting from unrelated files", async () => {
+    const failing = {
+      select: async (): Promise<never> => {
+        throw new Error("model down");
+      },
     };
 
-    const result = await draftTicket({ request: "password reset", source: mailer, tracker, generator, expander });
+    await expect(
+      draftTicket({ request: "checkout button", source, tracker, generator, selector: failing }),
+    ).rejects.toThrow("model down");
+  });
 
-    expect(result.candidates.map((candidate) => candidate.reference)).toContain("src/mailer.ts");
-    expect(result.usage).toEqual({ inputTokens: 110, outputTokens: 54 });
+  it("drafts with no repository context when the agent names nothing", async () => {
+    const empty = { select: async () => ({ paths: [] }) };
+    const result = await draftTicket({ request: "checkout button", source, tracker, generator, selector: empty });
+
+    expect(result.candidates.every((candidate) => candidate.kind === "jira_issue")).toBe(true);
   });
 });
 
 describe("draftTicket when a helper step fails", () => {
   const generator: DraftGenerator = { generate: async () => ({ body: body([]) }) };
-
-  it("falls back to the request's own terms when query expansion throws", async () => {
-    const expander = {
-      expandTerms: async (): Promise<never> => {
-        throw new Error("no object generated");
-      },
-    };
-    const result = await draftTicket({ request: "checkout button", source, tracker, generator, expander });
-    expect(result.candidates.map((candidate) => candidate.reference)).toContain("src/checkout/PayButton.tsx");
-  });
 
   it("continues without related issues when the tracker search throws", async () => {
     const failing: IssueTracker = {
@@ -120,7 +146,7 @@ describe("draftTicket when a helper step fails", () => {
         throw new Error("jira down");
       },
     };
-    const result = await draftTicket({ request: "checkout button", source, tracker: failing, generator });
+    const result = await draftTicket({ request: "checkout button", source, tracker: failing, generator, selector });
     expect(result.candidates.some((candidate) => candidate.kind === "jira_issue")).toBe(false);
     expect(result.candidates.length).toBeGreaterThan(0);
   });
@@ -148,6 +174,7 @@ describe("auditIssue", () => {
       source,
       tracker,
       generator: { audit: async () => ({ body: b }) } satisfies AuditGenerator,
+      selector,
     });
 
   it("collects evidence cited by findings and the proposed ticket", async () => {

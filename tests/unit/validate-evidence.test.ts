@@ -40,6 +40,49 @@ describe("validateEvidenceReferences", () => {
       ]),
     ).toEqual([]));
 
+  it("accepts a bare tag whose element carries attributes in the evidence", () =>
+    expect(
+      validate(claim({ text: "Its header is a `<p>` holding the availability pill." }), [
+        { id: "e1", kind: "code", reference: "src/Hero.tsx", excerpt: "<p className='inline-flex rounded-full'>" },
+      ]),
+    ).toEqual([]));
+
+  it("does not accept a bare tag that only prefixes another element", () =>
+    expect(
+      validate(claim({ text: "Wrapped in a `<p>`." }), [
+        { id: "e1", kind: "code", reference: "src/Icon.tsx", excerpt: '<path d="M0 0h24v24H0z" />' },
+      ]),
+    ).toHaveLength(1));
+
+  it("still flags a bare tag the evidence does not render", () =>
+    expect(validate(claim({ text: "Wrapped in a `<p>`." })).map((issue) => issue.message)).toEqual([
+      'Description paragraph 1 is marked Verified but quotes "<p>", which its cited evidence does not contain.',
+    ]));
+
+  it("accepts an id written as a selector", () =>
+    expect(
+      validate(claim({ text: "The heading keeps `#hero-title`." }), [
+        { id: "e1", kind: "code", reference: "src/Hero.tsx", excerpt: "<h1 id='hero-title'>Hi</h1>" },
+      ]),
+    ).toEqual([]));
+
+  it("accepts a dotted path and a dotted path with its value when the parts appear", () =>
+    expect(
+      validate(claim({ text: "`viewport.themeColor` is `images.unoptimized: true`." }), [
+        {
+          id: "e1",
+          kind: "code",
+          reference: "src/app/layout.tsx",
+          excerpt: "export const viewport = { themeColor: '#000000' }; images: { unoptimized: true }",
+        },
+      ]),
+    ).toEqual([]));
+
+  it("still flags a paraphrase of what the evidence says", () =>
+    expect(validate(claim({ text: "The spec asserts `total > 1`." })).map((issue) => issue.message)).toEqual([
+      'Description paragraph 1 is marked Verified but quotes "total > 1", which its cited evidence does not contain.',
+    ]));
+
   it("does not check quotes in claims that are not verified", () =>
     expect(validate(claim({ status: "inferred", text: "Probably `missingThing`." }))).toEqual([]));
 

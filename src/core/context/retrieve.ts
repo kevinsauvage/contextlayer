@@ -1,18 +1,16 @@
 import type { Evidence, EvidenceKind } from "@/core/evidence/schemas";
-import { followImports, type ScoredFile } from "./imports";
-import type { ContextSource } from "./source";
-import { PATH_WEIGHT, countMatches, scoreMatches } from "./terms";
+import type { ContextSource } from "@/core/context/source";
 
 export type EvidenceCandidate = Omit<Evidence, "id">;
 
-const READ_LIMIT = 20;
-const WINDOW_LINES = 60;
+// Enough of a file for a draft to describe the change, without sending a 2,000-line file to the model. A selection
+// spends the total budget; a file that needs more than its share gets the leftover, so one long config can still
+// arrive whole.
+const BASE_FILE_EXCERPT_CHARS = 8000;
+const MAX_FILE_EXCERPT_CHARS = 24_000;
+const TOTAL_EXCERPT_CHARS = 60_000;
 const WINDOW_LEAD = 5;
-const TEST_PENALTY = 2;
-
-// Tests describe behavior but are not where copy, styles or logic live, so they are evidence of last resort.
-const isTestPath = (path: string) => /(^|\/)(e2e|tests?)\/|\.(test|spec)\.[jt]sx?$/.test(path);
-const withTestPenalty = (path: string, score: number) => (isTestPath(path) ? score - TEST_PENALTY : score);
+const OMITTED = "\n… (middle of the file omitted) …\n";
 
 function classifyKind(path: string): EvidenceKind {
   const lower = path.toLowerCase();
@@ -21,70 +19,67 @@ function classifyKind(path: string): EvidenceKind {
   return "code";
 }
 
-function excerptAround(content: string, terms: string[]) {
+// Each file starts with an equal share of the budget; whatever a short file leaves unspent tops up the long ones,
+// in selection order, since the agent lists the most important file first.
+function excerptAllowances(lengths: number[]): number[] {
+  const allowances = lengths.map((length) => Math.min(length, BASE_FILE_EXCERPT_CHARS));
+  let remaining = TOTAL_EXCERPT_CHARS - allowances.reduce((total, value) => total + value, 0);
+  for (let index = 0; index < lengths.length && remaining > 0; index += 1) {
+    const length = lengths[index] ?? 0;
+    const allowance = allowances[index] ?? 0;
+    const extra = Math.min(Math.min(length, MAX_FILE_EXCERPT_CHARS) - allowance, remaining);
+    if (extra <= 0) continue;
+    allowances[index] = allowance + extra;
+    remaining -= extra;
+  }
+  return allowances;
+}
+
+// A file that fits arrives whole; a longer one arrives as its head and its tail, because the values a config
+// declares usually sit at the end, after the types and comments.
+function excerptFrom(content: string, terms: string[], allowance: number) {
   const lines = content.split("\n");
-  const firstHit = lines.findIndex((line) => terms.some((t) => line.toLowerCase().includes(t)));
-  const start = Math.max(0, firstHit - WINDOW_LEAD);
-  const window = lines.slice(start, start + WINDOW_LINES);
-  return { text: window.join("\n").trim(), lines: { start: start + 1, end: start + Math.max(window.length, 1) } };
+  if (content.length <= allowance) {
+    return { text: content.trim(), lines: { start: 1, end: Math.max(lines.length, 1) } };
+  }
+  const firstHit = lines.findIndex((line) => terms.some((term) => line.toLowerCase().includes(term)));
+  const start = firstHit > WINDOW_LEAD ? firstHit - WINDOW_LEAD : 0;
+  const startChar = lines.slice(0, start).reduce((total, line) => total + line.length + 1, 0);
+  const half = Math.floor(allowance / 2);
+  const head = content.slice(startChar, startChar + half).trim();
+  const tail = content.slice(-half).trim();
+  const text = startChar + half >= content.length - half ? content.slice(startChar).trim() : `${head}${OMITTED}${tail}`;
+  return { text, lines: { start: start + 1, end: Math.max(lines.length, 1) } };
 }
 
-function toCandidate(file: ScoredFile, terms: string[], source: ContextSource): EvidenceCandidate {
-  const excerpt = excerptAround(file.content, terms);
-  return {
-    kind: classifyKind(file.path),
-    reference: file.path,
-    url: source.urlFor?.(file.path, excerpt.lines),
-    lines: excerpt.lines,
-    excerpt: excerpt.text || file.path,
-  };
-}
-
-export async function retrieveFileEvidence(
+// Builds evidence from the files the agent named: the excerpt is cut from the real file, so the draft can cite it
+// and a selection can never invent a source.
+export async function evidenceFromPaths(
+  paths: string[],
   terms: string[],
   source: ContextSource,
-  maxCandidates = 10,
 ): Promise<EvidenceCandidate[]> {
-  if (!terms.length) return [];
-  const [paths, searchHits] = await Promise.all([source.listFiles(), source.searchContent?.(terms) ?? []]);
-  // A hit ranks by where the provider put it, not merely by being a hit: the first result is the strongest
-  // signal that a term lives in that file.
-  const searchRank = new Map(searchHits.map((path, index) => [path, searchHits.length - index]));
-
-  const shortlist = paths
-    .map((path) => ({
-      path,
-      // Search rank only decides what to read; relevance is scored from the file name and content below.
-      priority: withTestPenalty(
-        path,
-        countMatches(path.toLowerCase(), terms) * PATH_WEIGHT + (searchRank.get(path) ?? 0),
+  const files = [...new Set(paths)];
+  const read = await Promise.all(
+    files.map((path) =>
+      source.readFile(path).then(
+        (content) => ({ path, content }),
+        () => null,
       ),
-    }))
-    .filter((file) => file.priority > 0)
-    .sort((a, b) => b.priority - a.priority || a.path.localeCompare(b.path))
-    .slice(0, READ_LIMIT);
-
-  const scored = await Promise.all(
-    shortlist.map(async ({ path }) => {
-      const content = await source.readFile(path);
-      return {
-        path,
-        content,
-        score: withTestPenalty(
-          path,
-          countMatches(path.toLowerCase(), terms) * PATH_WEIGHT + scoreMatches(content.toLowerCase(), terms),
-        ),
-      };
-    }),
+    ),
   );
-  // A code-search hit whose text does not contain the terms, or a test file the penalty pushed below zero, has
-  // nothing to cite: keeping it would send the model an excerpt from the top of an unrelated file.
-  const ranked = scored
-    .filter((file) => file.score > 0)
-    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
-  const imported = await followImports(ranked, paths, source, terms);
-
-  return [...ranked.slice(0, maxCandidates - imported.length), ...imported].map((file) =>
-    toCandidate(file, terms, source),
+  const found = read.filter(
+    (file): file is { path: string; content: string } => file !== null && file.content.length > 0,
   );
+  const allowances = excerptAllowances(found.map((file) => file.content.length));
+  return found.map(({ path, content }, index) => {
+    const excerpt = excerptFrom(content, terms, allowances[index] ?? BASE_FILE_EXCERPT_CHARS);
+    return {
+      kind: classifyKind(path),
+      reference: path,
+      url: source.urlFor?.(path, excerpt.lines),
+      lines: excerpt.lines,
+      excerpt: excerpt.text || path,
+    };
+  });
 }

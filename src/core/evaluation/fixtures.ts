@@ -23,9 +23,6 @@ const expectedSchema = z.object({
   forbiddenClaims: z.array(z.string().min(1)).default([]),
   // Substrings a good draft must carry once the matching answer is applied (clarification cases only).
   appliedAnswers: z.array(z.string().min(1)).default([]),
-  // Files retrieval is known to miss without a model: the unit test fails on any other miss. The recall eval
-  // records a file the expanded run loses as `unexpected`, so expansion can only narrow this list in a run.
-  knownMisses: z.array(z.string().min(1)).default([]),
 });
 
 export const evaluationCaseSchema = z
@@ -49,13 +46,9 @@ export const evaluationCaseSchema = z
     if (fixture.kind === "audit" && !fixture.issue) {
       ctx.addIssue({ code: "custom", message: "an audit case needs the issue to audit", path: ["issue"] });
     }
-    // A retrieval case never reaches the judge, so the criteria would be invented rather than scoreable.
-    if (fixture.kind === "retrieval") {
-      if (!fixture.repository) {
-        ctx.addIssue({ code: "custom", message: "a retrieval case reads a pinned checkout", path: ["repository"] });
-      }
-      return;
-    }
+    // A retrieval case never reaches the judge, so the criteria would be invented rather than scoreable. It reads
+    // either a copied `repo/` directory or a pinned checkout (`repository`).
+    if (fixture.kind === "retrieval") return;
     for (const field of ["verifiedFacts", "mustStayUncertain", "forbiddenClaims"] as const) {
       if (fixture.expected[field].length === 0) {
         ctx.addIssue({ code: "custom", message: `a ${fixture.kind} case lists ${field}`, path: ["expected", field] });

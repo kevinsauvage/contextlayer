@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence } from "@/core/evidence/schemas";
-import { buildAuditPrompt, buildCreatePrompt } from "@/integrations/ai/prompt";
+import { buildAuditPrompt, buildCreatePrompt, CREATE_SYSTEM_PROMPT } from "@/integrations/ai/prompt";
 
 const candidate = (overrides: Partial<Evidence> = {}): Evidence => ({
   id: "e1",
@@ -14,6 +14,14 @@ const issue = { key: "SHOP-7", summary: "Cart total", description: "Rounds oddly
 
 // A closing tag inside untrusted text must not survive as one; the block's own closing tag must.
 const closingTags = (prompt: string, tag: string) => prompt.match(new RegExp(`</${tag}>`, "g")) ?? [];
+
+describe("create prompt rules", () => {
+  it("keeps run results out of verified claims and asks for exact quotes", () => {
+    expect(CREATE_SYSTEM_PROMPT).toContain("is inferred: the evidence is source code, not a run result");
+    expect(CREATE_SYSTEM_PROMPT).toContain("no ellipsis, no paraphrase");
+    expect(CREATE_SYSTEM_PROMPT).toContain("Name something you say is absent in plain text");
+  });
+});
 
 describe("buildCreatePrompt", () => {
   it("keeps a closing tag in an excerpt from ending the context block", () => {

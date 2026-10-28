@@ -4,10 +4,6 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 
 ## P2 · Polish and evidence
 
-- [ ] **Prototype embeddings retrieval and re-measure recall** `P2` `E6` `H8`
-  - **Context:** keyword retrieval with query expansion reaches 71% recall on the committed cases, against the 90% E6 target, and expansion is net zero; the misses are ranking misses on a 323-file repository. [`DECISIONS.md`](DECISIONS.md) allows a vector index once measurement justifies it, and E6 says to prototype embeddings when recall stays under 90%.
-  - **Fix:** add an embedding-based `ContextSource` implementation (or a hybrid ranker behind the same interface), measure with `pnpm eval tests/evaluation/recall.eval.ts` on the same cases, and record the comparison in E6. Keep keyword retrieval when embeddings do not beat it.
-
 - [ ] **Hosting and deploy** `P2`
   - **Context:** the app only runs locally; there is no production database, env or migration step.
   - **Fix:** pick a host (Vercel with managed Postgres from the Marketplace fits the stack), document production env vars, run `drizzle-kit migrate` as a deploy step, and register the production callback URLs with GitHub and Atlassian.
@@ -45,10 +41,6 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 - [ ] **Run a repo-aware agent as the baseline** `P3` `C2` `E2`
   - **Context:** the generic-AI baseline in E2 sees only the ticket title, but the realistic alternative is an AI agent that reads the repository and Jira. C2 ("clearly better than generic AI") is unproven until that comparison is made.
   - **Fix:** on every fixture and on this repository (ContextLayer, about 300 files), run Claude Code in the checkout with a Jira MCP server and a plain "write the ticket" prompt, plus the same run with this project's rules as the prompt. Score the outputs blind with `docs/product/evaluation-rubric.md` next to ContextLayer's, and record the result and the cost in E2. Combine with "Competitor research: hands-on comparison" above.
-
-- [ ] **Spike: agentic retrieval against the current retrieval** `P3` `E6`
-  - **Context:** `src/core/context/` is about 540 lines of hand-written retrieval (term scoring, regex import graphs for JS, Python and Go, an alias resolver). It may be replaceable by an AI SDK tool loop with `search_code`, `read_file` and `search_issues` tools, but that would cost more tokens and time per analysis.
-  - **Fix:** on a branch, build the loop with tools that mint evidence ids themselves (so citations stay checkable), run it and the current pipeline on the fixtures and on this repository (same 5 to 8 requests as the recall measurement), and record recall, tokens, latency and judge score for both in `validation-experiments.md`. Keep the current retrieval unless the loop is clearly better.
 
 - [ ] **Measure large-repository latency** `P3` `E6`
   - **Context:** listing a truncated tree now falls back to one paginated listing per directory (`walkTree` in `src/integrations/github/tree.ts`), so files are no longer silently lost, but the added round trips are unmeasured.

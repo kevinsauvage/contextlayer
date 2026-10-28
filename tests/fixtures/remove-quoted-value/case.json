@@ -1,0 +1,15 @@
+{
+  "id": "remove-quoted-value",
+  "title": "Remove the \"Currently at Keolis Group\" badge from the hero banner",
+  "request": "Remove the \"Currently at Keolis Group\" badge from the hero banner.",
+  "tags": [
+    "quoted-value"
+  ],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/components/features/home/Hero.tsx",
+      "repo/src/config/content/sections.ts"
+    ]
+  },
+  "kind": "retrieval"
+}

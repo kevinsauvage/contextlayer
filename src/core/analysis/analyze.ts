@@ -9,9 +9,9 @@ import {
   type EvidenceIssue,
 } from "@/core/evidence/validate";
 import { draftSections, refinementText, type Refinement, type TicketDraft } from "@/core/requirements/schemas";
-import type { AuditGenerator, DraftGenerator, QueryExpander, TokenUsage } from "./generators";
+import type { AuditGenerator, DraftGenerator, EvidenceSelector, TokenUsage } from "./generators";
 
-type Deps = { source: ContextSource; tracker: IssueTracker; expander?: QueryExpander };
+type Deps = { source: ContextSource; tracker: IssueTracker; selector: EvidenceSelector };
 
 type AnalysisBase = { candidates: Evidence[]; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 export type CreationResult = AnalysisBase & { draft: TicketDraft };

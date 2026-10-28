@@ -1,5 +1,5 @@
 import type { AuditBody } from "@/core/audit/schemas";
-import type { Issue } from "@/core/context/source";
+import type { ContextSource, Issue } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import type { DraftBody, Refinement } from "@/core/requirements/schemas";
 
@@ -18,9 +18,8 @@ export type AuditGenerator = {
   audit(input: { issue: Issue; candidates: Evidence[] }): Promise<GeneratorResult<AuditBody>>;
 };
 
-export type ExpandedTerms = { terms: string[]; usage?: TokenUsage };
-
-// A small model call that turns a request into the identifiers and file names retrieval should look for.
-export type QueryExpander = {
-  expandTerms(query: string): Promise<ExpandedTerms>;
+// An agent that reads the repository through tools and names the files a draft must cite. It never returns excerpts:
+// the pipeline still attaches the real ones, so a selection cannot invent a source.
+export type EvidenceSelector = {
+  select(input: { query: string; source: ContextSource }): Promise<{ paths: string[]; usage?: TokenUsage }>;
 };

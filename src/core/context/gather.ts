@@ -1,7 +1,7 @@
-import type { QueryExpander, TokenUsage } from "@/core/analysis/generators";
+import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { Evidence } from "@/core/evidence/schemas";
-import { extractTerms, mergeTerms } from "./terms";
-import { retrieveFileEvidence, type EvidenceCandidate } from "./retrieve";
+import { extractTerms } from "./terms";
+import { evidenceFromPaths, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
 
 const RELATED_ISSUE_LIMIT = 5;
@@ -31,19 +31,16 @@ export async function gatherContext(input: {
   query: string;
   source: ContextSource;
   tracker: IssueTracker;
+  selector: EvidenceSelector;
   excludeIssueKey?: string;
-  expander?: QueryExpander;
 }): Promise<GatheredContext> {
-  const expanded = await input.expander?.expandTerms(input.query).catch((error: unknown) => {
-    console.warn("[context] query expansion failed; using the request's own terms", error);
-    return undefined;
-  });
-  const terms = mergeTerms(extractTerms(input.query), expanded?.terms ?? []);
-  const [files, issues] = await Promise.all([
-    retrieveFileEvidence(terms, input.source),
+  const terms = extractTerms(input.query);
+  const [selection, issues] = await Promise.all([
+    input.selector.select({ query: input.query, source: input.source }),
     terms.length ? relatedIssues(input.tracker, terms) : [],
   ]);
+  const files = await evidenceFromPaths(selection.paths, terms, input.source);
   const related = issues.filter((issue) => issue.key !== input.excludeIssueKey).map(issueEvidence);
   const evidence = [...files, ...related].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
-  return { evidence, usage: expanded?.usage };
+  return { evidence, usage: selection.usage };
 }

@@ -4,12 +4,14 @@ import { getAnalysis, getProject } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb, type Database } from "@/infrastructure/db/client";
 import { getEnv } from "@/infrastructure/env";
+import { AiEvidenceAgent } from "@/integrations/ai/evidence-agent";
 import { AiGenerator } from "@/integrations/ai/generator";
 
 // Everything a server action needs from the request: who is asking, in which organization, and on which database.
 export type ActionContext = { db: Database; organizationId: string; userId: string };
 
 export const defaultGenerator = () => new AiGenerator(getEnv().AI_MODEL);
+export const defaultSelector = () => new AiEvidenceAgent(getEnv().AI_MODEL);
 
 export async function loadProject(
   projectId: string,

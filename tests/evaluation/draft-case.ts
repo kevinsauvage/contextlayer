@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { auditIssue, draftTicket, type AuditResult, type CreationResult } from "@/core/analysis/analyze";
+import { AiEvidenceAgent } from "@/integrations/ai/evidence-agent";
 import { AiGenerator } from "@/integrations/ai/generator";
 import type { GitSource } from "@/integrations/git/git-source";
 import { getEnv } from "@/infrastructure/env";
@@ -30,11 +31,22 @@ const auditText = (report: AuditResult["report"]) =>
     2,
   );
 
-async function runCase(c: LoadedCase, source: GitSource, generator: AiGenerator): Promise<CaseRun> {
+async function runCase(
+  c: LoadedCase,
+  source: GitSource,
+  generator: AiGenerator,
+  selector: AiEvidenceAgent,
+): Promise<CaseRun> {
   const tracker = trackerOf(c);
   if (c.kind === "audit") {
     if (!c.issue) throw new Error(`fixture ${c.id} is an audit case without an issue`);
-    const result = await auditIssue({ issueKey: c.issue.key, source, tracker, generator, expander: generator });
+    const result = await auditIssue({
+      issueKey: c.issue.key,
+      source,
+      tracker,
+      generator,
+      selector,
+    });
     return { kind: "audit", result, text: auditText(result.report) };
   }
   const result = await draftTicket({
@@ -43,7 +55,7 @@ async function runCase(c: LoadedCase, source: GitSource, generator: AiGenerator)
     source,
     tracker,
     generator,
-    expander: generator,
+    selector,
   });
   return { kind: "create", result, text: JSON.stringify(result.draft, null, 2) };
 }
@@ -51,7 +63,12 @@ async function runCase(c: LoadedCase, source: GitSource, generator: AiGenerator)
 // Drafts a fixture with the current pipeline and writes results/<case>.json, which the blind review export reads.
 export async function draftCase(c: LoadedCase): Promise<CaseRun & CaseMetrics> {
   const startedAt = Date.now();
-  const run = await runCase(c, await sourceOf(c), new AiGenerator(getEnv().AI_MODEL));
+  const run = await runCase(
+    c,
+    await sourceOf(c),
+    new AiGenerator(getEnv().AI_MODEL),
+    new AiEvidenceAgent(getEnv().AI_MODEL),
+  );
   const latencyMs = Date.now() - startedAt;
 
   const retrieved = new Set(run.result.candidates.map((e) => `repo/${e.reference}`));
