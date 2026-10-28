@@ -15,6 +15,8 @@ const SHARED_RULES = `- Use only the provided context. Never invent requirements
 - Quote the evidence exactly: no ellipsis, no paraphrase, and an id as the source writes it (id="hero-title"), not as a selector (#hero-title).
 - A claim that a test, build, lint or e2e run passes, or that a search engine shows a page, is inferred: the evidence is source code, not a run result.
 - Name something you say is absent in plain text, without backticks: the cited file cannot contain what is missing.
+- A point you ask about is not also decided: no description claim, acceptance criterion or title may fix the value, response, column list or cause the question covers. Say what must be decided, then ask it.
+- A ticket title names the change, not an unconfirmed cause or fix ("Speed up dashboard loading", not "remove the N+1 loop").
 - Acceptance criteria must be specific and testable. Set requiresProductDecision when a human must decide the behavior.
 - List only assumptions that affect implementation; a small change usually has none or one.
 - Ask a question only when the answer changes what to build and no repository, tracker or document source can answer it. A question is a product decision for a human (intent, policy, UX trade-off), never an investigation task: do not ask where code, a value or a usage lives, how to compute something, or who approves it. Answer those from the context or plan them in the ticket.
