@@ -44,7 +44,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
 
 - [ ] **Edit a project** `P3`
   - **Context:** changing the repository or tracker project means deleting and recreating the project, which loses its analysis history.
-  - **Fix:** add a project settings page that reuses `ResourcePicker` and an `updateProject` action, validating the new resources the same way `createProject` does.
+  - **Fix:** add an edit card to the project's Settings tab (`src/app/(app)/projects/[projectId]/(work)/settings/page.tsx`, which only has the danger zone) that reuses `ResourcePicker` and an `updateProject` action, validating the new resources the same way `createProject` does.
 
 - [ ] **Draft versions** `P3`
   - **Context:** re-runs overwrite `result` in place, so a worse redraft cannot be undone.
