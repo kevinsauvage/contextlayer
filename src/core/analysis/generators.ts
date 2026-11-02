@@ -4,6 +4,15 @@ import type { Evidence } from "@/core/evidence/schemas";
 import type { DraftBody, Refinement } from "@/core/requirements/schemas";
 
 export type TokenUsage = { inputTokens: number; outputTokens: number };
+
+// Exploration, a discarded attempt and drafting are separate model calls, but one analysis pays for all of them.
+export const addUsage = (first: TokenUsage | undefined, second: TokenUsage | undefined): TokenUsage | undefined =>
+  first || second
+    ? {
+        inputTokens: (first?.inputTokens ?? 0) + (second?.inputTokens ?? 0),
+        outputTokens: (first?.outputTokens ?? 0) + (second?.outputTokens ?? 0),
+      }
+    : undefined;
 export type GeneratorResult<T> = { body: T; usage?: TokenUsage };
 
 export type DraftGenerator = {

@@ -31,7 +31,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets (and optional `AI_JUDGE_*` ones), trigger the workflow manually once, and confirm the injection case and the control both pass.
 
 - [~] **Blind human scoring** `P3` `E3`
-  - **Context:** E2 is done: a repository-grounded judge scored ContextLayer 45, generic AI 12 and the original 11 of 48, with Flash generating and Pro judging. Both are DeepSeek, and E3 (three reviewers, ten blind tickets) has not run. The generic-AI version sees only the ticket title, so the 45 vs 12 vs 11 gap overstates the advantage over an AI that reads the code (see "Fair baseline in the evaluation" in [`TODO-QUALITY.md`](TODO-QUALITY.md)).
+  - **Context:** E2 is done: a repository-grounded judge scored ContextLayer 45, generic AI 12 and the original 11 of 48, with Flash generating and Pro judging. Both are DeepSeek, and E3 (three reviewers, ten blind tickets) has not run. The generic-AI version sees only the ticket title, so the 45 vs 12 vs 11 gap overstates the advantage over an AI that reads the code (see "Run a repo-aware agent as the baseline" below).
   - **Fix:** run `pnpm review:export`, score the packets in `tests/evaluation/review/` into `scores.json`, run `pnpm review:report`, and update E2/E3 in `validation-experiments.md`. Optionally add one cross-vendor judge or generator to remove same-vendor bias.
 
 - [ ] **Portfolio presentation** `P3`
@@ -66,4 +66,4 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 
 - [ ] **Demo clone (separate repository, after this app is done)** `Deferred`
   - **Context:** the public portfolio demo will be a copy of this app, not a mode inside it, so this repository stays the real product. Things the copy will have to change: it has to work without a visitor's own GitHub or Jira, it spends your AI budget, and it must not publish to a real tracker.
-  - **Fix:** when this app is finished, copy it and replace the GitHub and Jira providers with a built-in sample repository and an in-memory tracker (the fake providers from "End-to-end smoke test" in [`TODO-QUALITY.md`](TODO-QUALITY.md) are the starting point), add a one-click guest entry and switch off open sign-up, set strict daily limits, and point it at its own database and AI key. Keep it out of this backlog.
+  - **Fix:** when this app is finished, copy it and replace the GitHub and Jira providers with a built-in sample repository and an in-memory tracker (the test-only providers and canned generator in `src/integrations/fake/` are the starting point), add a one-click guest entry and switch off open sign-up, set strict daily limits, and point it at its own database and AI key. Keep it out of this backlog.

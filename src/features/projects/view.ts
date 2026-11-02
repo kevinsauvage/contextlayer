@@ -1,7 +1,7 @@
 import "server-only";
 import { getConnection } from "@/features/integrations/connections";
 import type { Database } from "@/infrastructure/db/client";
-import { findProvider } from "@/integrations/registry";
+import { providerById } from "@/features/integrations/resolve";
 import type { Project } from "./queries";
 
 export type ProjectIntegrations = {
@@ -16,8 +16,8 @@ export async function projectIntegrations(db: Database, project: Project): Promi
     getConnection(db, project.organizationId, project.sourceConnectionId),
     getConnection(db, project.organizationId, project.trackerConnectionId),
   ]);
-  const sourceProvider = source && findProvider(source.provider);
-  const trackerProvider = tracker && findProvider(tracker.provider);
+  const sourceProvider = source && providerById(source.provider);
+  const trackerProvider = tracker && providerById(tracker.provider);
   return {
     sourceName: sourceProvider?.name ?? "Code source",
     trackerName: trackerProvider?.name ?? "Issue tracker",

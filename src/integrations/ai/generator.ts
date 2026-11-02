@@ -1,11 +1,18 @@
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import pRetry from "p-retry";
 import { z } from "zod";
-import type { AuditGenerator, DraftGenerator, GeneratorResult } from "@/core/analysis/generators";
+import {
+  addUsage,
+  type AuditGenerator,
+  type DraftGenerator,
+  type GeneratorResult,
+  type TokenUsage,
+} from "@/core/analysis/generators";
 import { auditBodySchema } from "@/core/audit/schemas";
 import { draftBodySchema } from "@/core/requirements/schemas";
 import { getEnv } from "@/infrastructure/env";
 import { resolveModel } from "./model";
+import { tokenUsage } from "./usage";
 import { AUDIT_SYSTEM_PROMPT, buildAuditPrompt, buildCreatePrompt, CREATE_SYSTEM_PROMPT } from "./prompt";
 
 const MODEL_TIMEOUT_MS = 120_000;
@@ -36,6 +43,8 @@ export class AiGenerator implements DraftGenerator, AuditGenerator {
 
   private async run<T>(system: string, prompt: string, schema: z.ZodType<T>): Promise<GeneratorResult<T>> {
     // A malformed or schema-invalid answer is usually a one-off, so it gets one more try; other errors fail at once.
+    // The discarded answer was billed too, so its tokens count toward the run.
+    let discarded: TokenUsage | undefined;
     const { output, usage } = await pRetry(
       () =>
         generateText({
@@ -46,8 +55,15 @@ export class AiGenerator implements DraftGenerator, AuditGenerator {
           timeout: MODEL_TIMEOUT_MS,
           abortSignal: this.deadline,
         }),
-      { retries: 1, signal: this.deadline, shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error) },
+      {
+        retries: 1,
+        signal: this.deadline,
+        shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error),
+        onFailedAttempt: ({ error }) => {
+          if (NoObjectGeneratedError.isInstance(error) && error.usage) discarded = tokenUsage(error.usage);
+        },
+      },
     );
-    return { body: output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 } };
+    return { body: output, usage: addUsage(discarded, tokenUsage(usage)) };
   }
 }

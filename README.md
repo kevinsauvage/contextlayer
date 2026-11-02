@@ -31,6 +31,7 @@ Sign-up works right away. Analyses need an AI provider and the GitHub and Jira c
 | `pnpm typecheck`                                | `next typegen` + `tsc --noEmit`                                            |
 | `pnpm knip`                                     | Unused files, exports and dependencies                                     |
 | `pnpm test` / `test:watch` / `test:coverage`    | Vitest (unit + PGlite integration)                                         |
+| `pnpm e2e`                                      | Playwright smoke test on fake providers (needs `pnpm db:up`)               |
 | `pnpm eval`                                     | Real-model evaluation on the fixtures (needs an AI provider, costs tokens) |
 | `pnpm review:export` / `review:report`          | Blind scoring packets from the last eval run; report from filled scores    |
 | `pnpm db:up` / `db:down`                        | Start / stop local Postgres                                                |

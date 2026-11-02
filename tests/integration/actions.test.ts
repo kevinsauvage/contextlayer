@@ -208,6 +208,40 @@ describe("admin actions", () => {
   });
 });
 
+describe("disconnectConnection", () => {
+  it("refuses a connection a project still uses, naming the project", async () => {
+    await seedProject(state.db, "orgA", connections, { name: "Storefront" });
+
+    expect((await disconnectConnection(connections.source.id)).error).toContain('"Storefront"');
+    expect(
+      await state.db
+        .select()
+        .from(schema.integrationConnection)
+        .where(eq(schema.integrationConnection.id, connections.source.id)),
+    ).toHaveLength(1);
+  });
+
+  it("removes an unused connection and ignores another organization's", async () => {
+    await state.db
+      .insert(schema.organization)
+      .values({ id: "orgZ", name: "orgZ", slug: "orgZ", createdAt: new Date() });
+    const [unused, foreign] = await state.db
+      .insert(schema.integrationConnection)
+      .values([
+        { organizationId: "orgA", provider: "jira", externalId: "spare", label: "spare", connectedByUserId: "u1" },
+        { organizationId: "orgZ", provider: "jira", externalId: "theirs", label: "theirs", connectedByUserId: "u1" },
+      ])
+      .returning();
+    if (!unused || !foreign) throw new Error("seeding failed");
+
+    expect(await disconnectConnection(unused.id)).toEqual({});
+    expect(await disconnectConnection(foreign.id)).toEqual({});
+    const left = await state.db.select({ id: schema.integrationConnection.id }).from(schema.integrationConnection);
+    expect(left.map((row) => row.id)).not.toContain(unused.id);
+    expect(left.map((row) => row.id)).toContain(foreign.id);
+  });
+});
+
 describe("refineTicket", () => {
   it("returns the validation message for a turn that is too long", async () => {
     expect(await refineTicket(randomUUID(), { answers: [], message: "x".repeat(4001) })).toEqual({

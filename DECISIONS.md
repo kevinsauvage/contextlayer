@@ -294,3 +294,13 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - History pages by keyset (`created_at`, `id`), compared in SQL against the cursor row · a JS `Date` cursor would lose microseconds and skip rows created in the same millisecond.
 - Dates are formatted in the browser (`LocalTime`, `useSyncExternalStore` with a UTC server snapshot) · a server component formats in the host's zone, UTC on a host, with no marker.
 - Theme: `next-themes` (class strategy, system default) with a System / Light / Dark choice in the account menu · the dark tokens and `dark:` classes already existed but nothing set `.dark`; `next-themes` is the standard package for this (no flash before paint, system preference, storage) rather than a hand-written script.
+
+## Quality and refactor backlog (2026-11-02)
+
+- End-to-end smoke test: `E2E_FAKE_PROVIDERS=true` swaps GitHub, Jira and the model for `src/integrations/fake/` (a fixed sample repository, an in-memory tracker, a canned generator and selector) through `registry.ts` and `defaultGenerator`/`defaultSelector`; the rest of the pipeline (OAuth state, retrieval, citation, validation, publish claim) runs for real · a browser test needs the whole flow without credentials, and fakes at the provider seam keep everything above it real.
+- `env.ts` refuses the flag unless `BETTER_AUTH_URL` is localhost, not merely outside `NODE_ENV=production` · the test runs a production build (`next dev` cannot run twice in one checkout since Next 16's lockfile), and a deployed instance always has a public URL because OAuth callbacks need one.
+- `pnpm e2e` uses its own database (`contextlayer_e2e`, dropped and migrated in Playwright's global setup) on port 3100 · it must not touch the development server's data or port.
+- The AI Gateway price question: its response metadata carries no typed per-request cost (only `generationId`, priced by an extra `getGenerationInfo()` call), so the price table stays, with a test that the default model is listed · one extra API call per generation to show a display-only figure is not worth it; the usage caps count runs, not dollars.
+- The tokens of a generation `pRetry` discarded now count toward the run (`onFailedAttempt` on `NoObjectGeneratedError.usage`) · the discarded answer was billed.
+- Excerpt shares shrink when many files split the budget (`min(8000, 60000 / files)`) · the new budget test found that 12 long files sent 96,000 characters against a 60,000 total; the agent's cap of 8 files sent 64,000.
+- dependency-cruiser rule `providers-resolve-through-one-seam`: only `features/integrations/resolve.ts` and `overview.ts` import the adapter registry · `projects/view.ts` had bypassed the seam the comment in `resolve.ts` describes.

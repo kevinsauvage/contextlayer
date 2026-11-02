@@ -20,18 +20,19 @@ Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env
 
 ## Daily workflow
 
-| Task                       | Command                                                                                                    |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Run everything CI runs     | `pnpm check`                                                                                               |
-| Fix formatting and lint    | `pnpm format` then `pnpm lint:fix`                                                                         |
-| One test file              | `pnpm test tests/unit/retrieve.test.ts`                                                                    |
-| Component tests            | `pnpm test tests/components` (`.tsx`, jsdom via a `// @vitest-environment jsdom` comment)                  |
-| Watch mode                 | `pnpm test:watch`                                                                                          |
-| Coverage (floor: 55%)      | `pnpm test:coverage`, report in `coverage/`                                                                |
-| Find dead code             | `pnpm knip`                                                                                                |
-| Change the database schema | edit `src/infrastructure/db/schema/*`, `pnpm db:generate`, review the SQL in `drizzle/`, `pnpm db:migrate` |
-| Browse the database        | `pnpm db:studio`                                                                                           |
-| Reset the database         | `docker compose down -v`, `pnpm db:up`, `pnpm db:migrate` (deletes all local data)                         |
+| Task                       | Command                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run everything CI runs     | `pnpm check`                                                                                                                                                                                            |
+| Fix formatting and lint    | `pnpm format` then `pnpm lint:fix`                                                                                                                                                                      |
+| One test file              | `pnpm test tests/unit/retrieve.test.ts`                                                                                                                                                                 |
+| Component tests            | `pnpm test tests/components` (`.tsx`, jsdom via a `// @vitest-environment jsdom` comment)                                                                                                               |
+| Watch mode                 | `pnpm test:watch`                                                                                                                                                                                       |
+| Coverage (floor: 55%)      | `pnpm test:coverage`, report in `coverage/`                                                                                                                                                             |
+| End-to-end smoke test      | `pnpm db:up`, then `pnpm e2e`: a production build on port 3100 with `E2E_FAKE_PROVIDERS=true` and its own `contextlayer_e2e` database (recreated each run); no GitHub, Jira or model credentials needed |
+| Find dead code             | `pnpm knip`                                                                                                                                                                                             |
+| Change the database schema | edit `src/infrastructure/db/schema/*`, `pnpm db:generate`, review the SQL in `drizzle/`, `pnpm db:migrate`                                                                                              |
+| Browse the database        | `pnpm db:studio`                                                                                                                                                                                        |
+| Reset the database         | `docker compose down -v`, `pnpm db:up`, `pnpm db:migrate` (deletes all local data)                                                                                                                      |
 
 A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged files. CI (`.github/workflows/ci.yml`) runs `format:check`, `lint`, `typecheck`, `knip`, `test:coverage` and `build` on every pull request.
 

@@ -6,13 +6,17 @@ import { exchangeJiraCode, isJiraConfigured, jiraAuthorizeUrl, listJiraSites, re
 const siteOf = (metadata: Record<string, string>, cloudId: string) => ({ cloudId, siteUrl: metadata.siteUrl ?? "" });
 
 // A token Jira rejects needs a new consent: record it so the connection shows as needing reconnection.
+async function reconnect(ctx: ConnectionContext): Promise<never> {
+  await ctx.markReconnect?.();
+  throw new ReconnectRequiredError(ctx.label);
+}
+
 async function withJiraAuth<T>(ctx: ConnectionContext, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
     if (!(error instanceof JiraApiError) || error.status !== 401) throw error;
-    await ctx.markReconnect?.();
-    throw new ReconnectRequiredError(ctx.label);
+    return reconnect(ctx);
   }
 }
 
@@ -72,10 +76,7 @@ export const jiraProvider: TrackerProvider = {
   openTracker: (ctx, resourceId) =>
     new JiraClient(siteOf(ctx.metadata, ctx.externalId), resourceId, {
       accessToken: ctx.accessToken,
-      onUnauthorized: async () => {
-        await ctx.markReconnect?.();
-        throw new ReconnectRequiredError(ctx.label);
-      },
+      onUnauthorized: () => reconnect(ctx),
     }),
 
   parseIssueKey: parseJiraIssueKey,

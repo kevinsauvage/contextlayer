@@ -10,7 +10,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
 
 - [ ] **Usage limits and rate limiting** `P2`
   - **Context:** every analysis, refinement and answer round spends model tokens, sign-up is open (`src/infrastructure/auth/auth.ts:18`) and nothing caps runs per user or in total, so on any deployed instance one user or script could use up the AI budget.
-  - **Fix:** first, with no code, set a hard monthly spending limit on the AI provider account. Then count runs and tokens per user per day and in total per day from the `analysis` table, refuse new runs over a configurable limit with a clear message ("the daily demo limit is reached, try tomorrow"), and add a per-user rate limit (for example 5 runs per minute). Count runs, not dollars, unless "Replace the price table" in [`TODO-REFACTOR.md`](TODO-REFACTOR.md) is done.
+  - **Fix:** first, with no code, set a hard monthly spending limit on the AI provider account. Then count runs and tokens per user per day and in total per day from the `analysis` table, refuse new runs over a configurable limit with a clear message ("the daily demo limit is reached, try tomorrow"), and add a per-user rate limit (for example 5 runs per minute). Count runs, not dollars: `src/features/analysis/cost.ts` prices only the models it lists, and the AI Gateway reports no per-request cost in its response metadata.
 
 - [ ] **Email verification, invitations and password reset** `P2`
   - **Context:** no email provider exists, so accounts are unverified and invitation links are the only secret. On a public site anyone can create accounts with fake addresses. The usage caps limit the damage; verification closes the gap.

@@ -1,5 +1,5 @@
 import type { AuditReport } from "@/core/audit/schemas";
-import { gatherContext } from "@/core/context/gather";
+import { gatherContext, issueEvidence } from "@/core/context/gather";
 import type { ContextSource, Issue, IssueTracker } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import {
@@ -11,22 +11,19 @@ import {
   type EvidenceIssue,
 } from "@/core/evidence/validate";
 import { draftSections, refinementText, type Refinement, type TicketDraft } from "@/core/requirements/schemas";
-import type { AuditGenerator, DraftGenerator, EvidenceSelector, TokenUsage } from "./generators";
+import {
+  addUsage,
+  type AuditGenerator,
+  type DraftGenerator,
+  type EvidenceSelector,
+  type TokenUsage,
+} from "./generators";
 
 type Deps = { source: ContextSource; tracker: IssueTracker; selector: EvidenceSelector };
 
 type AnalysisBase = { candidates: Evidence[]; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 export type CreationResult = AnalysisBase & { draft: TicketDraft };
 export type AuditResult = AnalysisBase & { issue: Issue; report: AuditReport };
-
-// Query expansion and drafting are separate model calls, but one analysis pays for both.
-const addUsage = (first: TokenUsage | undefined, second: TokenUsage | undefined): TokenUsage | undefined =>
-  first || second
-    ? {
-        inputTokens: (first?.inputTokens ?? 0) + (second?.inputTokens ?? 0),
-        outputTokens: (first?.outputTokens ?? 0) + (second?.outputTokens ?? 0),
-      }
-    : undefined;
 
 export async function draftTicket(
   input: Deps & { request: string; answers?: Refinement[]; generator: DraftGenerator },
@@ -60,15 +57,10 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
   });
   // The audited ticket is the first source: a finding about the ticket itself (no description, vague title) can only
   // cite the ticket, not a code excerpt.
-  const candidates = [
-    {
-      kind: "jira_issue" as const,
-      reference: issue.key,
-      url: issue.url,
-      excerpt: `${issue.summary} [${issue.status}]\n${issue.description || "(no description)"}`.slice(0, 1500),
-    },
-    ...context.evidence,
-  ].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
+  const candidates = [issueEvidence(issue), ...context.evidence].map((candidate, i) => ({
+    ...candidate,
+    id: `e${i + 1}`,
+  }));
   const { body, usage } = await input.generator.audit({ issue, candidates });
 
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };

@@ -1,8 +1,9 @@
 import { generateText, hasToolCall, stepCountIs, tool } from "ai";
 import { z } from "zod";
-import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
+import type { EvidenceSelector } from "@/core/analysis/generators";
 import type { ContextSource, SearchResult } from "@/core/context/source";
 import { resolveModel } from "./model";
+import { tokenUsage } from "./usage";
 
 const MAX_STEPS = 8;
 const MAX_FILES = 8;
@@ -21,11 +22,6 @@ const AGENT_TIMEOUT_MS = 90_000;
 // The prompt asks for at most MAX_FILES; a longer list is capped on the way out rather than discarded as malformed.
 const selectionSchema = z.object({
   paths: z.array(z.string().min(1)),
-});
-
-const usageOf = (usage: { inputTokens: number | undefined; outputTokens: number | undefined }): TokenUsage => ({
-  inputTokens: usage.inputTokens ?? 0,
-  outputTokens: usage.outputTokens ?? 0,
 });
 
 const AGENT_SYSTEM_PROMPT = `You find the files a software ticket must cite, in a repository you can only read through tools.
@@ -110,7 +106,7 @@ export class AiEvidenceAgent implements EvidenceSelector {
     // A model that answered without a single tool call did not retrieve anything; failing is honest, and the run can
     // be retried, instead of drafting a context-free ticket.
     if (!calls.length) throw new Error("The evidence agent answered without reading the repository");
-    return { paths: pathsFromCalls(calls, known), usage: usageOf(result.usage) };
+    return { paths: pathsFromCalls(calls, known), usage: tokenUsage(result.usage) };
   }
 }
 

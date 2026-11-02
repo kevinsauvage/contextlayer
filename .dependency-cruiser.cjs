@@ -61,6 +61,13 @@ const config = {
       to: { path: "^src/(app|components|features)" },
     },
     {
+      name: "providers-resolve-through-one-seam",
+      severity: "error",
+      comment: "The adapter registry is reached only through resolve.ts (one provider) and overview.ts (the list).",
+      from: { pathNot: "^src/features/integrations/(resolve|overview)\\.ts$" },
+      to: { path: "^src/integrations/registry\\.ts$" },
+    },
+    {
       name: "features-stay-out-of-the-ui",
       severity: "error",
       from: { path: "^src/features" },

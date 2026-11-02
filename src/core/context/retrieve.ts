@@ -19,10 +19,11 @@ function classifyKind(path: string): EvidenceKind {
   return "code";
 }
 
-// Each file starts with an equal share of the budget; whatever a short file leaves unspent tops up the long ones,
-// in selection order, since the agent lists the most important file first.
+// Each file starts with an equal share of the budget (smaller when many files split it); whatever a short file leaves
+// unspent tops up the long ones, in selection order, since the agent lists the most important file first.
 function excerptAllowances(lengths: number[]): number[] {
-  const allowances = lengths.map((length) => Math.min(length, BASE_FILE_EXCERPT_CHARS));
+  const share = Math.min(BASE_FILE_EXCERPT_CHARS, Math.floor(TOTAL_EXCERPT_CHARS / Math.max(lengths.length, 1)));
+  const allowances = lengths.map((length) => Math.min(length, share));
   let remaining = TOTAL_EXCERPT_CHARS - allowances.reduce((total, value) => total + value, 0);
   for (let index = 0; index < lengths.length && remaining > 0; index += 1) {
     const length = lengths[index] ?? 0;

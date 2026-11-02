@@ -22,6 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
     "eval": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts",
     "review:export": "node scripts/blind-review.mjs export",
     "review:report": "node scripts/blind-review.mjs report",
@@ -67,6 +68,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.11",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/turbopack": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

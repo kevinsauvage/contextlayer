@@ -54,6 +54,16 @@ describe("evidenceFromPaths", () => {
     expect(bigFile?.excerpt).toContain("TAIL");
   });
 
+  it("never sends more than the total budget, however many long files are selected", async () => {
+    const files = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`src/f${i}.ts`, "x".repeat(30_000)]));
+    const found = await evidenceFromPaths(Object.keys(files), [], source(files));
+
+    const omitted = "\n… (middle of the file omitted) …\n".length;
+    const sent = found.reduce((total, file) => total + file.excerpt.length - omitted, 0);
+    expect(found).toHaveLength(12);
+    expect(sent).toBeLessThanOrEqual(60_000);
+  });
+
   it("skips files the repository does not have", async () => {
     const found = await evidenceFromPaths(["src/missing.ts"], [], source({}));
     expect(found).toEqual([]);

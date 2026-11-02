@@ -7,12 +7,16 @@ import type { ContextSource, Issue, IssueTracker } from "./source";
 const RELATED_ISSUE_LIMIT = 5;
 const ISSUE_EXCERPT_CHARS = 1500;
 
-function issueEvidence(issue: Issue): EvidenceCandidate {
+// An empty description is stated, not dropped: "the ticket has no description" is itself a finding an audit can cite.
+export function issueEvidence(issue: Issue): EvidenceCandidate {
   return {
     kind: "jira_issue",
     reference: issue.key,
     url: issue.url,
-    excerpt: `${issue.summary} [${issue.status}]\n${issue.description}`.trim().slice(0, ISSUE_EXCERPT_CHARS),
+    excerpt: `${issue.summary} [${issue.status}]\n${issue.description.trim() || "(no description)"}`.slice(
+      0,
+      ISSUE_EXCERPT_CHARS,
+    ),
   };
 }
 

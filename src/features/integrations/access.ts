@@ -16,14 +16,18 @@ type Token = { value: string; expiresAt: Date | null };
 
 const isFresh = (expiresAt: Date | null) => !expiresAt || expiresAt.getTime() - Date.now() > EXPIRY_MARGIN_MS;
 
+// Connections made by one consent share its tokens, so a refresh or a revocation applies to the whole grant.
+const grantScope = (connection: Connection) =>
+  connection.grantId
+    ? eq(integrationConnection.grantId, connection.grantId)
+    : eq(integrationConnection.id, connection.id);
+
 // Rotating refresh tokens are single use: concurrent refreshes would invalidate each other, so the grant's rows are
 // locked and the token is re-read after the lock in case another request already refreshed it.
 async function refreshGrant(db: Database, connection: Connection, provider: IntegrationProvider): Promise<Token> {
   const { refresh } = provider;
   if (!refresh) throw new ReconnectRequiredError(connection.label);
-  const scope = connection.grantId
-    ? eq(integrationConnection.grantId, connection.grantId)
-    : eq(integrationConnection.id, connection.id);
+  const scope = grantScope(connection);
 
   const outcome = await db.transaction(async (tx) => {
     const rows = await tx.select().from(integrationConnection).where(scope).for("update");
@@ -76,10 +80,10 @@ export function connectionContext(
     },
     markReconnect: async () => {
       rejected = true;
-      const scope = connection.grantId
-        ? eq(integrationConnection.grantId, connection.grantId)
-        : eq(integrationConnection.id, connection.id);
-      await db.update(integrationConnection).set({ status: "needs_reconnect", updatedAt: new Date() }).where(scope);
+      await db
+        .update(integrationConnection)
+        .set({ status: "needs_reconnect", updatedAt: new Date() })
+        .where(grantScope(connection));
     },
   };
 }

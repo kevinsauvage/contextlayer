@@ -9,6 +9,14 @@ const required = {
 };
 
 describe("parseEnv", () => {
+  it("allows the fake providers only on a local server", () => {
+    expect(parseEnv({ ...required, E2E_FAKE_PROVIDERS: "true" }).E2E_FAKE_PROVIDERS).toBe(true);
+    expect(parseEnv(required).E2E_FAKE_PROVIDERS).toBe(false);
+    expect(() =>
+      parseEnv({ ...required, BETTER_AUTH_URL: "https://contextlayer.example", E2E_FAKE_PROVIDERS: "true" }),
+    ).toThrow("only allowed when BETTER_AUTH_URL is localhost");
+  });
+
   it("treats blank values as unset", () => {
     const env = parseEnv({ ...required, AI_BASE_URL: "", AI_API_KEY: "", GITHUB_APP_ID: "" });
     expect(env.AI_BASE_URL).toBeUndefined();
