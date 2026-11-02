@@ -31,7 +31,7 @@ export default async function Page() {
     (currentRole === OWNER_ROLE || member.role === MEMBER_ROLE);
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Organization settings"
         description="Members and integrations are shared across the organization."

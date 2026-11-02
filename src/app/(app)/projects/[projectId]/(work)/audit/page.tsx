@@ -20,7 +20,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   const integrations = await projectIntegrations(db, project);
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <ActionForm
         action={createAuditAnalysis.bind(null, project.id)}
         name="issueKey"
@@ -30,6 +30,12 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
         submitLabel="Audit ticket"
         pendingLabel="Auditing…"
       />
+      <aside className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+        <h2 className="font-medium text-foreground">What the audit checks</h2>
+        <p>Unclear scope and missing acceptance criteria.</p>
+        <p>Claims that conflict with the code or that the code already implements.</p>
+        <p>Duplicate work, unsupported technical assumptions, and decisions a person must make.</p>
+      </aside>
     </div>
   );
 }

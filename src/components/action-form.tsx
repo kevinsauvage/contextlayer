@@ -63,7 +63,7 @@ export function ActionForm({
         <CardTitle>
           <label htmlFor={name}>{title}</label>
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="max-w-prose">{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="flex flex-col gap-2">

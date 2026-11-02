@@ -38,7 +38,17 @@ export function DangerZone({ organizationName, isOwner }: { organizationName: st
           action={leaveOrganization}
         />
       </div>
-      {isOwner && <DeleteOrganization organizationName={organizationName} />}
+      {isOwner && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+          <div>
+            <p className="font-medium">Delete this organization</p>
+            <p className="text-sm text-muted-foreground">
+              Removes the organization, its members, connections, projects and analysis history. This cannot be undone.
+            </p>
+          </div>
+          <DeleteOrganization organizationName={organizationName} />
+        </div>
+      )}
     </div>
   );
 }

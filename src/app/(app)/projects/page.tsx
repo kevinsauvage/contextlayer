@@ -74,7 +74,7 @@ export default async function Page() {
       )}
 
       {projects.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {projects.map(({ project, sourceProvider, trackerProvider }) => (
             <li key={project.id}>
               <Link

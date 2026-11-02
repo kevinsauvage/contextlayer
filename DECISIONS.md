@@ -271,3 +271,10 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Evidence warnings moved inside the draft workspace and each claim issue is a button: it opens Edit, scrolls to the section and rings it for a moment · the alert said "fix these in Edit" but pointed at nothing.
 - The draft now renders above the open questions, with the questions block below it; the provisional notice stays one line above the draft · the artefact was two screens down, behind a red alert and a long questionnaire.
 - History labels the real state (`Provisional` when the draft still has open questions or undecided claims, `Ready` otherwise) instead of repeating the kind badge with another "Draft"; "Investigate" became "Draft ticket"; a healthy integration offers "Refresh access" rather than "Reconnect".
+
+## Layout system (2026-10-28)
+
+- Work surfaces — Projects, project Draft / Audit / History / Settings, Integrations, Organization — all use the full content width; only setup flows (new project, new organization) keep a narrow column · the pages had each picked their own cap (`max-w-2xl`, `3xl`, none), so cards started and ended at different x positions and read as unfinished.
+- Draft and Audit are two-column work surfaces: the composer on the left, a short guidance panel on the right (what makes a request draft well; what the audit checks) · a single field stretched across 1,100 px has no hierarchy; the panel gives the width a job and states the product's own behaviour (the draft asks instead of guessing).
+- Descriptions inside wide cards are capped at `max-w-prose` · a sentence set 1,100 px wide is unreadable even when the card is not.
+- Project Settings is a normal card with a Danger zone header and a title-left / action-right row, matching the organization danger zone · it was a bordered red box sized for a form column.
