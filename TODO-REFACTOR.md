@@ -1,5 +1,41 @@
 # TODO · Refactors
 
-Code structure and cleanup that change no behaviour: dead code, duplication, tooling and framework conventions. Index and conventions: [`TODO.md`](TODO.md). Items cite the finding in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md).
+Code structure and cleanup that change no behaviour: dead code, duplication, tooling and framework conventions. Dependency upgrades live in [`TODO-DEPENDENCY.md`](TODO-DEPENDENCY.md). Index and conventions: [`TODO.md`](TODO.md). Items cite the finding in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md) or come from the 2026-11-02 cleanup review (`docs/prompts/refactor-cleanup.md`; `pnpm knip` and `pnpm deps:check` were clean).
 
-No open items.
+## P3 · Later: optional features and deeper hardening
+
+- [ ] **One draft-readiness helper instead of three hand counts** `P3`
+  - **Context:** open questions and `needs_clarification` claims are counted separately in `src/components/analysis/draft-workspace.tsx:23-34` (`readinessOf`), `src/app/(app)/projects/[projectId]/analyses/[analysisId]/page.tsx:126-130,186-200` (`ProvisionalNotice`) and `src/components/analysis/analysis-status-badge.tsx:8-15,34-37`. The badge reads stored JSON with `as` casts instead of Zod, bypassing `readAnalysis` (`src/features/analysis/read.ts:30`). There are three plural helpers (`draft-workspace.tsx:21`, `open-questions.tsx:122`, `page.tsx:183`), and the page builds the run summary line inline (`page.tsx:58-63,80-89`).
+  - **Fix:** add `draftReadiness(draft)` to `src/core/requirements` (counts of open questions, claims needing clarification, labelled claims) and use it in the workspace, page and badge. Have the badge read through a `storedDraft(analysis)` helper in `read.ts` (`ticketDraftSchema`/`auditReportSchema` `safeParse`). Replace the plural helpers with one `countLabel(n, one, many)` in `src/lib` (`pluralize` rejected: these phrases need verb agreement). Move the summary line and `canRefine` into `read.ts`.
+
+- [ ] **Shared helpers for citing and numbering evidence** `P3`
+  - **Context:** `{ ...draft, evidence: citedEvidence(evidence, draftSections(draft)) }` is repeated at `src/core/analysis/analyze.ts:41`, `src/features/analysis/read.ts:24-27`, `src/features/analysis/approved-draft.ts:17` and `src/features/ticket-creation/actions.ts:139`. Candidate ids `e${i + 1}` are assigned twice (`src/core/context/gather.ts:48`, `src/core/analysis/analyze.ts:60-63`).
+  - **Fix:** add `withCitedEvidence(body, evidence)` and `numberEvidence(candidates)` to `src/core/evidence/validate.ts` and use them at all six sites.
+
+- [ ] **Organization rules move into core** `P3`
+  - **Context:** the organization name rule is written three times: `nameSchema` in `src/features/organizations/actions.ts:20-24` and hand checks with the same message in `src/components/organization/organization-name-form.tsx:18-22` and `src/components/auth/onboarding-form.tsx:18-22`. Who may change a role or remove a member is decided in the page (`src/app/(app)/settings/organization/page.tsx:28-32,74`) instead of `src/core/organizations/roles.ts`.
+  - **Fix:** export `organizationNameSchema` from `src/core/organizations` and use it with `firstIssueMessage()` in both forms and the actions. Add `canChangeMemberRole(actor, member)` and `canRemoveMember(actor, member)` to `roles.ts` with unit tests, and call them from the page.
+
+- [ ] **Remove the repeated try/catch in organization actions; use a slug package** `P3`
+  - **Context:** all eight actions in `src/features/organizations/actions.ts:65-213` repeat parse → `try { requireOrgAdmin/getSession; getAuth().api.X({ body, headers: await headers() }); return {} } catch { return failure(error, msg) }`; the `idSchema` parse appears five times. `slugBase` (`:40-47`) hand-writes the accent stripping `foldText` already does (`src/core/context/terms.ts:89-93`).
+  - **Fix:** add an `authAction(fallback, run)` wrapper for the try/`failure` logic and a `parseId` helper; keep the `redirect` paths of leave and delete outside the wrapper. Replace `slugBase` with `slugify` (27M weekly downloads, bundled types, updated 2026-04): `slugify(name, { lower: true, strict: true }).slice(0, 40) || "org"`. Output may differ slightly ("&" → "and"), fine because slugs carry a random suffix and are never parsed.
+
+- [ ] **Use p-retry for the two hand-written retry loops** `P3`
+  - **Context:** `recordPublished` (`src/features/analysis/publish.ts:57-85`) and `createWithUniqueSlug` (`src/features/organizations/actions.ts:52-63`) each hand-write a `for (;;)` retry loop, while `p-retry` is already a dependency used in `src/integrations/ai/generator.ts:48`.
+  - **Fix:** `pRetry(fn, { retries: 1, minTimeout: 0 })` for the record write and `{ retries: 2, minTimeout: 0, shouldRetry: ({ error }) => isSlugTaken(error) }` for the slug (`minTimeout: 0` keeps today's immediate retry). Land "Test the publish claim expiry and the 'published but not recorded' path" in [`TODO-QUALITY.md`](TODO-QUALITY.md) first.
+
+- [ ] **Split DraftWorkspace and DraftEditor** `P3`
+  - **Context:** `DraftWorkspace` (`src/components/analysis/draft-workspace.tsx:66-260`, ~190 lines) holds the autosave debounce with its ref and effects (`:113-127`), scroll-to-claim with two `setTimeout`s (`:99-109`) and both sticky bars (`:180-258`), and compares drafts with `JSON.stringify` on every render (`:92`). `DraftEditor` duplicates the description and acceptance-criteria `renderItem` blocks (`src/components/analysis/draft-editor.tsx:95-107,122-141`) and repeats `SECTION_ITEM_LABELS` (`src/core/evidence/validate.ts:8-12`).
+  - **Fix:** extract a `useAutosave(draft, save, edited)` hook, `PublishedBar`, `ApprovalBar` and a shared `ClaimFields`; export the section labels from core. Use `dequal` (150M weekly, bundled types, <1 KB) for the edited check and `use-debounce` (9.8M weekly) `useDebouncedCallback` to replace the ref-and-effect pair. Coordinate with "The evidence warning says approval is blocked…" in [`TODO-BUG.md`](TODO-BUG.md), which touches the approval bar.
+
+- [ ] **Single source for GitHub and Jira resource ids and URLs** `P3`
+  - **Context:** `src/integrations/github/provider.ts:101,114` rebuild `owner/name` and `owner/name#sub` by hand instead of `scopeResource`/`SCOPE_SEPARATOR` (`:40,60-64`). The Jira project label is built twice (`src/integrations/jira/provider.ts:65,72`), the `/browse/` URL twice (`src/integrations/jira/client.ts:226,234`), 404-to-null is repeated in `src/integrations/github/app.ts:55-61,71-77` and `jira/client.ts:118`, and `parseJiraIssueKey` hand-escapes a regex (`jira/provider.ts:26`).
+  - **Fix:** add `repoId(owner, name)` and have `getResource` return `scopeResource(...)`; add `projectResource(project)` and `browseUrl(key)`; replace the escaped regex with `candidate.startsWith(`${projectKey}-`)` plus a digits check (`escape-string-regexp` rejected: no regex needed).
+
+- [ ] **Make every Jira HTTP call through ky** `P3`
+  - **Context:** `src/integrations/jira/oauth.ts:34-66` uses raw `fetch` with a hand-written `AbortSignal.timeout` and status checks while `client.ts` uses ky; `jiraRequest` (`client.ts:86-88`) sets `content-type` and calls `JSON.stringify` itself.
+  - **Fix:** `ky.post(url, { json, timeout, retry: 0 }).json()` in `oauth.ts`, mapping `HTTPError` 400/401/403 to `InvalidGrantError` (keep `retry: 0`: a refresh token is single use); use ky's `json` option in `jiraRequest`.
+
+- [ ] **Small typing and dead-data cleanups** `P3`
+  - **Context:** `listConnectionResources` returns a `status` its only caller drops (`src/features/integrations/resources.ts:7-27,39`); `isUuid` is a hand-written regex (`src/lib/uuid.ts:2`); `src/core/evidence/validate.ts:22-43` types audit categories as `string`, uses `"category" in claim` with `String()`, and spells `status !== "inferred"` as three comparisons; `AnalysisInput` is redeclared by hand (`src/features/analysis/input.ts:6-7`); `createTicketAnalysis` reads `formData.get("request")` instead of `formString()` (`src/features/ticket-creation/actions.ts:54`); `InvalidGrantError` and `ReconnectRequiredError` live in `src/core/integrations/provider.ts:94-101` instead of `src/core/errors.ts`.
+  - **Fix:** return `ResourceList` directly; use `z.guid().safeParse(v).success`; export `FindingCategory`/`Finding` via `z.infer` from `src/core/audit/schemas.ts` and type the maps with them; derive `AnalysisInput` from the schemas; use `formString(formData, "request")`; move the two error classes into `src/core/errors.ts`.
