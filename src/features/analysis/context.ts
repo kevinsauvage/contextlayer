@@ -10,8 +10,8 @@ import { AiGenerator } from "@/integrations/ai/generator";
 // Everything a server action needs from the request: who is asking, in which organization, and on which database.
 export type ActionContext = { db: Database; organizationId: string; userId: string };
 
-export const defaultGenerator = () => new AiGenerator(getEnv().AI_MODEL);
-export const defaultSelector = () => new AiEvidenceAgent(getEnv().AI_MODEL);
+export const defaultGenerator = (deadline?: AbortSignal) => new AiGenerator(getEnv().AI_MODEL, deadline);
+export const defaultSelector = (deadline?: AbortSignal) => new AiEvidenceAgent(getEnv().AI_MODEL, deadline);
 
 export async function loadProject(
   projectId: string,

@@ -16,6 +16,7 @@ import { getDb } from "@/infrastructure/db/client";
 import { project } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
 import { first } from "@/lib/first";
+import { isUuid } from "@/lib/uuid";
 import { firstIssueMessage } from "@/lib/zod";
 
 const projectInputSchema = z.object({
@@ -90,6 +91,7 @@ export async function createProject(_: ActionState, formData: FormData): Promise
 export async function deleteProject(projectId: string): Promise<ActionState> {
   return withActionErrors(async () => {
     const { organizationId } = await requireOrgAdmin();
+    if (!isUuid(projectId)) return { error: "Project not found" };
     await getDb()
       .delete(project)
       .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));

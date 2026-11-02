@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
-import { AnalysisAlreadyRunningError } from "@/core/errors";
+import { AnalysisAlreadyRunningError, ConnectionMissingError } from "@/core/errors";
 import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
-import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
+import { restartAnalysis, startAnalysis, UNEXPECTED_RUN_ERROR } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
@@ -18,7 +18,7 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
-type Execute = () => Promise<{
+type Execute = (deadline: AbortSignal) => Promise<{
   result: unknown;
   issues: [];
   revision?: string;
@@ -109,11 +109,33 @@ describe("usage", () => {
 });
 
 describe("running an analysis", () => {
-  it("records a failure with its message", async () => {
+  it("records an unexpected failure without its internal message", async () => {
     const id = await start("vague", async () => {
-      throw new Error("model timed out");
+      throw new Error("POST https://internal.example/v1 failed: 500 req_123");
     });
-    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({ status: "failed", error: "model timed out" });
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      error: UNEXPECTED_RUN_ERROR,
+    });
+  });
+
+  it("keeps the message of a failure the person can act on", async () => {
+    const id = await start("vague", async () => {
+      throw new ConnectionMissingError("The code source connection no longer exists");
+    });
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      error: "The code source connection no longer exists",
+    });
+  });
+
+  it("hands the run a live deadline", async () => {
+    let received: AbortSignal | undefined;
+    await start("vague", async (deadline) => {
+      received = deadline;
+      return { result: {}, issues: [] };
+    });
+    expect(received?.aborted).toBe(false);
   });
 
   it("re-runs in place with the refined title and clears the previous outcome", async () => {

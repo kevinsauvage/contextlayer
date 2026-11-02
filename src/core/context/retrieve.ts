@@ -46,10 +46,13 @@ function excerptFrom(content: string, terms: string[], allowance: number) {
   const start = firstHit > WINDOW_LEAD ? firstHit - WINDOW_LEAD : 0;
   const startChar = lines.slice(0, start).reduce((total, line) => total + line.length + 1, 0);
   const half = Math.floor(allowance / 2);
-  const head = content.slice(startChar, startChar + half).trim();
-  const tail = content.slice(-half).trim();
-  const text = startChar + half >= content.length - half ? content.slice(startChar).trim() : `${head}${OMITTED}${tail}`;
-  return { text, lines: { start: start + 1, end: Math.max(lines.length, 1) } };
+  if (startChar + half >= content.length - half) {
+    return { text: content.slice(startChar).trim(), lines: { start: start + 1, end: Math.max(lines.length, 1) } };
+  }
+  const headSlice = content.slice(startChar, startChar + half);
+  const text = `${headSlice.trim()}${OMITTED}${content.slice(-half).trim()}`;
+  // The range is the head's: a link or citation must not cover the middle the model never saw.
+  return { text, lines: { start: start + 1, end: start + headSlice.split("\n").length } };
 }
 
 // Builds evidence from the files the agent named: the excerpt is cut from the real file, so the draft can cite it

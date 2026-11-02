@@ -21,20 +21,27 @@ import { analysis } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage } from "@/lib/zod";
 
+const REGENERATED_ERROR = "The draft was regenerated or published since you edited it; reload the page";
+
 const requestSchema = z
   .string()
   .trim()
   .min(3, "Describe what you need in at least a few words")
   .max(4000, "Keep the request under 4,000 characters");
 
-const draftFromRequest = async (db: Database, project: Project, request: string, answers: Refinement[] = []) => {
-  const generator = defaultGenerator();
+const draftFromRequest = async (
+  db: Database,
+  project: Project,
+  deadline: AbortSignal,
+  request: string,
+  answers: Refinement[] = [],
+) => {
   const { draft, issues, usage, revision } = await draftTicket({
     request,
     answers,
     ...(await buildProjectContext(db, project)),
-    generator,
-    selector: defaultSelector(),
+    generator: defaultGenerator(deadline),
+    selector: defaultSelector(deadline),
   });
   return { result: draft, issues, usage, revision };
 };
@@ -57,7 +64,7 @@ export async function createTicketAnalysis(
     userId,
     kind: "create",
     input: { request: request.data },
-    execute: () => draftFromRequest(db, project, request.data),
+    execute: (deadline) => draftFromRequest(db, project, deadline, request.data),
   });
   redirect(`/projects/${projectId}/analyses/${analysisId}`);
 }
@@ -84,7 +91,7 @@ async function redraft(
     await restartAnalysis({
       db,
       input: next.answers.length ? next : { request: next.request },
-      execute: () => draftFromRequest(db, project, next.request, next.answers),
+      execute: (deadline) => draftFromRequest(db, project, deadline, next.request, next.answers),
       rerunId: analysisId,
     });
     refresh();
@@ -111,9 +118,9 @@ export async function refineTicket(analysisId: string, input: unknown): Promise<
 }
 
 // Autosave keeps manual edits across a reload without approving or publishing anything.
-// `runKey` is the `startedAt` of the run the browser edited. An autosave queued before a redraft finishes would
-// otherwise write the old edits over the new draft.
-export async function saveDraftEdits(analysisId: string, runKey: string, draftInput: unknown): Promise<ActionState> {
+// `runToken` names the run the browser edited. The update itself requires it, so an autosave that lands after a redraft
+// started (another tab, a queued request) cannot write the old edits over the new draft.
+export async function saveDraftEdits(analysisId: string, runToken: string, draftInput: unknown): Promise<ActionState> {
   const draft = draftBodySchema.safeParse(draftInput);
   if (!draft.success) return { error: firstIssueMessage(draft.error, "The edited draft is invalid") };
 
@@ -123,17 +130,23 @@ export async function saveDraftEdits(analysisId: string, runKey: string, draftIn
     publishedError: () => "This draft is already published",
   });
   if ("error" in loaded) return loaded;
-  if (loaded.analysis.startedAt.toISOString() !== runKey)
-    return { error: "The draft was regenerated; reload the page" };
+  if (loaded.analysis.runToken !== runToken) return { error: REGENERATED_ERROR };
 
   // Only the editable fields are stored; evidence is rebuilt from the stored result so the browser cannot add one.
   const evidence = storedEvidence(loaded.analysis);
   const [row] = await loaded.db
     .update(analysis)
     .set({ editedResult: { ...draft.data, evidence: citedEvidence(evidence, draftSections(draft.data)) } })
-    .where(and(eq(analysis.id, analysisId), isNull(analysis.publishedIssueKey)))
+    .where(
+      and(
+        eq(analysis.id, analysisId),
+        eq(analysis.runToken, runToken),
+        eq(analysis.status, "completed"),
+        isNull(analysis.publishedIssueKey),
+      ),
+    )
     .returning({ id: analysis.id });
-  return row ? {} : { error: "This draft is already published" };
+  return row ? {} : { error: REGENERATED_ERROR };
 }
 
 export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {

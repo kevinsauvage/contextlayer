@@ -134,6 +134,29 @@ describe("access tokens", () => {
     expect((await connectionOf("orgA", "jira", "dead")).status).toBe("active");
   });
 
+  it("releases the grant when a refresh times out, without asking for a reconnection", async () => {
+    await save("orgA", jira, [account("slow", true)]);
+    const connection = await connectionOf("orgA", "jira", "slow");
+    const timingOut = {
+      ...jira,
+      refresh: async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      },
+    } as IntegrationProvider;
+    const working = {
+      ...jira,
+      refresh: async () => ({
+        accessToken: "at-ok",
+        refreshToken: "rt-ok",
+        expiresAt: new Date(Date.now() + 3_600_000),
+      }),
+    } as IntegrationProvider;
+
+    await expect(connectionContext(db, connection, timingOut).accessToken()).rejects.toThrow("timed out");
+    expect((await connectionOf("orgA", "jira", "slow")).status).toBe("active");
+    expect(await connectionContext(db, connection, working).accessToken()).toBe("at-ok");
+  });
+
   it("marks the grant for reconnection when Jira rejects a fresh token", async () => {
     await save("orgA", jira, [
       {

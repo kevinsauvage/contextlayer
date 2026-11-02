@@ -5,12 +5,14 @@ import { withActionErrors } from "@/features/errors";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 import type { ActionState } from "@/lib/action-state";
+import { isUuid } from "@/lib/uuid";
 import { deleteConnection, projectsUsingConnection } from "./connections";
 
 // Projects keep a foreign key to their connections, so a connection in use cannot be removed from under them.
 export async function disconnectConnection(connectionId: string): Promise<ActionState> {
   return withActionErrors(async () => {
     const { organizationId } = await requireOrgAdmin();
+    if (!isUuid(connectionId)) return { error: "Connection not found" };
     const db = getDb();
     const projects = await projectsUsingConnection(db, organizationId, connectionId);
     if (projects.length) {

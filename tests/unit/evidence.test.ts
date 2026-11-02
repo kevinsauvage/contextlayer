@@ -28,6 +28,18 @@ describe("evidenceFromPaths", () => {
     expect(file?.excerpt).toContain("middle of the file omitted");
   });
 
+  it("cites only the head's lines when the middle of a file is omitted", async () => {
+    const lines = Array.from({ length: 2000 }, (_, i) => `const line${i} = ${i};`);
+    const [file] = await evidenceFromPaths(["src/big.ts"], ["line100"], source({ "src/big.ts": lines.join("\n") }));
+
+    expect(file?.excerpt).toContain("middle of the file omitted");
+    const range = file?.lines;
+    expect(range?.start).toBe(96);
+    expect(range && range.end < 2000).toBe(true);
+    expect(file?.excerpt.startsWith(`${lines[95]}`)).toBe(true);
+    expect(file?.excerpt).toContain(`${lines[(range?.end ?? 0) - 2]}`);
+  });
+
   it("gives a long file the budget short files leave unspent", async () => {
     const big = `HEAD\n${"a".repeat(6000)}\nBULGE\n${"b".repeat(12_000)}\nTAIL`;
     const files = {

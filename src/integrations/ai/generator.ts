@@ -20,7 +20,11 @@ export const withSchemaInstruction = (
 ) => (structuredOutputs ? text : `${text}\n\n${jsonSchemaInstruction(schema)}`);
 
 export class AiGenerator implements DraftGenerator, AuditGenerator {
-  constructor(private readonly modelId: string) {}
+  // `deadline` ends the run as a whole: it stops a call in flight and a retry the run has no time left for.
+  constructor(
+    private readonly modelId: string,
+    private readonly deadline?: AbortSignal,
+  ) {}
 
   generate({ request, answers, candidates }: Parameters<DraftGenerator["generate"]>[0]) {
     return this.run(CREATE_SYSTEM_PROMPT, buildCreatePrompt(request, answers, candidates), draftBodySchema);
@@ -40,8 +44,9 @@ export class AiGenerator implements DraftGenerator, AuditGenerator {
           prompt,
           output: Output.object({ schema }),
           timeout: MODEL_TIMEOUT_MS,
+          abortSignal: this.deadline,
         }),
-      { retries: 1, shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error) },
+      { retries: 1, signal: this.deadline, shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error) },
     );
     return { body: output, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 } };
   }

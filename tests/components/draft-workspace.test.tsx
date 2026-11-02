@@ -3,6 +3,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DraftWorkspace } from "@/components/analysis/draft-workspace";
+import type { Evidence } from "@/core/evidence/schemas";
+import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
@@ -23,7 +25,13 @@ const withQuestion: TicketDraft = {
   openQuestions: [{ question: "Round half up or half even?", impact: "Changes totals" }],
 };
 
-function renderWorkspace(initial: TicketDraft, options: { save?: (draft: TicketDraft) => Promise<object> } = {}) {
+type RenderOptions = {
+  save?: (draft: TicketDraft) => Promise<object>;
+  issues?: EvidenceIssue[];
+  evidence?: Evidence[];
+};
+
+function renderWorkspace(initial: TicketDraft, options: RenderOptions = {}) {
   const publish = vi.fn(async () => ({ issueKey: "SHOP-1", issueUrl: "https://jira.test/browse/SHOP-1" }));
   render(
     <DraftWorkspace
@@ -33,6 +41,8 @@ function renderWorkspace(initial: TicketDraft, options: { save?: (draft: TicketD
       trackerName="Jira"
       projectLabel="SHOP"
       save={options.save}
+      issues={options.issues}
+      evidence={options.evidence}
       published={{ key: null, url: null }}
     />,
   );
@@ -47,6 +57,21 @@ async function editTitle(user: ReturnType<typeof userEvent.setup>, title: string
 }
 
 describe("DraftWorkspace", () => {
+  it("checks the evidence again once the draft is edited", async () => {
+    const misquoted: TicketDraft = {
+      ...ready,
+      description: [{ text: "Totals use `Math.round`.", status: "verified", evidenceIds: ["e1"] }],
+    };
+    const stale = [{ path: "description[0]", message: "A warning the generated draft had." }];
+    const { user } = renderWorkspace(misquoted, { issues: stale, evidence: ready.evidence });
+
+    expect(screen.getByText("A warning the generated draft had.")).toBeTruthy();
+    await editTitle(user, "Round totals");
+
+    expect(screen.queryByText("A warning the generated draft had.")).toBeNull();
+    expect(screen.getByText(/quotes "math.round", which its cited evidence does not contain/)).toBeTruthy();
+  });
+
   it("publishes a ready draft on the first click and shows where it landed", async () => {
     const { publish, user } = renderWorkspace(ready);
 

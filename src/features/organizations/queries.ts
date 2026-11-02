@@ -51,15 +51,19 @@ export async function getPendingInvitation(db: Database, invitationId: string) {
   return row ?? null;
 }
 
-export const listInvitationsForEmail = (db: Database, email: string) =>
-  db
+// Better Auth treats an invitation id as the secret, so ids are offered by address only once the user proved they own
+// it: otherwise anyone could sign up with an invitee's address and join from onboarding.
+export async function listInvitationsForUser(db: Database, user: { email: string; emailVerified: boolean }) {
+  if (!user.emailVerified) return [];
+  return db
     .select({ id: invitation.id, organizationName: organization.name })
     .from(invitation)
     .innerJoin(organization, eq(invitation.organizationId, organization.id))
     .where(
       and(
-        eq(invitation.email, email.toLowerCase()),
+        eq(invitation.email, user.email.toLowerCase()),
         eq(invitation.status, "pending"),
         gt(invitation.expiresAt, new Date()),
       ),
     );
+}

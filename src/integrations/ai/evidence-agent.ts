@@ -14,8 +14,8 @@ const MAX_READS = 10;
 // One search runs up to three code searches, and GitHub allows ten a minute per installation.
 const MAX_SEARCHES = 3;
 const SEARCH_PATHS = 40;
-// The whole loop must fit in the analysis budget (the route allows 300 s); past this the analysis fails and can be
-// re-run rather than drafting from an unfinished exploration.
+// The loop gets at most this share of the run's budget (`RUN_BUDGET_MS`); past it the analysis fails and can be re-run
+// rather than drafting from an unfinished exploration.
 const AGENT_TIMEOUT_MS = 90_000;
 
 // The prompt asks for at most MAX_FILES; a longer list is capped on the way out rather than discarded as malformed.
@@ -42,7 +42,10 @@ const AGENT_SYSTEM_PROMPT = `You find the files a software ticket must cite, in 
 type AgentInput = { query: string; source: ContextSource };
 
 export class AiEvidenceAgent implements EvidenceSelector {
-  constructor(private readonly modelId: string) {}
+  constructor(
+    private readonly modelId: string,
+    private readonly deadline?: AbortSignal,
+  ) {}
 
   async select({ query, source }: AgentInput) {
     const files = await source.listFiles();
@@ -99,7 +102,8 @@ export class AiEvidenceAgent implements EvidenceSelector {
         }),
       },
       stopWhen: [stepCountIs(MAX_STEPS), hasToolCall("selectFiles")],
-      abortSignal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
+      timeout: AGENT_TIMEOUT_MS,
+      abortSignal: this.deadline,
     });
 
     const calls = result.steps.flatMap((step) => step.toolCalls);

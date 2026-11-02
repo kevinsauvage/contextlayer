@@ -1,7 +1,8 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,10 +10,18 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/infrastructure/auth/client";
+
+const THEMES = [
+  { value: "system", label: "System", Icon: Monitor },
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
+] as const;
 
 const initials = (name: string) =>
   name
@@ -33,6 +42,7 @@ export function UserMenu({
   variant?: "icon" | "full";
 }) {
   const router = useRouter();
+  const { theme = "system", setTheme } = useTheme();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -61,6 +71,17 @@ export function UserMenu({
             <span className="truncate font-medium text-foreground">{name}</span>
             <span className="truncate font-normal">{email}</span>
           </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={theme} onValueChange={(value: string) => setTheme(value)}>
+            {THEMES.map(({ value, label, Icon }) => (
+              <DropdownMenuRadioItem key={value} value={value}>
+                <Icon /> {label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem

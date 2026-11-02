@@ -4,7 +4,7 @@ import type { TokenUsage } from "@/core/analysis/generators";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
-import { STALE_ANALYSIS_MS } from "@/core/analysis/stale";
+import { RUN_BUDGET_MS, RUN_TIMEOUT_ERROR, STALE_ANALYSIS_MS } from "@/core/analysis/stale";
 import { toActionError } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -14,7 +14,12 @@ import { first } from "@/lib/first";
 
 type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 
-type Execute = () => Promise<Outcome>;
+// The signal aborts at the run's deadline; model calls take it so the run ends before the host kills the request.
+type Execute = (deadline: AbortSignal) => Promise<Outcome>;
+
+// Provider, GitHub and database messages can carry internal URLs, ids or model output, so members see this instead.
+export const UNEXPECTED_RUN_ERROR =
+  "The analysis failed. Try again; if it keeps failing, ask an admin to check the logs.";
 
 // Writes land only while the row still carries the run's token: a run replaced by a re-run must not
 // overwrite the newer result when it finishes late.
@@ -35,8 +40,9 @@ async function applyOutcome(
 // Runs the model call and records its outcome; a failure lands on the row instead of escaping as an error page.
 async function recordOutcome(db: Database, id: string, runToken: string, execute: Execute): Promise<void> {
   const startedAt = Date.now();
+  const deadline = AbortSignal.timeout(RUN_BUDGET_MS);
   try {
-    const { result, issues, usage, revision } = await execute();
+    const { result, issues, usage, revision } = await execute(deadline);
     await applyOutcome(db, id, runToken, {
       status: "completed",
       result,
@@ -48,9 +54,10 @@ async function recordOutcome(db: Database, id: string, runToken: string, execute
     });
   } catch (error) {
     const known = toActionError(error);
+    if (!known) console.error(`[analysis] run ${id} failed`, error);
     await applyOutcome(db, id, runToken, {
       status: "failed",
-      error: known?.error ?? (error instanceof Error ? error.message : String(error)),
+      error: deadline.aborted ? RUN_TIMEOUT_ERROR : (known?.error ?? UNEXPECTED_RUN_ERROR),
       latencyMs: Date.now() - startedAt,
     });
   }

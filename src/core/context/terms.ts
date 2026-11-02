@@ -85,12 +85,14 @@ const SYNONYMS: Record<string, string[]> = {
 // A quoted string in a request is usually the new value, which the code cannot contain yet.
 const QUOTED_LITERAL = /"[^"]*"|“[^”]*”|`[^`]*`/g;
 
-const normalize = (text: string) =>
+// Terms are compared without case or accents ("créer" meets "creer"); anything matched against them is folded alike.
+export const foldText = (text: string) =>
   text
-    .replace(QUOTED_LITERAL, " ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+
+const normalize = (text: string) => foldText(text.replace(QUOTED_LITERAL, " "));
 
 // Function words of the common request languages: they match nearly every issue or file by substring.
 const OTHER_LANGUAGE_STOPWORDS = new Set([...fra, ...spa, ...deu, ...ita, ...por, ...nld]);

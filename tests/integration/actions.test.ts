@@ -9,6 +9,7 @@ import {
   type TrackerProvider,
 } from "@/core/integrations/provider";
 import type { TicketDraft } from "@/core/requirements/schemas";
+import { disconnectConnection } from "@/features/integrations/actions";
 import { removeMember } from "@/features/organizations/actions";
 import { createProject, deleteProject } from "@/features/projects/actions";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
@@ -200,6 +201,11 @@ describe("admin actions", () => {
       state.isAdmin = true;
     }
   });
+
+  it("answer not found for a malformed id instead of reaching the database", async () => {
+    expect(await deleteProject("not-a-uuid")).toEqual({ error: "Project not found" });
+    expect(await disconnectConnection("not-a-uuid")).toEqual({ error: "Connection not found" });
+  });
 });
 
 describe("refineTicket", () => {
@@ -317,6 +323,7 @@ describe("publishTicket and saveDraftEdits", () => {
           status: "completed",
           input: { request: "Round totals" },
           result: stored,
+          runToken: "run-1",
           ...overrides,
         })
         .returning({ id: schema.analysis.id }),
@@ -326,7 +333,7 @@ describe("publishTicket and saveDraftEdits", () => {
 
   const rowOf = async (id: string) =>
     first(await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
-  const runKeyOf = async (id: string) => (await rowOf(id)).startedAt.toISOString();
+  const runKeyOf = async (id: string) => (await rowOf(id)).runToken ?? "";
 
   function creatingTracker(create: IssueTracker["createIssue"]) {
     state.tracker = {
@@ -406,8 +413,8 @@ describe("publishTicket and saveDraftEdits", () => {
   it("refuses an autosave from a run that has since been regenerated", async () => {
     const id = await draftAnalysis();
 
-    expect(await saveDraftEdits(id, "2020-01-01T00:00:00.000Z", editable)).toEqual({
-      error: "The draft was regenerated; reload the page",
+    expect(await saveDraftEdits(id, "run-0", editable)).toEqual({
+      error: "The draft was regenerated or published since you edited it; reload the page",
     });
     expect((await rowOf(id)).editedResult).toBeNull();
   });

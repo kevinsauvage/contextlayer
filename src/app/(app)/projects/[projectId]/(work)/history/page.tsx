@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge";
+import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { getProject, listAnalyses } from "@/features/projects/queries";
@@ -10,13 +11,15 @@ import { getDb } from "@/infrastructure/db/client";
 
 export const metadata: Metadata = { title: "History" };
 
-export default async function Page({ params }: PageProps<"/projects/[projectId]/history">) {
+export default async function Page({ params, searchParams }: PageProps<"/projects/[projectId]/history">) {
   const { projectId } = await params;
+  const { before } = await searchParams;
+  const cursor = typeof before === "string" ? before : undefined;
   const { organizationId } = await requireOrgContext();
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
   if (!project) notFound();
-  const analyses = await listAnalyses(db, project.id);
+  const { analyses, olderThan } = await listAnalyses(db, project.id, cursor);
 
   return (
     <div className="flex flex-col gap-8">
@@ -49,13 +52,32 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
                   </Badge>
                   <span className="flex-1 truncate">{firstLine(requestOf(readAnalysisInput(a))) || "Untitled"}</span>
                   <AnalysisStatusBadge analysis={a} />
-                  <time className="hidden text-muted-foreground sm:inline" dateTime={a.createdAt.toISOString()}>
-                    {a.createdAt.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
-                  </time>
+                  <span className="hidden text-muted-foreground sm:inline">
+                    <LocalTime date={a.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
+        )}
+        {(cursor !== undefined || olderThan !== null) && (
+          <nav aria-label="History pages" className="flex justify-between text-sm">
+            {cursor ? (
+              <Link href={`/projects/${project.id}/history`} className="underline underline-offset-2">
+                Latest
+              </Link>
+            ) : (
+              <span />
+            )}
+            {olderThan && (
+              <Link
+                href={`/projects/${project.id}/history?before=${olderThan}`}
+                className="underline underline-offset-2"
+              >
+                Show older
+              </Link>
+            )}
+          </nav>
         )}
       </section>
     </div>

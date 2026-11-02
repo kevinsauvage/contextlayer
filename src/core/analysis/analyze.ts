@@ -4,10 +4,10 @@ import type { ContextSource, Issue, IssueTracker } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import {
   citedEvidence,
+  draftIssues,
   isTicketIntrinsic,
   validateAuditFindings,
   validateEvidenceReferences,
-  validateOpenQuestions,
   type EvidenceIssue,
 } from "@/core/evidence/validate";
 import { draftSections, refinementText, type Refinement, type TicketDraft } from "@/core/requirements/schemas";
@@ -42,11 +42,10 @@ export async function draftTicket(
   });
 
   const draft: TicketDraft = { ...body, evidence: citedEvidence(context.evidence, draftSections(body)) };
-  const issues = [...validateEvidenceReferences(draft.evidence, draftSections(draft)), ...validateOpenQuestions(draft)];
   return {
     draft,
     candidates: context.evidence,
-    issues,
+    issues: draftIssues(draft),
     usage: addUsage(context.usage, usage),
     revision: input.source.revision,
   };

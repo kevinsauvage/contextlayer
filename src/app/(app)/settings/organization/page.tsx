@@ -8,6 +8,7 @@ import { OrganizationNameForm } from "@/components/organization/organization-nam
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocalTime } from "@/components/local-time";
 import { getOrganization, listMembers, listPendingInvitations } from "@/features/organizations/queries";
 import { MEMBER_ROLE, OWNER_ROLE, isAdminRole } from "@/core/organizations/roles";
 import { requireOrgContext } from "@/infrastructure/auth/session";
@@ -87,7 +88,7 @@ export default async function Page() {
                         <span className="truncate">{invitation.email}</span>
                         <span className="text-xs text-muted-foreground">
                           Pending · expires{" "}
-                          {invitation.expiresAt.toLocaleDateString("en", { month: "short", day: "numeric" })}
+                          <LocalTime date={invitation.expiresAt} options={{ month: "short", day: "numeric" }} />
                         </span>
                       </div>
                       <Badge variant="outline" className="capitalize">

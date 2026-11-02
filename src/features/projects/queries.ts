@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { STALE_ANALYSIS_ERROR, isStale } from "@/core/analysis/stale";
 import type { Database } from "@/infrastructure/db/client";
@@ -37,14 +37,28 @@ export async function getProject(db: Database, organizationId: string, projectId
   return row ?? null;
 }
 
-export async function listAnalyses(db: Database, projectId: string): Promise<Analysis[]> {
+const HISTORY_PAGE_SIZE = 50;
+
+export type AnalysisPage = { analyses: Analysis[]; olderThan: string | null };
+
+// Keyset paging: `before` is the last analysis of the previous page, so a new run does not shift the pages. The cursor
+// row is compared in SQL because a JS Date would drop the timestamp's microseconds. `olderThan` is the next cursor.
+export async function listAnalyses(db: Database, projectId: string, before?: string): Promise<AnalysisPage> {
+  const older =
+    before && isUuid(before)
+      ? sql`(${analysis.createdAt}, ${analysis.id}) < (select c.created_at, c.id from ${analysis} c where c.id = ${before} and c.project_id = ${projectId})`
+      : undefined;
   const rows = await db
     .select()
     .from(analysis)
-    .where(eq(analysis.projectId, projectId))
-    .orderBy(desc(analysis.createdAt))
-    .limit(50);
-  return rows.map(displayed);
+    .where(and(eq(analysis.projectId, projectId), older))
+    .orderBy(desc(analysis.createdAt), desc(analysis.id))
+    .limit(HISTORY_PAGE_SIZE + 1);
+  const page = rows.slice(0, HISTORY_PAGE_SIZE);
+  return {
+    analyses: page.map(displayed),
+    olderThan: rows.length > HISTORY_PAGE_SIZE ? (page.at(-1)?.id ?? null) : null,
+  };
 }
 
 export async function getAnalysis(

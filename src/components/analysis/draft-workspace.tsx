@@ -12,7 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
-import type { EvidenceIssue } from "@/core/evidence/validate";
+import type { Evidence } from "@/core/evidence/schemas";
+import { draftIssues, type EvidenceIssue } from "@/core/evidence/validate";
 import { withoutIncompleteItems, type TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 import type { ActionState } from "@/lib/action-state";
@@ -58,6 +59,8 @@ type Props = {
   questionsAnchored?: boolean;
   // Claims whose quotes the evidence does not support; approval is blocked until they are fixed.
   issues?: EvidenceIssue[];
+  // Every source the analysis stored. With it, the warnings are checked again as the draft is edited.
+  evidence?: Evidence[];
 };
 
 export function DraftWorkspace({
@@ -72,6 +75,7 @@ export function DraftWorkspace({
   published: initialPublished,
   questionsAnchored = false,
   issues = [],
+  evidence,
 }: Props) {
   const [draft, setDraft] = useState(initial);
   const [result, setResult] = useState<PublishResult>(
@@ -90,6 +94,7 @@ export function DraftWorkspace({
   const unappliedAnswers = refinement?.answered.length ?? 0;
   const { unresolved, labelled } = readinessOf(draft, unappliedAnswers);
   const target = existingKey ? `Updates ${existingKey}` : `Creates a new issue in ${projectLabel}`;
+  const shownIssues = edited && evidence ? draftIssues(draft, evidence) : issues;
 
   // An evidence warning is a link into the editor: show the section it points at and mark it.
   const showClaim = (path: string) => {
@@ -134,7 +139,7 @@ export function DraftWorkspace({
   };
   return (
     <div className="flex flex-col gap-4">
-      <EvidenceWarnings issues={issues} onSelect={showClaim} />
+      <EvidenceWarnings issues={shownIssues} onSelect={showClaim} />
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
         <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>

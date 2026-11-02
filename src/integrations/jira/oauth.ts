@@ -4,6 +4,8 @@ import { InvalidGrantError, type OAuthTokens } from "@/core/integrations/provide
 import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const SCOPES = ["read:jira-work", "write:jira-work", "offline_access"];
+// A token refresh runs while the grant's rows are locked, so a hung Atlassian request must not hold them for long.
+const REQUEST_TIMEOUT_MS = 15_000;
 
 const tokenSchema = z.object({
   access_token: z.string(),
@@ -35,6 +37,7 @@ async function requestTokens(body: Record<string, string>): Promise<OAuthTokens>
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: JIRA_CLIENT_ID, client_secret: JIRA_CLIENT_SECRET, ...body }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (response.status === 400 || response.status === 401 || response.status === 403) {
     throw new InvalidGrantError(`Atlassian rejected the token request (${response.status})`);
@@ -57,6 +60,7 @@ export const refreshJiraTokens = (refreshToken: string) =>
 export async function listJiraSites(accessToken: string): Promise<JiraSite[]> {
   const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
     headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`Could not list Jira sites (${response.status})`);
   return resourcesSchema.parse(await response.json());

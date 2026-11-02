@@ -127,6 +127,7 @@ export async function saveAccounts(
 }
 
 export async function projectsUsingConnection(db: Database, organizationId: string, connectionId: string) {
+  if (!isUuid(connectionId)) return [];
   return db
     .select({ id: project.id, name: project.name })
     .from(project)
@@ -139,5 +140,6 @@ export async function projectsUsingConnection(db: Database, organizationId: stri
 }
 
 export async function deleteConnection(db: Database, organizationId: string, connectionId: string) {
+  if (!isUuid(connectionId)) return;
   await db.delete(integrationConnection).where(and(eq(integrationConnection.id, connectionId), byOrg(organizationId)));
 }

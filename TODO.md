@@ -22,8 +22,8 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | -------- | -------------------------------------------------------------------------------- | --: | ------: | ------: | -------: | -------: |
 | P0       | Core promise: the draft must be correct and the run must not fail                |   0 |       0 |       0 |        0 |        0 |
 | P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes        |   0 |       0 |       0 |        0 |        0 |
-| P2       | Production-grade: security, limits, deploy, reliability                          |   5 |       6 |       3 |        0 |        5 |
-| P3       | Polish and later                                                                 |   8 |       7 |       1 |        4 |        5 |
+| P2       | Production-grade: security, limits, deploy, reliability                          |   0 |       6 |       3 |        0 |        5 |
+| P3       | Polish and later                                                                 |   0 |       7 |       1 |        4 |        5 |
 | Deferred | Business validation and the demo clone, not needed to build the product properly |   0 |       1 |       0 |        0 |        5 |
 
 **Order of work:** P0 first (the core promise), then P1 (prove it), then P2 (production-grade, before the first production database exists). Rationale in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md), section 6.

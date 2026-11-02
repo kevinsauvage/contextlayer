@@ -2,6 +2,7 @@ import "server-only";
 import ky, { HTTPError } from "ky";
 import { z } from "zod";
 import type { Issue, IssueTracker, PublishedIssue } from "@/core/context/source";
+import { foldText } from "@/core/context/terms";
 import { TrackerRejectedError } from "@/core/errors";
 import { ticketSections } from "@/core/requirements/render";
 import type { TicketDraft } from "@/core/requirements/schemas";
@@ -48,17 +49,24 @@ export class JiraApiError extends Error {
   }
 }
 
-// A 400 on a write names the field Jira refused, which is far more useful than "rejected the change".
-function rejectionMessage(detail: string): string {
+// A refused write names the field or reason Jira gave, which is far more useful than "rejected the change".
+function rejectionMessage(detail: string, fallback: string): string {
   try {
     const body = rejectionSchema.parse(JSON.parse(detail));
     const field = Object.entries(body.errors ?? {})[0];
     if (field) return `${field[0]}: ${field[1]}`;
-    return body.errorMessages?.[0] ?? "The issue tracker rejected the change.";
+    return body.errorMessages?.[0] ?? fallback;
   } catch {
-    return "The issue tracker rejected the change.";
+    return fallback;
   }
 }
+
+// These statuses mean Jira did not write anything, so the publish claim can go and the person can act on the reason.
+const REFUSALS: Record<number, (projectKey: string) => string> = {
+  400: () => "The issue tracker rejected the change.",
+  403: (projectKey) => `Jira refused: the connected account cannot create or edit issues in ${projectKey}.`,
+  404: (projectKey) => `Jira could not find the issue or the ${projectKey} project; it may have been deleted or moved.`,
+};
 
 type JiraProject = z.infer<typeof projectPageSchema>["values"][number];
 
@@ -149,8 +157,8 @@ export class JiraClient implements IssueTracker {
     });
     const issues = searchSchema.parse(result).issues.map((issue) => this.toIssue(issue));
     const relevance = (issue: Issue) => {
-      const summary = issue.summary.toLowerCase();
-      const description = issue.description.toLowerCase();
+      const summary = foldText(issue.summary);
+      const description = foldText(issue.description);
       return used.reduce(
         (total, term) => total + (summary.includes(term) ? 2 : 0) + (description.includes(term) ? 1 : 0),
         0,
@@ -208,8 +216,9 @@ export class JiraClient implements IssueTracker {
     try {
       return await this.call(path, { ...init, write: true });
     } catch (error) {
-      if (error instanceof JiraApiError && error.status === 400)
-        throw new TrackerRejectedError(rejectionMessage(error.detail));
+      const refusal = error instanceof JiraApiError ? REFUSALS[error.status] : undefined;
+      if (refusal && error instanceof JiraApiError)
+        throw new TrackerRejectedError(rejectionMessage(error.detail, refusal(this.projectKey)));
       throw error;
     }
   }

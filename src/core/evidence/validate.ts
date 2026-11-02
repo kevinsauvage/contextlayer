@@ -179,3 +179,10 @@ export function validateOpenQuestions(draft: TicketDraft): EvidenceIssue[] {
   }
   return issues;
 }
+
+// Everything a create draft is checked for, against the evidence it may cite: run once when the draft is generated, and
+// again in the browser as the person edits it.
+export const draftIssues = (draft: TicketDraft, evidence: Evidence[] = draft.evidence): EvidenceIssue[] => [
+  ...validateEvidenceReferences(evidence, draftSections(draft)),
+  ...validateOpenQuestions(draft),
+];

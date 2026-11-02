@@ -71,6 +71,16 @@ describe("JiraClient", () => {
     expect(found.map((item) => item.key)).toEqual(["SHOP-2"]);
   });
 
+  it("ranks an accented summary by its folded terms", async () => {
+    const issue = (key: string, summary: string) => ({ key, fields: { summary, status: { name: "Done" } } });
+    // Without folding both score one summary hit, and the first one Jira returned would win.
+    stubFetch(() => json({ issues: [issue("SHOP-1", "Export is slow"), issue("SHOP-2", "Créer l'export")] }));
+
+    const found = await new JiraClient(site, "SHOP", auth()).searchRelated(["creer", "export"], 1);
+
+    expect(found.map((item) => item.key)).toEqual(["SHOP-2"]);
+  });
+
   it("maps an issue to text and a browse URL", async () => {
     stubFetch(async () =>
       json({
@@ -225,6 +235,30 @@ describe("JiraClient", () => {
     await new JiraClient(site, "SHOP", auth()).searchRelated(["cart"], 5);
 
     expect(calls).toBe(2);
+  });
+
+  it("reads a 403 or a 404 on a write as a refusal the person can act on", async () => {
+    const draft = {
+      title: "Round cart totals",
+      description: [{ text: "Round half up", status: "verified" as const, evidenceIds: [] }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+    const tracker = new JiraClient(site, "SHOP", auth());
+
+    stubFetch(async () => new Response("", { status: 403 }));
+    await expect(tracker.updateIssue("SHOP-7", draft)).rejects.toThrow(
+      new TrackerRejectedError("Jira refused: the connected account cannot create or edit issues in SHOP."),
+    );
+
+    stubFetch(async () =>
+      json({ errorMessages: ["Issue does not exist or you do not have permission to see it."] }, 404),
+    );
+    await expect(tracker.updateIssue("SHOP-7", draft)).rejects.toThrow(
+      new TrackerRejectedError("Issue does not exist or you do not have permission to see it."),
+    );
   });
 
   it("reads the field message from a rejection body longer than the logged excerpt", async () => {

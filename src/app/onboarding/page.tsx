@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { CenteredShell } from "@/components/layout/centered-shell";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { buttonVariants } from "@/components/ui/button";
-import { listInvitationsForEmail } from "@/features/organizations/queries";
+import { listInvitationsForUser } from "@/features/organizations/queries";
 import { getSession } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
@@ -14,7 +14,7 @@ export default async function Page() {
   const session = await getSession();
   if (!session) redirect("/sign-in");
   if (session.session.activeOrganizationId) redirect("/projects");
-  const invitations = await listInvitationsForEmail(getDb(), session.user.email);
+  const invitations = await listInvitationsForUser(getDb(), session.user);
 
   return (
     <CenteredShell

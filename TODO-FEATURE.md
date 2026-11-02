@@ -14,7 +14,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
 
 - [ ] **Email verification, invitations and password reset** `P2`
   - **Context:** no email provider exists, so accounts are unverified and invitation links are the only secret. On a public site anyone can create accounts with fake addresses. The usage caps limit the damage; verification closes the gap.
-  - **Fix:** add an email provider (Resend or another Marketplace integration), enable Better Auth `emailVerification` and `sendResetPassword`, require verified email to accept invitations, and set `sendInvitationEmail` in the organization plugin.
+  - **Fix:** add an email provider (Resend or another Marketplace integration), enable Better Auth `emailVerification` and `sendResetPassword`, require verified email to accept invitations (`requireEmailVerificationOnInvitation: true` in the organization plugin; `/onboarding` already lists invitations only for a verified address, through `listInvitationsForUser`), and set `sendInvitationEmail`.
 
 - [ ] **Error monitoring and structured logging** `P2`
   - **Context:** failures are only `console.error` calls (OAuth callbacks, resource listing, publishing).
@@ -22,7 +22,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
 
 - [ ] **Content Security Policy** `P2`
   - **Context:** `next.config.ts` sets basic security headers but no CSP.
-  - **Fix:** add a nonce-based CSP in `src/proxy.ts`, allowing only self and the needed origins; test in report-only mode first.
+  - **Fix:** add a nonce-based CSP in `src/proxy.ts`, allowing only self and the needed origins; test in report-only mode first. `next-themes` injects an inline script to set the theme before paint: pass it the nonce (`ThemeProvider` takes a `nonce` prop).
 
 - [ ] **Run analyses outside the server action and show progress** `P2`
   - **Context:** `startAnalysis` and `restartAnalysis` await the whole run inside a Server Action (`src/features/analysis/run.ts`), which takes 10–40 s. The user sees only a pending label, the client's action queue is blocked (autosave, publish and the next message wait; see the autosave bug in [`TODO-BUG.md`](TODO-BUG.md)), a closed tab loses the redirect, and the lease, stale-run and run-token code exists to recover from dead requests.

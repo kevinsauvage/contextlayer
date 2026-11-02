@@ -32,13 +32,12 @@ export async function createAuditAnalysis(projectId: string, _: ActionState, for
       userId,
       kind: "audit",
       input: { issueKey },
-      execute: async () => {
-        const generator = defaultGenerator();
+      execute: async (deadline) => {
         const { report, issue, issues, usage, revision } = await auditIssue({
           issueKey,
           ...(await buildProjectContext(db, project)),
-          generator,
-          selector: defaultSelector(),
+          generator: defaultGenerator(deadline),
+          selector: defaultSelector(deadline),
         });
         // The issue's timestamp travels with the report so applying it can detect edits made in Jira since.
         return { result: { ...report, issueUpdatedAt: issue.updated }, issues, usage, revision };
