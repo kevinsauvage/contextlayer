@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pathsFromCalls } from "@/integrations/ai/evidence-agent";
+import { pathsFromCalls, searchReply } from "@/integrations/ai/evidence-agent";
 
 const known = new Set(["src/a.ts", "src/b.ts", "src/c.ts"]);
 const select = (paths: unknown) => ({ toolName: "selectFiles", input: { paths } });
@@ -37,5 +37,23 @@ describe("pathsFromCalls", () => {
 
   it("returns nothing without a tool call", () => {
     expect(pathsFromCalls([], known)).toEqual([]);
+  });
+});
+
+describe("searchReply", () => {
+  it("returns the paths when every term was searched", () => {
+    expect(searchReply({ paths: ["src/a.ts"], failedTerms: [] })).toEqual(["src/a.ts"]);
+  });
+
+  it("says which terms went unsearched instead of reporting no match", () => {
+    expect(searchReply({ paths: [], failedTerms: ["cart", "total"] })).toBe(
+      "(Search failed for cart, total: the code host refused it, so those words may still be in the code. Use listFiles with contains, or readFile.)",
+    );
+  });
+
+  it("keeps the hits of the terms that were searched", () => {
+    expect(searchReply({ paths: ["src/a.ts", "src/b.ts"], failedTerms: ["cart"] })).toMatch(
+      /^src\/a\.ts\nsrc\/b\.ts\n\(Search failed for cart:/,
+    );
   });
 });

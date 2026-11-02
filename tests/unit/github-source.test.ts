@@ -117,19 +117,22 @@ describe("GithubSource.searchContent", () => {
         data: { items: [{ path: "src/a.ts" }, { path: q.startsWith("cart") ? "src/b.ts" : "src/a.ts" }] },
       });
 
-    const paths = await (await connect()).searchContent(["404", "ff00aa", "cart", "total", "price", "tax"]);
+    const result = await (await connect()).searchContent(["404", "ff00aa", "cart", "total", "price", "tax"]);
 
     expect(github.searchCalls).toEqual(["cart repo:acme/shop", "total repo:acme/shop", "price repo:acme/shop"]);
-    expect(paths).toEqual(["src/a.ts", "src/b.ts"]);
+    expect(result).toEqual({ paths: ["src/a.ts", "src/b.ts"], failedTerms: [] });
   });
 
-  it("keeps the other terms' hits when one search fails", async () => {
+  it("keeps the other terms' hits when one search fails, and reports the failed term", async () => {
     github.search = (q) =>
       q.startsWith("cart")
         ? Promise.reject(new Error("rate limited"))
         : Promise.resolve({ data: { items: [{ path: "src/total.ts" }] } });
 
-    expect(await (await connect()).searchContent(["cart", "total"])).toEqual(["src/total.ts"]);
+    expect(await (await connect()).searchContent(["cart", "total"])).toEqual({
+      paths: ["src/total.ts"],
+      failedTerms: ["cart"],
+    });
   });
 });
 
@@ -154,7 +157,7 @@ describe("GithubSource with a monorepo folder", () => {
     github.search = () =>
       Promise.resolve({ data: { items: [{ path: "apps/web/src/a.ts" }, { path: "apps/api/src/b.ts" }] } });
 
-    expect(await (await connectScoped()).searchContent(["cart"])).toEqual(["src/a.ts"]);
+    expect((await (await connectScoped()).searchContent(["cart"])).paths).toEqual(["src/a.ts"]);
     expect(github.searchCalls).toEqual(["cart repo:acme/shop path:apps/web"]);
   });
 

@@ -171,6 +171,62 @@ describe("JiraClient", () => {
     await expect(tracker.createIssue(draft)).rejects.toThrow("summary: The summary is too long.");
   });
 
+  it("never resends a write after a dropped connection, which may hide an issue Jira created", async () => {
+    let posts = 0;
+    stubFetch(async (_url: string, init: RequestInit) => {
+      if (init.method !== "POST") return json({ issueTypes: [{ name: "Task", subtask: false }] });
+      posts += 1;
+      throw new TypeError("fetch failed");
+    });
+    const draft = {
+      title: "Round cart totals",
+      description: [{ text: "Round half up", status: "verified" as const, evidenceIds: [] }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+
+    await expect(new JiraClient(site, "SHOP", auth()).createIssue(draft)).rejects.toThrow("network error");
+    expect(posts).toBe(1);
+  });
+
+  it("retries a write once Jira answers 429", async () => {
+    let puts = 0;
+    stubFetch(async (_url: string, init: RequestInit) => {
+      if (init.method !== "PUT") return json({});
+      puts += 1;
+      return puts === 1
+        ? new Response("slow down", { status: 429, headers: { "retry-after": "0" } })
+        : new Response(null, { status: 204 });
+    });
+    const draft = {
+      title: "Round cart totals",
+      description: [{ text: "Round half up", status: "verified" as const, evidenceIds: [] }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+
+    await new JiraClient(site, "SHOP", auth()).updateIssue("SHOP-7", draft);
+
+    expect(puts).toBe(2);
+  });
+
+  it("retries a read after a dropped connection", async () => {
+    let calls = 0;
+    stubFetch(() => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("fetch failed");
+      return json({ issues: [] });
+    });
+
+    await new JiraClient(site, "SHOP", auth()).searchRelated(["cart"], 5);
+
+    expect(calls).toBe(2);
+  });
+
   it("reads the field message from a rejection body longer than the logged excerpt", async () => {
     const errors = { summary: "The summary is too long.", description: "x".repeat(400) };
     stubFetch(async (_url: string, init: RequestInit) =>

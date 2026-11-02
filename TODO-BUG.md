@@ -2,16 +2,6 @@
 
 Existing behaviour that is wrong: it fails, or silently returns incomplete or incorrect results. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite its finding id (for example `B1`) in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md). Items from the 2026-11-02 code review were found by reading the code and the installed library sources; none was reproduced in a running app.
 
-## P1 · Prove it: correctness fixes
-
-- [ ] **A network error on a Jira write can create the issue twice** `P1`
-  - **Context:** `jiraRequest` in `src/integrations/jira/client.ts` retries `post` and `put`, meant for 429s only. ky 2 also retries network errors (`fetch failed`, a connection reset) for every method in that list (`node_modules/ky/readme.md`, "Network errors … are automatically retried for retriable methods"). If the connection drops after Jira created the issue, ky posts it again within the same request, so the claim in `publishApproved` cannot prevent a duplicate.
-  - **Fix:** keep `methods` to `get` for network errors, and use `shouldRetry` so `post`/`put` retry only on an `HTTPError` with status 429. Add a `jira-client` unit test where the first `POST /issue` fails with `TypeError("fetch failed")` and assert a single call and a thrown error.
-
-- [ ] **GitHub code search is rate limited and failures read as "no match"** `P1`
-  - **Context:** the evidence agent can call `searchContent` on every step (`MAX_STEPS = 8`), and `GithubSource.searchContent` runs up to 3 code searches per call. GitHub allows 10 code searches a minute per installation, shared by concurrent analyses. A failed search is logged and dropped (`src/integrations/github/source.ts:106`), so the agent receives `[]` and concludes the term is absent. Retrieval then gets worse with no sign on the analysis.
-  - **Fix:** have `searchContent` report a failure (a result such as `"Search unavailable (rate limited); use listFiles with contains"`) instead of an empty list, cap searches per run, and record the number of failed searches on the run (with "Store the retrieval candidates" in [`TODO-FEATURE.md`](TODO-FEATURE.md)). Then measure a run on a real installation.
-
 ## P2 · Polish and evidence
 
 - [ ] **Anyone can sign up with an invitee's address and join the organization** `P2`

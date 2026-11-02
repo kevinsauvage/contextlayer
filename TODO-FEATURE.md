@@ -6,7 +6,7 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
 
 - [ ] **Store the retrieval candidates with each analysis** `P2` `E6` `B9`
   - **Context:** `draftFromRequest` returns only the draft, issues, usage and revision (`src/features/ticket-creation/actions.ts:39`) and the audit action does the same, so the candidates `draftTicket` and `auditIssue` retrieve are dropped. When a run misses a file there is no way to see what was retrieved or why.
-  - **Fix:** add a `retrieval` jsonb column on `analysis` holding the terms used (heuristic and model) and, per candidate, its reference, kind, line range and score, but not the excerpt. Show it in a collapsed "How this was found" block on the analysis page.
+  - **Fix:** add a `retrieval` jsonb column on `analysis` holding the terms used (heuristic and model) and, per candidate, its reference, kind, line range and score, but not the excerpt, plus the terms whose code search failed (`SearchResult.failedTerms`, usually GitHub's limit of 10 code searches a minute). Show it in a collapsed "How this was found" block on the analysis page.
 
 - [ ] **Usage limits and rate limiting** `P2`
   - **Context:** every analysis, refinement and answer round spends model tokens, sign-up is open (`src/infrastructure/auth/auth.ts:18`) and nothing caps runs per user or in total, so on any deployed instance one user or script could use up the AI budget.

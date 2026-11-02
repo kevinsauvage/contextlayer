@@ -1,6 +1,6 @@
 import "server-only";
 import type { Octokit } from "octokit";
-import type { ContextSource, LineRange } from "@/core/context/source";
+import type { ContextSource, LineRange, SearchResult } from "@/core/context/source";
 import { getGithubApp, type RepoRef } from "./app";
 import { isReadablePath, MAX_FILE_BYTES, SEARCH_RESULTS, searchableTerms } from "../source-filters";
 import { walkTree, type TreeEntry } from "./tree";
@@ -86,11 +86,12 @@ export class GithubSource implements ContextSource {
   }
 
   // Code search has no OR: ANDing every term finds almost nothing, so run one query per term, best effort.
-  async searchContent(terms: string[]): Promise<string[]> {
+  async searchContent(terms: string[]): Promise<SearchResult> {
     const repo = `repo:${this.repo.owner}/${this.repo.name}`;
     const scope = this.subdirectory ? ` path:${this.subdirectory}` : "";
     const searchable = searchableTerms(terms);
     const paths: string[] = [];
+    const failedTerms: string[] = [];
     for (const term of searchable) {
       try {
         const { data } = await this.octokit.rest.search.code({
@@ -104,11 +105,13 @@ export class GithubSource implements ContextSource {
             .map((path) => this.relativePath(path)),
         );
       } catch (error) {
-        // Rate limits and unparsable terms must not fail retrieval, but silent degradation is worth a log line.
+        // Rate limits (10 code searches a minute) and unparsable terms must not fail retrieval, but the caller has to
+        // know the term went unsearched rather than unmatched.
         console.warn(`[github] code search failed for "${term}"`, error instanceof Error ? error.message : error);
+        failedTerms.push(term);
       }
     }
-    return [...new Set(paths)];
+    return { paths: [...new Set(paths)], failedTerms };
   }
 
   urlFor(path: string, lines?: LineRange): string {

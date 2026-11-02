@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { ContextSource } from "@/core/context/source";
+import type { ContextSource, SearchResult } from "@/core/context/source";
 import { isReadablePath, MAX_FILE_BYTES, SEARCH_RESULTS, searchableTerms } from "../source-filters";
 
 const exec = promisify(execFile);
@@ -65,7 +65,7 @@ export class GitSource implements ContextSource {
     return readFile(path.join(this.root, file), "utf8");
   }
 
-  async searchContent(terms: string[]): Promise<string[]> {
+  async searchContent(terms: string[]): Promise<SearchResult> {
     const snapshot = this.snapshot;
     // Grepping a commit prints `rev:path:count`; the working tree prints `path:count`.
     const prefix = snapshot ? `${snapshot}:` : "";
@@ -102,7 +102,7 @@ export class GitSource implements ContextSource {
         .slice(0, SEARCH_RESULTS);
       found.push(...ranked.map(({ file }) => file));
     }
-    return [...new Set(found)];
+    return { paths: [...new Set(found)], failedTerms: [] };
   }
 }
 

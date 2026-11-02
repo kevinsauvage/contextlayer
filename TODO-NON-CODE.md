@@ -44,7 +44,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 
 - [ ] **Measure large-repository latency** `P3` `E6`
   - **Context:** listing a truncated tree now falls back to one paginated listing per directory (`walkTree` in `src/integrations/github/tree.ts`), so files are no longer silently lost, but the added round trips are unmeasured.
-  - **Fix:** connect a GitHub App to a repository of about 1,000 files and one large enough to truncate the recursive tree, time `listFiles` for both paths, and record the numbers in `docs/engineering/phase-0-feasibility.md`.
+  - **Fix:** connect a GitHub App to a repository of about 1,000 files and one large enough to truncate the recursive tree, time `listFiles` for both paths, count how many code searches a run makes and how many hit GitHub's rate limit (two analyses at once), and record the numbers in `docs/engineering/phase-0-feasibility.md`.
 
 ## Deferred · business validation, not needed for the portfolio
 

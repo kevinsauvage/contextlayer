@@ -50,7 +50,7 @@ describe("GitSource", () => {
 
   it("ranks search hits by how many lines match and drops ignored and binary files", async () => {
     const source = await GitSource.open(root);
-    expect(await source.searchContent(["banner"])).toEqual([
+    expect((await source.searchContent(["banner"])).paths).toEqual([
       "src/Banner.tsx",
       "big.ts",
       "src/other.ts",
@@ -60,7 +60,7 @@ describe("GitSource", () => {
 
   it("returns nothing for a term that matches no file", async () => {
     const source = await GitSource.open(root);
-    expect(await source.searchContent(["zzzxqy"])).toEqual([]);
+    expect(await source.searchContent(["zzzxqy"])).toEqual({ paths: [], failedTerms: [] });
   });
 
   // A pinned commit is what a recall measurement reads: the same files on every run, whatever the working tree holds.
@@ -69,7 +69,7 @@ describe("GitSource", () => {
     expect(source.revision).toBe(firstCommit);
     expect(await source.listFiles()).toEqual(["big.ts", "src/Banner.tsx", "src/other.ts"]);
     expect(await source.readFile("src/other.ts")).toContain("other = 1");
-    expect(await source.searchContent(["banner"])).toEqual(["src/Banner.tsx", "big.ts", "src/other.ts"]);
+    expect((await source.searchContent(["banner"])).paths).toEqual(["src/Banner.tsx", "big.ts", "src/other.ts"]);
   });
 
   it("refuses a commit the checkout does not have", async () => {

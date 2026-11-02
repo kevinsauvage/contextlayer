@@ -278,3 +278,9 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Draft and Audit are two-column work surfaces: the composer on the left, a short guidance panel on the right (what makes a request draft well; what the audit checks) · a single field stretched across 1,100 px has no hierarchy; the panel gives the width a job and states the product's own behaviour (the draft asks instead of guessing).
 - Descriptions inside wide cards are capped at `max-w-prose` · a sentence set 1,100 px wide is unreadable even when the card is not.
 - Project Settings is a normal card with a Danger zone header and a title-left / action-right row, matching the organization danger zone · it was a bordered red box sized for a form column.
+
+## Code review fixes (2026-11-02)
+
+- Jira writes (`POST`/`PUT` through `JiraClient.write`) retry only on a 429; reads still retry network errors · ky retries network errors for every method in `retry.methods`, and a connection dropped after Jira created the issue would post it again inside one request, where the publish claim cannot stop it.
+- `ContextSource.searchContent` returns `{ paths, failedTerms }`, and the evidence agent tells the model which terms went unsearched · GitHub allows 10 code searches a minute per installation; a refused search used to come back as `[]`, which the agent read as "the code has no such word".
+- The evidence agent gets 3 searches per run (up to 9 GitHub code searches) · one run must stay under the per-minute limit so a second analysis on the same installation still has searches left.

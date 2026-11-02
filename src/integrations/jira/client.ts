@@ -63,7 +63,10 @@ function rejectionMessage(detail: string): string {
 type JiraProject = z.infer<typeof projectPageSchema>["values"][number];
 
 type Site = { cloudId: string; siteUrl: string };
-type JiraRequest = { method?: string; body?: unknown };
+// `write` marks a request that changes Jira: a dropped connection may hide a write that landed, so only a 429 retries it.
+type JiraRequest = { method?: string; body?: unknown; write?: boolean };
+
+const isRateLimited = (error: Error) => error instanceof HTTPError && error.response.status === 429;
 
 async function jiraRequest(site: Site, accessToken: string, path: string, init: JiraRequest = {}): Promise<unknown> {
   try {
@@ -77,7 +80,12 @@ async function jiraRequest(site: Site, accessToken: string, path: string, init: 
       body: init.body ? JSON.stringify(init.body) : undefined,
       timeout: REQUEST_TIMEOUT_MS,
       // A 429 means Jira did not process the request, so every method is safe to retry; ky honors Retry-After.
-      retry: { limit: 2, statusCodes: [429], methods: ["get", "post", "put", "delete"] },
+      retry: {
+        limit: 2,
+        statusCodes: [429],
+        methods: ["get", "post", "put", "delete"],
+        shouldRetry: init.write ? ({ error }) => isRateLimited(error) : undefined,
+      },
     });
     return response.status === 204 ? null : await response.json();
   } catch (error) {
@@ -198,7 +206,7 @@ export class JiraClient implements IssueTracker {
 
   private async write(path: string, init: JiraRequest): Promise<unknown> {
     try {
-      return await this.call(path, init);
+      return await this.call(path, { ...init, write: true });
     } catch (error) {
       if (error instanceof JiraApiError && error.status === 400)
         throw new TrackerRejectedError(rejectionMessage(error.detail));
