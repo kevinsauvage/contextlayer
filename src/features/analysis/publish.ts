@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { PUBLISH_CLAIM_MS } from "@/core/analysis/stale";
 import type { PublishedIssue } from "@/core/context/source";
+import { errorSummary } from "@/core/errors";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { toActionError } from "@/features/errors";
 import type { Database } from "@/infrastructure/db/client";
@@ -15,6 +16,7 @@ export type PublishResult = { error?: string; issueKey?: string; issueUrl?: stri
 export async function publishApproved(
   db: Database,
   analysisId: string,
+  runToken: string,
   draft: TicketDraft,
   write: () => Promise<PublishedIssue>,
 ): Promise<PublishResult> {
@@ -24,6 +26,9 @@ export async function publishApproved(
     .where(
       and(
         eq(analysis.id, analysisId),
+        // The approval belongs to the run the browser showed; a newer draft must not be published with an old one.
+        runToken ? eq(analysis.runToken, runToken) : isNull(analysis.runToken),
+        eq(analysis.status, "completed"),
         isNull(analysis.publishedIssueKey),
         or(isNull(analysis.publishingSince), lt(analysis.publishingSince, new Date(Date.now() - PUBLISH_CLAIM_MS))),
       ),
@@ -42,7 +47,7 @@ export async function publishApproved(
       await db.update(analysis).set({ publishingSince: null }).where(eq(analysis.id, analysisId));
       return known;
     }
-    console.error("[analysis] publishing failed", error);
+    console.error("[analysis] publishing failed", errorSummary(error));
     return {
       error:
         "The issue tracker did not confirm the change. Check it for the change before approving again in a few minutes.",

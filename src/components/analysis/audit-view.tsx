@@ -5,6 +5,7 @@ import { EvidenceList } from "@/components/analysis/evidence-list";
 import { OutdatedResult } from "@/components/analysis/outdated-result";
 import { Badge } from "@/components/ui/badge";
 import type { AuditReport } from "@/core/audit/schemas";
+import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { requestOf, type AnalysisInput } from "@/features/analysis/input";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
@@ -13,9 +14,10 @@ type Props = AnalysisViewProps & {
   input: AnalysisInput | null;
   report: AuditReport | null;
   draft: TicketDraft | null;
+  issues?: EvidenceIssue[];
 };
 
-export function AuditView({ analysis, input, report, draft, trackerName, trackerKey }: Props) {
+export function AuditView({ analysis, input, report, draft, issues, trackerName, trackerKey }: Props) {
   if (!report) return <OutdatedResult subject="audit" action="Run the analysis again to update it." />;
   return (
     <div className="flex flex-col gap-8">
@@ -51,6 +53,8 @@ export function AuditView({ analysis, input, report, draft, trackerName, tracker
             projectLabel={trackerKey}
             existingKey={requestOf(input)}
             published={publishedOf(analysis)}
+            issues={issues}
+            evidence={report.evidence}
           />
         ) : (
           <OutdatedResult subject="proposed ticket" action="Run the analysis again to update it." />

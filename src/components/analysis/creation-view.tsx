@@ -14,7 +14,7 @@ export function CreationView({ analysis, draft, trackerName, trackerKey, questio
     <DraftWorkspace
       key={analysis.startedAt.toISOString()}
       initial={draft}
-      publish={publishTicket.bind(null, analysis.id)}
+      publish={publishTicket.bind(null, analysis.id, analysis.runToken ?? "")}
       save={saveDraftEdits.bind(null, analysis.id, analysis.runToken ?? "")}
       publishLabel={`Approve & create in ${trackerName}`}
       trackerName={trackerName}

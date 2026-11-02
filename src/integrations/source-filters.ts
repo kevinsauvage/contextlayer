@@ -9,6 +9,17 @@ const IGNORED_PATH =
 
 export const isReadablePath = (path: string) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path);
 
+// A directory the walk must not descend into: `node_modules/`, `dist/`, `vendor/` and their siblings.
+const IGNORED_DIRECTORY = /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)(\/|$)/;
+export const isIgnoredPath = (path: string) => IGNORED_DIRECTORY.test(path);
+
 // A bare number or a hex colour names a value, not an identifier a text search can find.
 export const searchableTerms = (terms: string[]) =>
   terms.filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term)).slice(0, MAX_SEARCH_TERMS);
+
+// What the source will not search: past the cap, or not an identifier. Reported apart so the agent does not read a
+// term it never searched as "no file contains it".
+export const skippedTerms = (terms: string[]) => {
+  const searchable = searchableTerms(terms);
+  return terms.filter((term) => !searchable.includes(term));
+};

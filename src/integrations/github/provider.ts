@@ -116,8 +116,8 @@ export const githubProvider: SourceProvider = {
     };
   },
 
-  openSource: (ctx, resourceId) => {
+  openSource: (ctx, resourceId, options) => {
     const { owner, name, subdirectory } = parseGithubResourceId(resourceId);
-    return GithubSource.connect(Number(ctx.externalId), { owner, name }, subdirectory);
+    return GithubSource.connect(Number(ctx.externalId), { owner, name }, subdirectory, options?.deadline);
   },
 };

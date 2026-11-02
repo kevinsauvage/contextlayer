@@ -3,6 +3,7 @@ import {
   AnalysisAlreadyRunningError,
   ConnectionMissingError,
   ForbiddenError,
+  TrackerNotFoundError,
   TrackerRejectedError,
 } from "@/core/errors";
 import { ReconnectRequiredError } from "@/core/integrations/provider";
@@ -14,6 +15,7 @@ export function toActionError(error: unknown): { error: string } | null {
   if (error instanceof ReconnectRequiredError)
     return { error: `${error.message} An admin needs to reconnect it in Integrations.` };
   if (error instanceof TrackerRejectedError) return { error: error.message };
+  if (error instanceof TrackerNotFoundError) return { error: error.message };
   if (error instanceof ConnectionMissingError) return { error: error.message };
   return null;
 }

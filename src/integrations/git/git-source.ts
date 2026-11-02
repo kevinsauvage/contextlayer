@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { ContextSource, SearchResult } from "@/core/context/source";
-import { isReadablePath, MAX_FILE_BYTES, SEARCH_RESULTS, searchableTerms } from "../source-filters";
+import { isReadablePath, MAX_FILE_BYTES, SEARCH_RESULTS, searchableTerms, skippedTerms } from "../source-filters";
 
 const exec = promisify(execFile);
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
@@ -102,7 +102,7 @@ export class GitSource implements ContextSource {
         .slice(0, SEARCH_RESULTS);
       found.push(...ranked.map(({ file }) => file));
     }
-    return { paths: [...new Set(found)], failedTerms: [] };
+    return { paths: [...new Set(found)], failedTerms: skippedTerms(terms) };
   }
 }
 

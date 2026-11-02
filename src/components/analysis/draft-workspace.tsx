@@ -13,7 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
 import type { Evidence } from "@/core/evidence/schemas";
-import { draftIssues, type EvidenceIssue } from "@/core/evidence/validate";
+import { draftIssues, isBlockingIssue, isClaimPath, type EvidenceIssue } from "@/core/evidence/validate";
 import { withoutIncompleteItems, type TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 import type { ActionState } from "@/lib/action-state";
@@ -92,9 +92,26 @@ export function DraftWorkspace({
   const edited = !published && JSON.stringify(draft) !== JSON.stringify(initial);
   const setDraftEdited = refinement?.setDraftEdited;
   const unappliedAnswers = refinement?.answered.length ?? 0;
-  const { unresolved, labelled } = readinessOf(draft, unappliedAnswers);
+  const { unresolved: pendingReasons, labelled } = readinessOf(draft, unappliedAnswers);
   const target = existingKey ? `Updates ${existingKey}` : `Creates a new issue in ${projectLabel}`;
-  const shownIssues = edited && evidence ? draftIssues(draft, evidence) : issues;
+  // The stored warnings can be older than the draft on screen (an autosaved edit survived a reload), so re-check the
+  // claims when the evidence is available. Issues about the report (a finding) or the evidence list itself are not
+  // editable here and stay as the run stored them.
+  const shownIssues = evidence
+    ? [
+        ...issues.filter((issue) => !isClaimPath(issue.path)),
+        ...draftIssues(draft, evidence).filter((issue) => isClaimPath(issue.path)),
+      ]
+    : issues;
+  const blocking = shownIssues.filter(isBlockingIssue);
+  const warningCount = shownIssues.length - blocking.length;
+  const unresolved = [
+    ...pendingReasons,
+    ...(blocking.length
+      ? [count(blocking.length, "claim does not match its evidence", "claims do not match their evidence")]
+      : []),
+    ...(warningCount ? [count(warningCount, "claim decides an open question", "claims decide an open question")] : []),
+  ];
 
   // An evidence warning is a link into the editor: show the section it points at and mark it.
   const showClaim = (path: string) => {
@@ -228,8 +245,14 @@ export function DraftWorkspace({
             </div>
             {!confirming && (
               <Button
-                disabled={pending || updating}
-                title={updating ? "The draft is being redrafted" : undefined}
+                disabled={pending || updating || blocking.length > 0}
+                title={
+                  blocking.length
+                    ? "Fix the claims that do not match their evidence first"
+                    : updating
+                      ? "The draft is being redrafted"
+                      : undefined
+                }
                 onClick={() => (unresolved.length ? setConfirming(true) : approve())}
               >
                 {pending ? "Publishing…" : updating ? "Waiting for the draft…" : publishLabel}

@@ -11,6 +11,7 @@ import {
   updateMemberRole,
 } from "@/features/organizations/actions";
 import { getAuth } from "@/infrastructure/auth/auth";
+import { getSession, requireOrgContext } from "@/infrastructure/auth/session";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
 import { migratedDb } from "../helpers/db";
@@ -140,6 +141,36 @@ describe("organization actions", () => {
     expect(await updateMemberRole(member.id, "member")).toEqual({});
     expect(await removeMember(member.id)).toEqual({});
     expect(await memberOf(orgId, "member@x.test")).toBeUndefined();
+  });
+
+  it("moves a session whose active organization no longer includes the member", async () => {
+    await signUp("ghost@x.test");
+    actAs("ghost@x.test");
+    expect((await createOrganization("Ghost Co")).organizationId).toBeDefined();
+
+    actAs("owner@x.test");
+    const invitationId = await invite("ghost@x.test");
+    actAs("ghost@x.test");
+    await acceptInvitation(invitationId);
+    const ghost = await memberOf(orgId, "ghost@x.test");
+    if (!ghost) throw new Error("missing ghost");
+    actAs("owner@x.test");
+    expect(await removeMember(ghost.id)).toEqual({});
+
+    // The removed member's session still names the organization they were removed from.
+    actAs("ghost@x.test");
+    await expect(requireOrgContext()).rejects.toThrow("NEXT_REDIRECT:/projects");
+    expect((await getSession())?.session.activeOrganizationId).not.toBe(orgId);
+  });
+
+  it("clears a stale active organization when the user belongs to none", async () => {
+    actAs("ghost@x.test");
+    const active = (await getSession())?.session.activeOrganizationId;
+    if (!active) throw new Error("ghost has no active organization");
+    await db().delete(schema.organization).where(eq(schema.organization.id, active));
+
+    await expect(requireOrgContext()).rejects.toThrow("NEXT_REDIRECT:/onboarding");
+    expect((await getSession())?.session.activeOrganizationId).toBeNull();
   });
 
   it("lets only the owner delete the organization", async () => {

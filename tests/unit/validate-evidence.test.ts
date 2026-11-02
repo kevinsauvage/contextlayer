@@ -127,6 +127,13 @@ describe("validateOpenQuestions", () => {
     ).toEqual([]);
   });
 
+  it("flags a curly-quoted option value", () => {
+    const [issue] = validateOpenQuestions(
+      draft("Show the “Free shipping” banner.", ["Keep “Free shipping” banner", "Remove it"]),
+    );
+    expect(issue?.message).toContain('states "Free shipping"');
+  });
+
   it("ignores a question without options and aims its warning at the right claim", () => {
     expect(validateOpenQuestions(draft("Nothing decided.", []))).toEqual([]);
     const withOptions = draft("Requests are rejected with 429.", ["429 Too Many Requests"]);

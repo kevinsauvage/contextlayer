@@ -18,7 +18,10 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
 });
 
-type Execute = (deadline: AbortSignal) => Promise<{
+type Execute = (
+  deadline: AbortSignal,
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void,
+) => Promise<{
   result: unknown;
   issues: [];
   revision?: string;
@@ -104,6 +107,46 @@ describe("usage", () => {
       status: "failed",
       inputTokens: null,
       outputTokens: null,
+    });
+  });
+
+  it("records the tokens a failed run spent before it failed", async () => {
+    const id = await start("failing usage", async (_deadline, onUsage) => {
+      onUsage({ inputTokens: 500, outputTokens: 50 });
+      throw new Error("model timed out");
+    });
+
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      inputTokens: 500,
+      outputTokens: 50,
+    });
+  });
+
+  it("keeps the last good draft and its edits when a re-run fails", async () => {
+    const good = {
+      title: "Good",
+      description: [],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+    const id = await start("keep draft", async () => ({ result: good, issues: [] }));
+    const edited = { ...good, title: "Edited" };
+    await db.update(schema.analysis).set({ editedResult: edited }).where(eq(schema.analysis.id, id));
+    await restart(
+      "keep draft",
+      async () => {
+        throw new Error("model timed out");
+      },
+      id,
+    );
+
+    expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
+      status: "failed",
+      result: good,
+      editedResult: edited,
     });
   });
 });

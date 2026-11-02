@@ -1,5 +1,6 @@
 import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { Evidence } from "@/core/evidence/schemas";
+import { errorSummary } from "@/core/errors";
 import { extractTerms } from "./terms";
 import { evidenceFromPaths, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
@@ -24,7 +25,7 @@ async function relatedIssues(tracker: IssueTracker, terms: string[]): Promise<Is
   try {
     return await tracker.searchRelated(terms, RELATED_ISSUE_LIMIT);
   } catch (error) {
-    console.warn("[context] related issue search failed; continuing without related issues", error);
+    console.warn("[context] related issue search failed; continuing without related issues", errorSummary(error));
     return [];
   }
 }

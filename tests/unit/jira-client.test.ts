@@ -1,5 +1,6 @@
+import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TrackerRejectedError } from "@/core/errors";
+import { TrackerNotFoundError, TrackerRejectedError } from "@/core/errors";
 import { ReconnectRequiredError } from "@/core/integrations/provider";
 import { JiraClient, getJiraProject, listJiraProjects } from "@/integrations/jira/client";
 
@@ -199,6 +200,65 @@ describe("JiraClient", () => {
 
     await expect(new JiraClient(site, "SHOP", auth()).createIssue(draft)).rejects.toThrow("network error");
     expect(posts).toBe(1);
+  });
+
+  it("never leaks the bearer token when a request times out or the network fails", async () => {
+    stubFetch(async () => {
+      throw new TypeError("fetch failed");
+    });
+
+    const error = await new JiraClient(site, "SHOP", auth("secret-token")).getIssue("SHOP-7").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as { request?: unknown }).request).toBeUndefined();
+    expect(inspect(error)).not.toContain("secret-token");
+    expect((error as Error).message).toContain("network error");
+  });
+
+  it("says an issue is missing or hidden instead of failing the analysis", async () => {
+    stubFetch(async () => new Response("", { status: 404 }));
+
+    await expect(new JiraClient(site, "SHOP", auth()).getIssue("SHOP-99999")).rejects.toThrow(
+      new TrackerNotFoundError("Jira has no issue SHOP-99999, or the connected account cannot see it."),
+    );
+  });
+
+  it("reports a project the account cannot see as a refusal, not a crash", async () => {
+    stubFetch(async () => new Response("", { status: 404 }));
+    const draft = {
+      title: "Round cart totals",
+      description: [{ text: "Round half up", status: "verified" as const, evidenceIds: [] }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+
+    await expect(new JiraClient(site, "SHOP", auth()).createIssue(draft)).rejects.toThrow(
+      new TrackerRejectedError("Jira could not find the SHOP project, or the connected account cannot see it."),
+    );
+  });
+
+  it("refuses a write rather than waiting out a long rate limit", async () => {
+    let puts = 0;
+    stubFetch(async (_url, init) => {
+      if (init.method !== "PUT") return json({});
+      puts += 1;
+      return new Response("slow down", { status: 429, headers: { "retry-after": "90" } });
+    });
+    const draft = {
+      title: "Round cart totals",
+      description: [{ text: "Round half up", status: "verified" as const, evidenceIds: [] }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+      evidence: [],
+    };
+
+    await expect(new JiraClient(site, "SHOP", auth()).updateIssue("SHOP-7", draft)).rejects.toThrow(
+      "Jira is rate limiting this connection; try again in 90 s.",
+    );
+    expect(puts).toBe(1);
   });
 
   it("retries a write once Jira answers 429", async () => {

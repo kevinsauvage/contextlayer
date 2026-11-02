@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { evidenceFromPaths } from "@/core/context/retrieve";
+import { extractTerms } from "@/core/context/terms";
 import type { ContextSource } from "@/core/context/source";
 
 const source = (files: Record<string, string>): ContextSource => ({
@@ -11,7 +12,33 @@ const source = (files: Record<string, string>): ContextSource => ({
   },
 });
 
+// 800 lines of filler, long enough that the file never fits its share and the window has to be placed.
+const filler = (tag: string) =>
+  Array.from({ length: 800 }, (_, i) => `"${tag}.key${i}": "${tag} value ${i}",`).join("\n");
+
+const HIT_LINE = 801;
+
 describe("evidenceFromPaths", () => {
+  it("finds an accented line from an unaccented term", async () => {
+    const content = `${filler("before")}\n"checkout.title": "Paiement sécurisé",\n${filler("after")}`;
+    const [file] = await evidenceFromPaths(["fr.json"], extractTerms("sécurisé"), source({ "fr.json": content }));
+
+    expect(file?.excerpt).toContain("Paiement sécurisé");
+    expect(HIT_LINE - (file?.lines?.start ?? 0)).toBeLessThanOrEqual(5);
+  });
+
+  it("places the window on an ASCII hit as before", async () => {
+    const content = `${filler("before")}\n"checkout.title": "Payment secured",\n${filler("after")}`;
+    const [file] = await evidenceFromPaths(
+      ["en.json"],
+      extractTerms("payment secured"),
+      source({ "en.json": content }),
+    );
+
+    expect(file?.excerpt).toContain("Payment secured");
+    expect(HIT_LINE - (file?.lines?.start ?? 0)).toBeLessThanOrEqual(5);
+  });
+
   it("returns a short file whole", async () => {
     const body = "export const answer = 42;\n";
     const [file] = await evidenceFromPaths(["src/a.ts"], ["answer"], source({ "src/a.ts": body }));

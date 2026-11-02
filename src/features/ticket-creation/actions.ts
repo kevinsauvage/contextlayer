@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
+import type { TokenUsage } from "@/core/analysis/generators";
 import { citedEvidence } from "@/core/evidence/validate";
 import { clarificationSchema, draftBodySchema, draftSections, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
@@ -35,13 +36,14 @@ const draftFromRequest = async (
   deadline: AbortSignal,
   request: string,
   answers: Refinement[] = [],
+  onUsage?: (usage: TokenUsage) => void,
 ) => {
   const { draft, issues, usage, revision } = await draftTicket({
     request,
     answers,
-    ...(await buildProjectContext(db, project)),
-    generator: defaultGenerator(deadline),
-    selector: defaultSelector(deadline),
+    ...(await buildProjectContext(db, project, deadline)),
+    generator: defaultGenerator(deadline, onUsage),
+    selector: defaultSelector(deadline, onUsage),
   });
   return { result: draft, issues, usage, revision };
 };
@@ -64,7 +66,7 @@ export async function createTicketAnalysis(
     userId,
     kind: "create",
     input: { request: request.data },
-    execute: (deadline) => draftFromRequest(db, project, deadline, request.data),
+    execute: (deadline, onUsage) => draftFromRequest(db, project, deadline, request.data, [], onUsage),
   });
   redirect(`/projects/${projectId}/analyses/${analysisId}`);
 }
@@ -91,7 +93,7 @@ async function redraft(
     await restartAnalysis({
       db,
       input: next.answers.length ? next : { request: next.request },
-      execute: (deadline) => draftFromRequest(db, project, deadline, next.request, next.answers),
+      execute: (deadline, onUsage) => draftFromRequest(db, project, deadline, next.request, next.answers, onUsage),
       rerunId: analysisId,
     });
     refresh();
@@ -117,6 +119,11 @@ export async function refineTicket(analysisId: string, input: unknown): Promise<
   }));
 }
 
+// A failed run keeps the previous draft on screen; retrying re-runs the stored input without inventing a chat message.
+export async function retryAnalysis(analysisId: string): Promise<ActionState> {
+  return redraft(analysisId, ({ request, answers }) => ({ request, answers }));
+}
+
 // Autosave keeps manual edits across a reload without approving or publishing anything.
 // `runToken` names the run the browser edited. The update itself requires it, so an autosave that lands after a redraft
 // started (another tab, a queued request) cannot write the old edits over the new draft.
@@ -130,7 +137,7 @@ export async function saveDraftEdits(analysisId: string, runToken: string, draft
     publishedError: () => "This draft is already published",
   });
   if ("error" in loaded) return loaded;
-  if (loaded.analysis.runToken !== runToken) return { error: REGENERATED_ERROR };
+  if ((loaded.analysis.runToken ?? "") !== runToken) return { error: REGENERATED_ERROR };
 
   // Only the editable fields are stored; evidence is rebuilt from the stored result so the browser cannot add one.
   const evidence = storedEvidence(loaded.analysis);
@@ -149,18 +156,19 @@ export async function saveDraftEdits(analysisId: string, runToken: string, draft
   return row ? {} : { error: REGENERATED_ERROR };
 }
 
-export async function publishTicket(analysisId: string, draftInput: unknown): Promise<PublishResult> {
+export async function publishTicket(analysisId: string, runToken: string, draftInput: unknown): Promise<PublishResult> {
   const loaded = await loadAnalysis(analysisId, {
     kind: "create",
     status: "completed",
     publishedError: (issueKey) => `Already published as ${issueKey}`,
   });
   if ("error" in loaded) return loaded;
+  if ((loaded.analysis.runToken ?? "") !== runToken) return { error: REGENERATED_ERROR };
 
   const approved = parseApprovedDraft(draftInput, storedEvidence(loaded.analysis), "The draft is invalid");
   if ("error" in approved) return approved;
 
-  return publishApproved(loaded.db, analysisId, approved.draft, async () => {
+  return publishApproved(loaded.db, analysisId, runToken, approved.draft, async () => {
     const tracker = await buildProjectTracker(loaded.db, loaded.project);
     return tracker.createIssue(approved.draft);
   });

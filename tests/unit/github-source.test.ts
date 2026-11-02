@@ -14,6 +14,9 @@ type GithubStub = {
   search: (q: string) => Promise<SearchResponse>;
   contents: Record<string, string>;
   contentCalls: string[];
+  installationError?: Error;
+  repoError?: Error;
+  branchError?: Error;
 };
 
 const github = vi.hoisted((): GithubStub => ({
@@ -27,38 +30,49 @@ const github = vi.hoisted((): GithubStub => ({
 
 vi.mock("@/integrations/github/app", () => ({
   getGithubApp: () => ({
-    getInstallationOctokit: async () => ({
-      rest: {
-        repos: {
-          get: async () => ({ data: { default_branch: "main" } }),
-          getBranch: async () => ({ data: { commit: { sha: "abc123" } } }),
-        },
-        git: {
-          // A recursive call is keyed `<sha>?recursive`, so a test can truncate it and still list the root.
-          getTree: async (params: { tree_sha: string; recursive?: string }) => {
-            github.treeCalls.push(params);
-            const data = github.trees[params.recursive ? `${params.tree_sha}?recursive` : params.tree_sha];
-            if (!data) throw new Error(`unknown tree ${params.tree_sha}`);
-            return { data };
+    getInstallationOctokit: async () => {
+      if (github.installationError) throw github.installationError;
+      return {
+        rest: {
+          repos: {
+            get: async () => {
+              if (github.repoError) throw github.repoError;
+              return { data: { default_branch: "main" } };
+            },
+            getBranch: async () => {
+              if (github.branchError) throw github.branchError;
+              return { data: { commit: { sha: "abc123" } } };
+            },
+          },
+          git: {
+            // A recursive call is keyed `<sha>?recursive`, so a test can truncate it and still list the root.
+            getTree: async (params: { tree_sha: string; recursive?: string }) => {
+              github.treeCalls.push(params);
+              const data = github.trees[params.recursive ? `${params.tree_sha}?recursive` : params.tree_sha];
+              if (!data) throw new Error(`unknown tree ${params.tree_sha}`);
+              return { data };
+            },
+          },
+          search: {
+            code: (params: { q: string }) => {
+              github.searchCalls.push(params.q);
+              return github.search(params.q);
+            },
           },
         },
-        search: {
-          code: (params: { q: string }) => {
-            github.searchCalls.push(params.q);
-            return github.search(params.q);
-          },
+        request: async (_route: string, params: { path: string }) => {
+          github.contentCalls.push(params.path);
+          return { data: github.contents[params.path] ?? "" };
         },
-      },
-      request: async (_route: string, params: { path: string }) => {
-        github.contentCalls.push(params.path);
-        return { data: github.contents[params.path] ?? "" };
-      },
-    }),
+      };
+    },
   }),
 }));
 
 const connect = () => GithubSource.connect(1, { owner: "acme", name: "shop" });
 const connectScoped = () => GithubSource.connect(1, { owner: "acme", name: "shop" }, "apps/web");
+// Octokit's RequestError exposes an HTTP status; a plain Error carrying one stands in for it here.
+const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
 
 beforeEach(() => {
   github.trees = {};
@@ -66,8 +80,35 @@ beforeEach(() => {
   github.searchCalls = [];
   github.contents = {};
   github.contentCalls = [];
+  github.installationError = undefined;
+  github.repoError = undefined;
+  github.branchError = undefined;
   github.search = () => Promise.resolve({ data: { items: [] } });
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
+});
+
+describe("GithubSource.connect", () => {
+  it("asks for a reconnect when the installation is gone", async () => {
+    github.installationError = httpError(404);
+
+    await expect(connect()).rejects.toThrow("The connection to the GitHub App installation for acme/shop expired.");
+  });
+
+  it("names a repository the App can no longer see", async () => {
+    github.repoError = httpError(404);
+
+    await expect(connect()).rejects.toThrow(
+      "The repository acme/shop is no longer accessible to the ContextLayer GitHub App.",
+    );
+  });
+
+  it("names an empty repository", async () => {
+    github.branchError = httpError(404);
+
+    await expect(connect()).rejects.toThrow(
+      "The repository acme/shop has no commits yet, or its default branch is gone.",
+    );
+  });
 });
 
 describe("GithubSource.listFiles", () => {
@@ -120,7 +161,8 @@ describe("GithubSource.searchContent", () => {
     const result = await (await connect()).searchContent(["404", "ff00aa", "cart", "total", "price", "tax"]);
 
     expect(github.searchCalls).toEqual(["cart repo:acme/shop", "total repo:acme/shop", "price repo:acme/shop"]);
-    expect(result).toEqual({ paths: ["src/a.ts", "src/b.ts"], failedTerms: [] });
+    // The terms that were never searched are reported apart, so they do not read as "no match".
+    expect(result).toEqual({ paths: ["src/a.ts", "src/b.ts"], failedTerms: ["404", "ff00aa", "tax"] });
   });
 
   it("keeps the other terms' hits when one search fails, and reports the failed term", async () => {
@@ -134,9 +176,50 @@ describe("GithubSource.searchContent", () => {
       failedTerms: ["cart"],
     });
   });
+
+  it("drops lockfiles, bundles and build output the agent could not read", async () => {
+    github.search = () =>
+      Promise.resolve({
+        data: { items: [{ path: "pnpm-lock.yaml" }, { path: "dist/app.min.js" }, { path: "src/a.ts" }] },
+      });
+
+    expect((await (await connect()).searchContent(["cart"])).paths).toEqual(["src/a.ts"]);
+  });
 });
 
 describe("GithubSource with a monorepo folder", () => {
+  it("walks only that folder when the recursive tree is truncated", async () => {
+    const blob = (path: string): TreeEntry => ({ path, type: "blob", size: 10 });
+    github.trees = {
+      "abc123?recursive": { truncated: true, tree: [] },
+      abc123: { truncated: false, tree: [{ path: "apps", type: "tree", sha: "apps" }] },
+      apps: {
+        truncated: false,
+        tree: [
+          { path: "web", type: "tree", sha: "web" },
+          { path: "admin", type: "tree", sha: "admin" },
+        ],
+      },
+      web: {
+        truncated: false,
+        tree: [
+          { path: "index.ts", type: "blob", size: 10 },
+          { path: "src", type: "tree", sha: "web-src" },
+          { path: "node_modules", type: "tree", sha: "web-deps" },
+        ],
+      },
+      "web-src": { truncated: false, tree: [blob("a.ts")] },
+      admin: { truncated: false, tree: [blob("b.ts")] },
+      "web-deps": { truncated: false, tree: [blob("x/index.js")] },
+    };
+
+    const files = await (await connectScoped()).listFiles();
+
+    expect(files).toEqual(["index.ts", "src/a.ts"]);
+    const listed = github.treeCalls.filter((call) => !call.recursive).map((call) => call.tree_sha);
+    expect(listed).not.toContain("admin");
+    expect(listed).not.toContain("web-deps");
+  });
   it("lists only that folder's files, relative to it", async () => {
     github.trees = {
       "abc123?recursive": {

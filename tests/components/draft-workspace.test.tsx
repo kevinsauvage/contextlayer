@@ -57,19 +57,78 @@ async function editTitle(user: ReturnType<typeof userEvent.setup>, title: string
 }
 
 describe("DraftWorkspace", () => {
-  it("checks the evidence again once the draft is edited", async () => {
+  it("checks the draft against its evidence as it is edited", async () => {
     const misquoted: TicketDraft = {
       ...ready,
       description: [{ text: "Totals use `Math.round`.", status: "verified", evidenceIds: ["e1"] }],
     };
-    const stale = [{ path: "description[0]", message: "A warning the generated draft had." }];
-    const { user } = renderWorkspace(misquoted, { issues: stale, evidence: ready.evidence });
+    const { user } = renderWorkspace(misquoted, { evidence: ready.evidence });
 
-    expect(screen.getByText("A warning the generated draft had.")).toBeTruthy();
-    await editTitle(user, "Round totals");
-
-    expect(screen.queryByText("A warning the generated draft had.")).toBeNull();
     expect(screen.getByText(/quotes "math.round", which its cited evidence does not contain/)).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    const paragraph = screen
+      .getAllByRole("textbox")
+      .find((element) => element.getAttribute("aria-label") === "Description paragraph 1");
+    if (!paragraph) throw new Error("no description field");
+    await user.clear(paragraph);
+    await user.type(paragraph, "Totals are rounded down.");
+
+    expect(screen.queryByText(/quotes "math.round"/)).toBeNull();
+  });
+
+  it("blocks approval while a claim does not match its evidence", async () => {
+    const misquoted: TicketDraft = {
+      ...ready,
+      description: [{ text: "Totals use `Math.round`.", status: "verified", evidenceIds: ["e1"] }],
+    };
+    const { publish, user } = renderWorkspace(misquoted, { evidence: ready.evidence });
+
+    expect(screen.getByText("Claims don't match their evidence")).toBeTruthy();
+    const approve = screen.getByRole("button", { name: "Approve and create" });
+    expect(approve.hasAttribute("disabled")).toBe(true);
+    await user.click(approve);
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("checks a reloaded draft against its evidence even when this tab did not edit it", () => {
+    const misquoted: TicketDraft = {
+      ...ready,
+      description: [{ text: "Totals use `Math.round`.", status: "verified", evidenceIds: ["e1"] }],
+    };
+    renderWorkspace(misquoted, { issues: [], evidence: ready.evidence });
+
+    expect(screen.getByText(/quotes "math.round"/)).toBeTruthy();
+  });
+
+  it("lets an open-question conflict be published anyway", async () => {
+    const deciding: TicketDraft = {
+      ...ready,
+      description: [{ text: "Reject with 429.", status: "inferred", evidenceIds: [] }],
+      openQuestions: [
+        {
+          question: "Which code?",
+          impact: "Changes the contract",
+          options: [{ text: "429 Too Many Requests", recommended: false }],
+        },
+      ],
+    };
+    const { publish, user } = renderWorkspace(deciding, { evidence: ready.evidence });
+
+    expect(screen.getByText("Claims decide an open question")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Approve and create" }));
+    const confirmation = screen
+      .getAllByRole("alert")
+      .find((element) => element.textContent.includes("Still unresolved"));
+    expect(confirmation?.textContent).toContain("claim decides an open question");
+    await user.click(screen.getByRole("button", { name: "Publish anyway" }));
+    expect(publish).toHaveBeenCalledWith(deciding);
+  });
+
+  it("keeps the run's finding issues when it re-checks the claims", () => {
+    const finding = { path: "findings[0]", message: "A finding issue from the run.", kind: "evidence" as const };
+    renderWorkspace(ready, { issues: [finding], evidence: ready.evidence });
+
+    expect(screen.getByText("A finding issue from the run.")).toBeTruthy();
   });
 
   it("publishes a ready draft on the first click and shows where it landed", async () => {

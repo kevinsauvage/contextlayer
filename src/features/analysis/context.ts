@@ -1,5 +1,5 @@
 import "server-only";
-import type { AuditGenerator, DraftGenerator, EvidenceSelector } from "@/core/analysis/generators";
+import type { AuditGenerator, DraftGenerator, EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { Analysis, Project } from "@/features/projects/queries";
 import { getAnalysis, getProject } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
@@ -12,10 +12,13 @@ import { cannedGenerator, firstFilesSelector } from "@/integrations/fake/generat
 // Everything a server action needs from the request: who is asking, in which organization, and on which database.
 export type ActionContext = { db: Database; organizationId: string; userId: string };
 
-export const defaultGenerator = (deadline?: AbortSignal): DraftGenerator & AuditGenerator =>
-  getEnv().E2E_FAKE_PROVIDERS ? cannedGenerator : new AiGenerator(getEnv().AI_MODEL, deadline);
-export const defaultSelector = (deadline?: AbortSignal): EvidenceSelector =>
-  getEnv().E2E_FAKE_PROVIDERS ? firstFilesSelector : new AiEvidenceAgent(getEnv().AI_MODEL, deadline);
+export const defaultGenerator = (
+  deadline?: AbortSignal,
+  onUsage?: (usage: TokenUsage) => void,
+): DraftGenerator & AuditGenerator =>
+  getEnv().E2E_FAKE_PROVIDERS ? cannedGenerator : new AiGenerator(getEnv().AI_MODEL, deadline, onUsage);
+export const defaultSelector = (deadline?: AbortSignal, onUsage?: (usage: TokenUsage) => void): EvidenceSelector =>
+  getEnv().E2E_FAKE_PROVIDERS ? firstFilesSelector : new AiEvidenceAgent(getEnv().AI_MODEL, deadline, onUsage);
 
 export async function loadProject(
   projectId: string,

@@ -5,7 +5,7 @@ import { CenteredShell } from "@/components/layout/centered-shell";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { buttonVariants } from "@/components/ui/button";
 import { listInvitationsForUser } from "@/features/organizations/queries";
-import { getSession } from "@/infrastructure/auth/session";
+import { getSession, isActiveMember } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -13,7 +13,12 @@ export const metadata: Metadata = { title: "Welcome" };
 export default async function Page() {
   const session = await getSession();
   if (!session) redirect("/sign-in");
-  if (session.session.activeOrganizationId) redirect("/projects");
+  // A stale active organization points at one the user has left: onboarding must not bounce them back to /projects.
+  if (
+    session.session.activeOrganizationId &&
+    (await isActiveMember(session.user.id, session.session.activeOrganizationId))
+  )
+    redirect("/projects");
   const invitations = await listInvitationsForUser(getDb(), session.user);
 
   return (

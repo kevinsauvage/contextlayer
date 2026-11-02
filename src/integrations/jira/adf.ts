@@ -90,6 +90,10 @@ export function adfToText(node: unknown): string {
       return `${children(adf)
         .map((cell) => adfToText(cell).trim().replace(/\n+/g, " "))
         .join(" | ")}\n`;
+    case "taskItem":
+      return `- [${attrs?.state === "DONE" ? "x" : " "}] ${children(adf).map(adfToText).join("").trim()}\n`;
+    case "decisionItem":
+      return `- ${children(adf).map(adfToText).join("").trim()}\n`;
     default: {
       const inner = children(adf).map(adfToText).join("");
       if (type === "listItem") return `- ${inner.trim()}\n`;

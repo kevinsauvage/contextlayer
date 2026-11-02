@@ -13,6 +13,23 @@ export const addUsage = (first: TokenUsage | undefined, second: TokenUsage | und
         outputTokens: (first?.outputTokens ?? 0) + (second?.outputTokens ?? 0),
       }
     : undefined;
+
+// Calls report their usage as they finish, so a run that throws or times out still records the tokens it spent.
+export type UsageMeter = {
+  add: (usage: TokenUsage | undefined) => void;
+  total: () => TokenUsage | undefined;
+};
+
+export const createUsageMeter = (): UsageMeter => {
+  let total: TokenUsage | undefined;
+  return {
+    add: (usage) => {
+      total = addUsage(total, usage);
+    },
+    total: () => total,
+  };
+};
+
 export type GeneratorResult<T> = { body: T; usage?: TokenUsage };
 
 export type DraftGenerator = {

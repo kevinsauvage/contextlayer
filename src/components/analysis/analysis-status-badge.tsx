@@ -1,23 +1,24 @@
 import { LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { isBlockingIssue } from "@/core/evidence/validate";
 import type { Analysis } from "@/features/projects/queries";
 
 type Claim = { status?: string };
 
 // A completed run is only ready once nothing is left to decide; the result is untyped JSON, so read it defensively.
-function completedLabel(result: unknown): "Provisional" | "Ready" {
+function completedLabel(result: unknown, blocked: boolean): "Provisional" | "Ready" {
   const draft = (result ?? {}) as { openQuestions?: unknown; description?: Claim[]; acceptanceCriteria?: Claim[] };
   const questions = Array.isArray(draft.openQuestions) ? draft.openQuestions.length : 0;
   const undecided = [...(draft.description ?? []), ...(draft.acceptanceCriteria ?? [])].some(
     (claim) => claim.status === "needs_clarification",
   );
-  return questions || undecided ? "Provisional" : "Ready";
+  return questions || undecided || blocked ? "Provisional" : "Ready";
 }
 
 export function AnalysisStatusBadge({
   analysis,
 }: {
-  analysis: Pick<Analysis, "status" | "publishedIssueKey" | "kind" | "result">;
+  analysis: Pick<Analysis, "status" | "publishedIssueKey" | "kind" | "result" | "evidenceIssues">;
 }) {
   if (analysis.publishedIssueKey) return <Badge variant="success">{analysis.publishedIssueKey}</Badge>;
   switch (analysis.status) {
@@ -35,7 +36,7 @@ export function AnalysisStatusBadge({
         analysis.kind === "create"
           ? analysis.result
           : (analysis.result as { proposedTicket?: unknown } | null)?.proposedTicket;
-      const label = completedLabel(draft);
+      const label = completedLabel(draft, (analysis.evidenceIssues ?? []).some(isBlockingIssue));
       return <Badge variant={label === "Ready" ? "outline" : "warning"}>{label}</Badge>;
     }
   }

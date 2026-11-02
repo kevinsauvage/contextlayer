@@ -6,7 +6,7 @@ import { isFollowUp, type Refinement } from "@/core/requirements/schemas";
 // reads as prompt outside the "untrusted data" rule. Only tags named like the prompt's own blocks are defused, so
 // code such as `Array<string>` or `<Banner />` still reaches the model exactly as written.
 const PROMPT_TAGS = /<(\s*\/?\s*(?:request|answers|context|source|ticket)\b)/gi;
-const asText = (value: string) => value.replace(PROMPT_TAGS, "&lt;$1");
+export const asText = (value: string) => value.replace(PROMPT_TAGS, "&lt;$1");
 const asAttribute = (value: string) => value.replace(/</g, "&lt;").replace(/"/g, "&quot;");
 
 const SHARED_RULES = `- Use only the provided context. Never invent requirements, numbers, deadlines, or business intent.
@@ -67,7 +67,7 @@ const answersBlock = (answers: Refinement[]) =>
   answers.length ? `\n\n<answers>\n${answers.map(refinementLine).join("\n\n")}\n</answers>` : "";
 
 export const buildCreatePrompt = (request: string, answers: Refinement[], candidates: Evidence[]) =>
-  `<request>\n${request}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
+  `<request>\n${asText(request)}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>
   `<ticket key="${asAttribute(issue.key)}" status="${asAttribute(issue.status)}">\nTitle: ${asText(issue.summary)}\n\n${asText(issue.description) || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;

@@ -89,7 +89,7 @@ function LatestReply({
   if (status === "failed") {
     return (
       <Bubble from="assistant">
-        <p className="text-destructive">The draft failed: {error ?? "unknown error"}. Send a message to try again.</p>
+        <p className="text-destructive">{error ?? "The redraft failed."}</p>
       </Bubble>
     );
   }

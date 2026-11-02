@@ -29,3 +29,16 @@ export class TrackerRejectedError extends Error {
     this.name = "TrackerRejectedError";
   }
 }
+
+// The issue or project is gone, or the connected account cannot see it: retrying the same request cannot succeed.
+export class TrackerNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TrackerNotFoundError";
+  }
+}
+
+// A logged failure keeps only what identifies it: the raw object can carry a request with its bearer token, or a whole
+// prompt with source excerpts.
+export const errorSummary = (error: unknown) =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);

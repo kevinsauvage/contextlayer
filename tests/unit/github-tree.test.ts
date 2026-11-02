@@ -35,4 +35,43 @@ describe("walkTree", () => {
 
     expect(entries).toEqual([]);
   });
+
+  it("skips directories the caller rules out and keeps the prefix", async () => {
+    const trees: Record<string, TreeEntry[]> = {
+      root: [
+        { path: "src", type: "tree", sha: "src-sha" },
+        { path: "node_modules", type: "tree", sha: "deps-sha" },
+        { path: "package.json", type: "blob" },
+      ],
+      "src-sha": [{ path: "a.ts", type: "blob" }],
+      "deps-sha": [{ path: "x/index.js", type: "blob" }],
+    };
+    const visited: string[] = [];
+
+    const entries = await walkTree(
+      "root",
+      async (sha) => {
+        visited.push(sha);
+        return trees[sha] ?? [];
+      },
+      { prefix: "apps/web", descend: (path) => !path.includes("node_modules") },
+    );
+
+    expect(entries).toEqual([
+      { type: "blob", path: "apps/web/package.json", size: undefined },
+      { type: "blob", path: "apps/web/src/a.ts", size: undefined },
+    ]);
+    expect(visited).not.toContain("deps-sha");
+  });
+
+  it("stops when the run's deadline has passed", async () => {
+    const controller = new AbortController();
+    const trees: Record<string, TreeEntry[]> = {
+      root: [{ path: "src", type: "tree", sha: "src-sha" }],
+      "src-sha": [{ path: "a.ts", type: "blob" }],
+    };
+    controller.abort();
+
+    expect(await walkTree("root", async (sha) => trees[sha] ?? [], { signal: controller.signal })).toEqual([]);
+  });
 });

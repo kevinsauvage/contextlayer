@@ -77,6 +77,7 @@ describe("draftTicket", () => {
       {
         path: "description[0]",
         message: "Description paragraph 1 cites evidence e99, which is not in the evidence list.",
+        kind: "evidence",
       },
     ]);
   });
@@ -208,6 +209,7 @@ describe("auditIssue", () => {
     expect((await run(auditBody([]))).issues[0]).toEqual({
       path: "findings[0]",
       message: "Finding 1 is marked Verified but cites no evidence.",
+      kind: "evidence",
     });
   });
 
@@ -216,6 +218,7 @@ describe("auditIssue", () => {
       {
         path: "findings[0]",
         message: "Finding 1 reports an existing implementation or duplicate but is not Verified with evidence.",
+        kind: "evidence",
       },
     ]);
   });

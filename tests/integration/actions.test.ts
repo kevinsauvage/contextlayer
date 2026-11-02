@@ -391,7 +391,7 @@ describe("publishTicket and saveDraftEdits", () => {
     });
     const forged = [{ ...stored.evidence[0], excerpt: "Forged", url: "https://evil.test" }];
 
-    expect(await publishTicket(id, { ...editable, evidence: forged })).toEqual({
+    expect(await publishTicket(id, "run-1", { ...editable, evidence: forged })).toEqual({
       issueKey: "SHOP-9",
       issueUrl: "https://jira.test/browse/SHOP-9",
     });
@@ -411,11 +411,26 @@ describe("publishTicket and saveDraftEdits", () => {
     });
     const draft = { ...editable, description: [{ text: "Unsupported.", status: "verified", evidenceIds: ["e99"] }] };
 
-    expect(await publishTicket(id, draft)).toEqual({
+    expect(await publishTicket(id, "run-1", draft)).toEqual({
       error:
         "Description paragraph 1 cites evidence e99, which is not in the evidence list. Fix it in Edit, then approve again.",
     });
     expect(calls).toBe(0);
+  });
+
+  it("refuses an approval from a run that has since been regenerated, without calling the tracker", async () => {
+    const id = await draftAnalysis();
+    let calls = 0;
+    creatingTracker(async () => {
+      calls += 1;
+      return { key: "SHOP-12", url: "u" };
+    });
+
+    expect(await publishTicket(id, "run-0", editable)).toEqual({
+      error: "The draft was regenerated or published since you edited it; reload the page",
+    });
+    expect(calls).toBe(0);
+    expect(await rowOf(id)).toMatchObject({ publishedIssueKey: null });
   });
 
   it("asks for a reconnect when the tracker grant expired, and leaves the draft publishable", async () => {
@@ -424,7 +439,7 @@ describe("publishTicket and saveDraftEdits", () => {
       throw new ReconnectRequiredError("Acme Jira");
     });
 
-    expect(await publishTicket(id, editable)).toEqual({
+    expect(await publishTicket(id, "run-1", editable)).toEqual({
       error: "The connection to Acme Jira expired. An admin needs to reconnect it in Integrations.",
     });
     expect(await rowOf(id)).toMatchObject({ publishedIssueKey: null, publishingSince: null });

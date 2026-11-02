@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AuditView } from "@/components/analysis/audit-view";
 import { CreationView } from "@/components/analysis/creation-view";
-import { EvidenceWarnings } from "@/components/analysis/evidence-warnings";
+import { FailedDraft } from "@/components/analysis/failed-draft";
 import { InlineText } from "@/components/analysis/inline-text";
 import { OpenQuestions } from "@/components/analysis/open-questions";
 import { RevisionNotice } from "@/components/analysis/revision-notice";
@@ -20,7 +20,7 @@ import { estimateCostUsd } from "@/features/analysis/cost";
 import { answersOf, firstLine, requestOf } from "@/features/analysis/input";
 import { readAnalysis, revisionChange, shortRevision } from "@/features/analysis/read";
 import { getAnalysis } from "@/features/projects/queries";
-import { refineTicket } from "@/features/ticket-creation/actions";
+import { refineTicket, retryAnalysis } from "@/features/ticket-creation/actions";
 import { projectIntegrations } from "@/features/projects/view";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
@@ -102,17 +102,15 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           </p>
         )}
         {analysis.status === "completed" && (
-          <>
-            <EvidenceWarnings issues={analysis.evidenceIssues ?? []} />
-            <AuditView
-              analysis={analysis}
-              input={content.input}
-              report={content.report}
-              draft={content.draft}
-              trackerName={trackerName}
-              trackerKey={project.trackerResourceId}
-            />
-          </>
+          <AuditView
+            analysis={analysis}
+            input={content.input}
+            report={content.report}
+            draft={content.draft}
+            issues={analysis.evidenceIssues ?? []}
+            trackerName={trackerName}
+            trackerKey={project.trackerResourceId}
+          />
         )}
       </div>
     );
@@ -166,6 +164,14 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
                 />
                 {canRefine && <OpenQuestions decided={decided} />}
               </>
+            ) : analysis.status === "failed" && content.draft ? (
+              <FailedDraft
+                draft={content.draft}
+                trackerName={trackerName}
+                projectLabel={project.trackerResourceId}
+                error={analysis.error}
+                retry={retryAnalysis.bind(null, analysis.id)}
+              />
             ) : (
               <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
                 {analysis.status === "running"

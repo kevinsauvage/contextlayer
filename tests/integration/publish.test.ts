@@ -34,7 +34,8 @@ beforeAll(async () => {
   project = await seedProject(db, "orgA", await seedConnections(db, "orgA"));
 });
 
-async function completedAnalysis(): Promise<string> {
+async function completedAnalysis(): Promise<{ id: string; runToken: string }> {
+  const runToken = crypto.randomUUID();
   const row = first(
     await db
       .insert(schema.analysis)
@@ -45,17 +46,17 @@ async function completedAnalysis(): Promise<string> {
         status: "completed",
         input: { request: "Round totals" },
         result: draft,
-        runToken: crypto.randomUUID(),
+        runToken,
       })
       .returning({ id: schema.analysis.id }),
   );
-  return row.id;
+  return { id: row.id, runToken };
 }
 
 describe("publishApproved", () => {
   it("creates the issue once and records its key and URL", async () => {
-    const id = await completedAnalysis();
-    const result = await publishApproved(db, id, draft, async () => ({ key: "SHOP-1", url: "u/1" }));
+    const { id, runToken } = await completedAnalysis();
+    const result = await publishApproved(db, id, runToken, draft, async () => ({ key: "SHOP-1", url: "u/1" }));
 
     expect(result).toEqual({ issueKey: "SHOP-1", issueUrl: "u/1" });
     const [row] = await db.select().from(schema.analysis).where(eq(schema.analysis.id, id));
@@ -63,7 +64,7 @@ describe("publishApproved", () => {
   });
 
   it("lets only one of two simultaneous approvals create an issue", async () => {
-    const id = await completedAnalysis();
+    const { id, runToken } = await completedAnalysis();
     let writes = 0;
     const write = async () => {
       writes += 1;
@@ -71,7 +72,10 @@ describe("publishApproved", () => {
       return { key: "SHOP-2", url: "u/2" };
     };
 
-    const results = await Promise.all([publishApproved(db, id, draft, write), publishApproved(db, id, draft, write)]);
+    const results = await Promise.all([
+      publishApproved(db, id, runToken, draft, write),
+      publishApproved(db, id, runToken, draft, write),
+    ]);
 
     expect(writes).toBe(1);
     expect(results.filter((result) => result.issueKey === "SHOP-2")).toHaveLength(1);
@@ -79,25 +83,25 @@ describe("publishApproved", () => {
   });
 
   it("releases the claim when the tracker refuses the write, so a retry can publish", async () => {
-    const id = await completedAnalysis();
-    const rejected = await publishApproved(db, id, draft, async () => {
+    const { id, runToken } = await completedAnalysis();
+    const rejected = await publishApproved(db, id, runToken, draft, async () => {
       throw new TrackerRejectedError("summary: The summary is too long.");
     });
 
     expect(rejected).toEqual({ error: "summary: The summary is too long." });
-    const retried = await publishApproved(db, id, draft, async () => ({ key: "SHOP-3", url: "u/3" }));
+    const retried = await publishApproved(db, id, runToken, draft, async () => ({ key: "SHOP-3", url: "u/3" }));
     expect(retried).toEqual({ issueKey: "SHOP-3", issueUrl: "u/3" });
   });
 
   it("keeps the claim after an unconfirmed write, which may have created the issue", async () => {
-    const id = await completedAnalysis();
-    const unconfirmed = await publishApproved(db, id, draft, async () => {
+    const { id, runToken } = await completedAnalysis();
+    const unconfirmed = await publishApproved(db, id, runToken, draft, async () => {
       throw new Error("socket hang up");
     });
 
     expect(unconfirmed.error).toMatch(/did not confirm/);
     let writes = 0;
-    const retried = await publishApproved(db, id, draft, async () => {
+    const retried = await publishApproved(db, id, runToken, draft, async () => {
       writes += 1;
       return { key: "SHOP-4", url: "u/4" };
     });

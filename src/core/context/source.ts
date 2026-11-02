@@ -2,7 +2,8 @@ import type { TicketDraft } from "@/core/requirements/schemas";
 
 export type LineRange = { start: number; end: number };
 
-// A term the source could not search (a rate limit, an outage) is not a term the code lacks, so it is reported apart.
+// A term the source could not search (a rate limit, an outage, or a term past the cap) is not a term the code lacks,
+// so it is reported apart.
 export type SearchResult = { paths: string[]; failedTerms: string[] };
 
 export type ContextSource = {

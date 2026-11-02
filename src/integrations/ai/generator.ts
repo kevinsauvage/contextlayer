@@ -28,9 +28,11 @@ export const withSchemaInstruction = (
 
 export class AiGenerator implements DraftGenerator, AuditGenerator {
   // `deadline` ends the run as a whole: it stops a call in flight and a retry the run has no time left for.
+  // `onUsage` hears about every billed call, including one whose answer is thrown away.
   constructor(
     private readonly modelId: string,
     private readonly deadline?: AbortSignal,
+    private readonly onUsage?: (usage: TokenUsage) => void,
   ) {}
 
   generate({ request, answers, candidates }: Parameters<DraftGenerator["generate"]>[0]) {
@@ -60,10 +62,14 @@ export class AiGenerator implements DraftGenerator, AuditGenerator {
         signal: this.deadline,
         shouldRetry: ({ error }) => NoObjectGeneratedError.isInstance(error),
         onFailedAttempt: ({ error }) => {
-          if (NoObjectGeneratedError.isInstance(error) && error.usage) discarded = tokenUsage(error.usage);
+          if (!NoObjectGeneratedError.isInstance(error) || !error.usage) return;
+          const used = tokenUsage(error.usage);
+          discarded = addUsage(discarded, used);
+          this.onUsage?.(used);
         },
       },
     );
+    this.onUsage?.(tokenUsage(usage));
     return { body: output, usage: addUsage(discarded, tokenUsage(usage)) };
   }
 }

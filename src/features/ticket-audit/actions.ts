@@ -32,12 +32,12 @@ export async function createAuditAnalysis(projectId: string, _: ActionState, for
       userId,
       kind: "audit",
       input: { issueKey },
-      execute: async (deadline) => {
+      execute: async (deadline, onUsage) => {
         const { report, issue, issues, usage, revision } = await auditIssue({
           issueKey,
-          ...(await buildProjectContext(db, project)),
-          generator: defaultGenerator(deadline),
-          selector: defaultSelector(deadline),
+          ...(await buildProjectContext(db, project, deadline)),
+          generator: defaultGenerator(deadline, onUsage),
+          selector: defaultSelector(deadline, onUsage),
         });
         // The issue's timestamp travels with the report so applying it can detect edits made in Jira since.
         return { result: { ...report, issueUpdatedAt: issue.updated }, issues, usage, revision };
@@ -59,11 +59,12 @@ export async function applyAuditToTracker(analysisId: string, draftInput: unknow
     const approved = parseApprovedDraft(draftInput, storedEvidence(loaded.analysis), "The proposed ticket is invalid");
     if ("error" in approved) return approved;
 
+    const runToken = loaded.analysis.runToken ?? "";
     const input = readAnalysisInput(loaded.analysis);
     if (input?.kind !== "audit") return { error: "Analysis input is invalid" };
 
     // Inside the write, so a tracker failure here gets the same handling as the update itself.
-    return publishApproved(loaded.db, analysisId, approved.draft, async () => {
+    return publishApproved(loaded.db, analysisId, runToken, approved.draft, async () => {
       const tracker = await buildProjectTracker(loaded.db, loaded.project);
       const auditedAt = issueUpdatedAtOf(loaded.analysis.result);
       if (auditedAt) {

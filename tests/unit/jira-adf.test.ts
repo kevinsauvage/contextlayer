@@ -118,6 +118,30 @@ describe("ADF", () => {
     expect(out).toContain("Plan | Limit\nFree | 10\n");
   });
 
+  it("keeps action items and decisions on separate lines", () => {
+    const text = (value: string) => ({ type: "text", text: value });
+    const item = (type: string, value: string, state?: string) => ({
+      type,
+      ...(state ? { attrs: { state } } : {}),
+      content: [{ type: "paragraph", content: [text(value)] }],
+    });
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "taskList",
+          content: [item("taskItem", "User can log in", "DONE"), item("taskItem", "Errors are shown", "TODO")],
+        },
+        {
+          type: "decisionList",
+          content: [item("decisionItem", "Use OAuth"), item("decisionItem", "Drop SAML")],
+        },
+      ],
+    };
+
+    expect(adfToText(doc)).toBe("- [x] User can log in\n- [ ] Errors are shown\n- Use OAuth\n- Drop SAML\n");
+  });
+
   it("tolerates empty or missing descriptions", () => {
     expect(adfToText(null)).toBe("");
     expect(adfToText({ type: "doc", content: [] })).toBe("");

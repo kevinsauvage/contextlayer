@@ -1,5 +1,5 @@
 import "server-only";
-import { App, RequestError } from "octokit";
+import { App, Octokit, RequestError } from "octokit";
 import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const APP_KEYS = [
@@ -9,6 +9,24 @@ const APP_KEYS = [
   "GITHUB_APP_CLIENT_ID",
   "GITHUB_APP_CLIENT_SECRET",
 ] as const;
+
+const GITHUB_TIMEOUT_MS = 30_000;
+
+// A request must not hang, and a run must not sit out a rate limit: an over-limit search fails into `failedTerms` and
+// the agent tries another way, instead of holding the server action until the hourly reset.
+const GithubOctokit = Octokit.defaults({
+  request: {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, {
+        ...init,
+        signal: AbortSignal.any([AbortSignal.timeout(GITHUB_TIMEOUT_MS), ...(init?.signal ? [init.signal] : [])]),
+      }),
+  },
+  throttle: {
+    onRateLimit: () => false,
+    onSecondaryRateLimit: () => false,
+  },
+});
 
 let cached: App | undefined;
 
@@ -21,6 +39,7 @@ export function getGithubApp(): App {
       appId: env.GITHUB_APP_ID,
       privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n"),
       oauth: { clientId: env.GITHUB_APP_CLIENT_ID, clientSecret: env.GITHUB_APP_CLIENT_SECRET },
+      Octokit: GithubOctokit,
     });
   }
   return cached;

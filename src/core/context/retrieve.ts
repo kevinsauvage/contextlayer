@@ -1,5 +1,6 @@
 import type { Evidence, EvidenceKind } from "@/core/evidence/schemas";
 import type { ContextSource } from "@/core/context/source";
+import { foldText } from "@/core/context/terms";
 
 export type EvidenceCandidate = Omit<Evidence, "id">;
 
@@ -43,7 +44,8 @@ function excerptFrom(content: string, terms: string[], allowance: number) {
   if (content.length <= allowance) {
     return { text: content.trim(), lines: { start: 1, end: Math.max(lines.length, 1) } };
   }
-  const firstHit = lines.findIndex((line) => terms.some((term) => line.toLowerCase().includes(term)));
+  // Terms are folded, so the line must be folded too: "securise" has to meet "sécurisé".
+  const firstHit = lines.findIndex((line) => terms.some((term) => foldText(line).includes(term)));
   const start = firstHit > WINDOW_LEAD ? firstHit - WINDOW_LEAD : 0;
   const startChar = lines.slice(0, start).reduce((total, line) => total + line.length + 1, 0);
   const half = Math.floor(allowance / 2);

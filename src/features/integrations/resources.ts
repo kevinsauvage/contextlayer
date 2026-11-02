@@ -1,5 +1,6 @@
 import "server-only";
 import type { Resource, ResourceList } from "@/core/integrations/provider";
+import { errorSummary } from "@/core/errors";
 import { toActionError } from "@/features/errors";
 import type { Database } from "@/infrastructure/db/client";
 import { resolveConnection } from "./resolve";
@@ -18,7 +19,7 @@ async function listConnectionResources(
   } catch (error) {
     const known = toActionError(error);
     if (known) return { ...known, status: 409 };
-    console.error(`[integrations] listing ${resolved.provider.id} resources failed`, error);
+    console.error(`[integrations] listing ${resolved.provider.id} resources failed`, errorSummary(error));
     return {
       error: `Could not load ${resolved.provider.resourceNoun} list from ${resolved.provider.name}`,
       status: 502,

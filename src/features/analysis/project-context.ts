@@ -6,13 +6,17 @@ import type { Database } from "@/infrastructure/db/client";
 
 export type ProjectContext = { source: ContextSource; tracker: IssueTracker };
 
-export async function buildProjectContext(db: Database, project: Project): Promise<ProjectContext> {
+export async function buildProjectContext(
+  db: Database,
+  project: Project,
+  deadline?: AbortSignal,
+): Promise<ProjectContext> {
   const [source, tracker] = await Promise.all([
     resolveSource(db, project.organizationId, project.sourceConnectionId),
     resolveTracker(db, project.organizationId, project.trackerConnectionId),
   ]);
   return {
-    source: await source.provider.openSource(source.context, project.sourceResourceId),
+    source: await source.provider.openSource(source.context, project.sourceResourceId, { deadline }),
     tracker: tracker.provider.openTracker(tracker.context, project.trackerResourceId),
   };
 }

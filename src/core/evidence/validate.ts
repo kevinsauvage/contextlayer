@@ -1,7 +1,15 @@
 import { draftSections, type TicketDraft } from "@/core/requirements/schemas";
 import type { Claim, Evidence } from "./schemas";
 
-export type EvidenceIssue = { path: string; message: string };
+// `kind` says what has to change: a claim whose evidence does not support it blocks approval; a claim that answers an
+// open question is a warning the person may publish anyway. Stored issues from before the split have no kind and count
+// as blocking, which is the stricter reading.
+export type EvidenceIssue = { path: string; message: string; kind?: "evidence" | "open_question" };
+
+export const isBlockingIssue = (issue: EvidenceIssue) => issue.kind !== "open_question";
+
+// An issue the editor owns: its text lives in the form, so the browser re-checks it against the evidence.
+export const isClaimPath = (path: string) => /^(description|acceptanceCriteria)\[\d+\]$/.test(path);
 
 export type ClaimSections = Record<string, Claim[]>;
 
@@ -46,6 +54,7 @@ export function validateAuditFindings(findings: (Claim & { category: string })[]
       {
         path: `findings[${i}]`,
         message: `${itemLabel("findings", i)} reports ${label} but is not Verified with evidence.`,
+        kind: "evidence" as const,
       },
     ];
   });
@@ -112,7 +121,8 @@ export function validateEvidenceReferences(
   const byId = new Map(evidence.map((item) => [item.id, item]));
 
   evidence.forEach((item, i) => {
-    if (known.has(item.id)) issues.push({ path: `evidence[${i}].id`, message: `Evidence ${item.id} is listed twice.` });
+    if (known.has(item.id))
+      issues.push({ path: `evidence[${i}].id`, message: `Evidence ${item.id} is listed twice.`, kind: "evidence" });
     known.add(item.id);
   });
 
@@ -122,16 +132,21 @@ export function validateEvidenceReferences(
       const label = itemLabel(section, i);
       for (const id of claim.evidenceIds) {
         if (!known.has(id))
-          issues.push({ path, message: `${label} cites evidence ${id}, which is not in the evidence list.` });
+          issues.push({
+            path,
+            message: `${label} cites evidence ${id}, which is not in the evidence list.`,
+            kind: "evidence",
+          });
       }
       if (claim.status === "verified" && claim.evidenceIds.length === 0 && !options.evidenceFree?.(claim)) {
-        issues.push({ path, message: `${label} is marked Verified but cites no evidence.` });
+        issues.push({ path, message: `${label} is marked Verified but cites no evidence.`, kind: "evidence" });
       }
       if (claim.status === "verified") {
         for (const token of unsupportedQuotes(claim, byId)) {
           issues.push({
             path,
             message: `${label} is marked Verified but quotes "${token}", which its cited evidence does not contain.`,
+            kind: "evidence",
           });
         }
       }
@@ -144,12 +159,12 @@ export function validateEvidenceReferences(
 // user. Only decisive tokens are compared — numbers, codes and quoted snippets — so ordinary words shared with the
 // question do not produce a warning.
 const DECISIVE_NUMBER = /\b\d{2,4}\b/g;
-const DECISIVE_QUOTED = /`([^`\n]+)`|"([^"\n]+)"/g;
+const DECISIVE_QUOTED = /`([^`\n]+)`|"([^"\n]+)"|“([^”\n]+)”/g;
 
 const decisiveTokens = (text: string): string[] => {
   const numbers = [...text.matchAll(DECISIVE_NUMBER)].map(([token]) => token);
-  const quoted = [...text.matchAll(DECISIVE_QUOTED)].map(([, backticked = "", straight = ""]) =>
-    (backticked || straight).trim(),
+  const quoted = [...text.matchAll(DECISIVE_QUOTED)].map(([, backticked = "", straight = "", curly = ""]) =>
+    (backticked || straight || curly).trim(),
   );
   return [...new Set([...numbers, ...quoted].filter((token) => token.length > 1))];
 };
@@ -173,6 +188,7 @@ export function validateOpenQuestions(draft: TicketDraft): EvidenceIssue[] {
           issues.push({
             path: `${section}[${i}]`,
             message: `${itemLabel(section, i)} states "${hit}", which open question ${question.index + 1} asks; leave it undecided until the question is answered.`,
+            kind: "open_question",
           });
       }
     });

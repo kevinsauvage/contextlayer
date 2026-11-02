@@ -39,4 +39,28 @@ describe("AiGenerator", () => {
     expect(result.body.title).toBe("Round cart totals");
     expect(result.usage).toEqual({ inputTokens: 220, outputTokens: 50 });
   });
+
+  it("reports the tokens of both discarded answers when it gives up", async () => {
+    const replies = [answer("not json", 100, 10), answer("still not json", 120, 40)];
+    state.model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        const reply = replies.shift();
+        if (!reply) throw new Error("called too often");
+        return reply;
+      },
+    });
+    const reported: { inputTokens: number; outputTokens: number }[] = [];
+
+    await expect(
+      new AiGenerator("mock", undefined, (usage) => reported.push(usage)).generate({
+        request: "Round totals",
+        answers: [],
+        candidates: [],
+      }),
+    ).rejects.toThrow();
+    expect(reported).toEqual([
+      { inputTokens: 100, outputTokens: 10 },
+      { inputTokens: 120, outputTokens: 40 },
+    ]);
+  });
 });

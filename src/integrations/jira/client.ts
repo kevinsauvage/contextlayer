@@ -1,9 +1,9 @@
 import "server-only";
-import ky, { HTTPError } from "ky";
+import ky, { HTTPError, isKyError } from "ky";
 import { z } from "zod";
 import type { Issue, IssueTracker, PublishedIssue } from "@/core/context/source";
 import { foldText } from "@/core/context/terms";
-import { TrackerRejectedError } from "@/core/errors";
+import { TrackerNotFoundError, TrackerRejectedError } from "@/core/errors";
 import { ticketSections } from "@/core/requirements/render";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { adfToText, sectionsToAdf } from "./adf";
@@ -35,6 +35,10 @@ const ISSUE_FIELDS = ["summary", "description", "status", "updated"];
 const PREFERRED_ISSUE_TYPE = "Task";
 const PROJECTS_PER_PAGE = 100;
 const REQUEST_TIMEOUT_MS = 30_000;
+// One Jira answer should take well under a minute, retries and waits included.
+const TOTAL_TIMEOUT_MS = 60_000;
+// A retry that waits longer than this would land after the publish claim expired; the write is refused instead.
+const MAX_RETRY_AFTER_S = 10;
 const SEARCH_TERMS = 5;
 const SEARCH_POOL = 20;
 
@@ -44,9 +48,20 @@ export class JiraApiError extends Error {
     readonly status: number,
     // The full response body: a write's field errors can run past the excerpt kept in the message.
     readonly detail: string,
+    // Sent with a 429 so a write can say how long to wait instead of blocking on it.
+    readonly retryAfterSeconds?: number,
   ) {
     super(`Jira API error ${status}: ${detail.slice(0, 300)}`);
   }
+}
+
+// Seconds from `Retry-After` (delta-seconds or an HTTP-date); undefined when Jira sent none.
+function retryAfterSeconds(headers: Headers): number | undefined {
+  const value = headers.get("retry-after");
+  if (!value) return undefined;
+  if (/^\d+$/.test(value)) return Number(value);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, Math.ceil((date - Date.now()) / 1000));
 }
 
 // A refused write names the field or reason Jira gave, which is far more useful than "rejected the change".
@@ -59,6 +74,13 @@ function rejectionMessage(detail: string, fallback: string): string {
   } catch {
     return fallback;
   }
+}
+
+// Short waits are retried inside the client; this message only covers a limit the write could not wait out.
+function rateLimitMessage(error: JiraApiError): string {
+  return error.retryAfterSeconds === undefined
+    ? "Jira is rate limiting this connection; try again shortly."
+    : `Jira is rate limiting this connection; try again in ${error.retryAfterSeconds} s.`;
 }
 
 // These statuses mean Jira did not write anything, so the publish claim can go and the person can act on the reason.
@@ -74,12 +96,19 @@ type Site = { cloudId: string; siteUrl: string };
 // `write` marks a request that changes Jira: a dropped connection may hide a write that landed, so only a 429 retries it.
 type JiraRequest = { method?: string; body?: unknown; write?: boolean };
 
-const isRateLimited = (error: Error) => error instanceof HTTPError && error.response.status === 429;
+// A 429 with a short Retry-After is worth waiting out; a long one is not, because the wait would outlast the publish
+// claim and a reload could create the issue twice.
+const isShortRateLimit = (error: Error) => {
+  if (!(error instanceof HTTPError)) return false;
+  const wait = retryAfterSeconds(error.response.headers);
+  return wait === undefined || wait <= MAX_RETRY_AFTER_S;
+};
 
 async function jiraRequest(site: Site, accessToken: string, path: string, init: JiraRequest = {}): Promise<unknown> {
+  const method = init.method ?? "GET";
   try {
     const response = await ky(`https://api.atlassian.com/ex/jira/${site.cloudId}/rest/api/3${path}`, {
-      method: init.method ?? "GET",
+      method,
       headers: {
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
@@ -87,19 +116,26 @@ async function jiraRequest(site: Site, accessToken: string, path: string, init: 
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
       timeout: REQUEST_TIMEOUT_MS,
+      totalTimeout: TOTAL_TIMEOUT_MS,
       // A 429 means Jira did not process the request, so every method is safe to retry; ky honors Retry-After.
       retry: {
         limit: 2,
         statusCodes: [429],
         methods: ["get", "post", "put", "delete"],
-        shouldRetry: init.write ? ({ error }) => isRateLimited(error) : undefined,
+        maxRetryAfter: MAX_RETRY_AFTER_S,
+        shouldRetry: init.write ? ({ error }) => isShortRateLimit(error) : undefined,
       },
     });
     return response.status === 204 ? null : await response.json();
   } catch (error) {
-    if (!(error instanceof HTTPError)) throw error;
-    const detail = typeof error.data === "string" ? error.data : JSON.stringify(error.data ?? "");
-    throw new JiraApiError(error.response.status, detail);
+    if (error instanceof HTTPError) {
+      const detail = typeof error.data === "string" ? error.data : JSON.stringify(error.data ?? "");
+      throw new JiraApiError(error.response.status, detail, retryAfterSeconds(error.response.headers));
+    }
+    // ky's timeout and network errors carry the Request, whose headers hold the bearer token; keep only the name and
+    // message so a logged failure cannot leak the connection.
+    if (isKyError(error)) throw new Error(`Jira ${method} ${path} failed: ${error.name}: ${error.message}`);
+    throw error;
   }
 }
 
@@ -172,8 +208,14 @@ export class JiraClient implements IssueTracker {
   }
 
   async getIssue(key: string): Promise<Issue> {
-    const result = await this.call(`/issue/${encodeURIComponent(key)}?fields=${ISSUE_FIELDS.join(",")}`);
-    return this.toIssue(issueSchema.parse(result));
+    try {
+      const result = await this.call(`/issue/${encodeURIComponent(key)}?fields=${ISSUE_FIELDS.join(",")}`);
+      return this.toIssue(issueSchema.parse(result));
+    } catch (error) {
+      if (error instanceof JiraApiError && (error.status === 403 || error.status === 404))
+        throw new TrackerNotFoundError(`Jira has no issue ${key}, or the connected account cannot see it.`);
+      throw error;
+    }
   }
 
   async createIssue(draft: TicketDraft): Promise<PublishedIssue> {
@@ -194,10 +236,19 @@ export class JiraClient implements IssueTracker {
   }
 
   private async issueTypeName(): Promise<string> {
-    const { issueTypes } = projectSchema.parse(await this.call(`/project/${encodeURIComponent(this.projectKey)}`));
+    let issueTypes: z.infer<typeof projectSchema>["issueTypes"];
+    try {
+      ({ issueTypes } = projectSchema.parse(await this.call(`/project/${encodeURIComponent(this.projectKey)}`)));
+    } catch (error) {
+      if (error instanceof JiraApiError && (error.status === 403 || error.status === 404))
+        throw new TrackerRejectedError(
+          `Jira could not find the ${this.projectKey} project, or the connected account cannot see it.`,
+        );
+      throw error;
+    }
     const standard = issueTypes.filter((type) => !type.subtask);
     const chosen = standard.find((type) => type.name === PREFERRED_ISSUE_TYPE) ?? standard[0];
-    if (!chosen) throw new Error(`Jira project ${this.projectKey} has no usable issue type`);
+    if (!chosen) throw new TrackerRejectedError(`The ${this.projectKey} project has no issue type a ticket can use.`);
     return chosen.name;
   }
 
@@ -216,6 +267,8 @@ export class JiraClient implements IssueTracker {
     try {
       return await this.call(path, { ...init, write: true });
     } catch (error) {
+      if (error instanceof JiraApiError && error.status === 429)
+        throw new TrackerRejectedError(rateLimitMessage(error));
       const refusal = error instanceof JiraApiError ? REFUSALS[error.status] : undefined;
       if (refusal && error instanceof JiraApiError)
         throw new TrackerRejectedError(rejectionMessage(error.detail, refusal(this.projectKey)));

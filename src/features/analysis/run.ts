@@ -1,8 +1,9 @@
 import "server-only";
 import { and, eq, lt, ne, or, sql } from "drizzle-orm";
 import type { TokenUsage } from "@/core/analysis/generators";
+import { createUsageMeter } from "@/core/analysis/generators";
 import type { StoredAnalysisInput } from "@/core/analysis/schemas";
-import { AnalysisAlreadyRunningError } from "@/core/errors";
+import { AnalysisAlreadyRunningError, errorSummary } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import { RUN_BUDGET_MS, RUN_TIMEOUT_ERROR, STALE_ANALYSIS_MS } from "@/core/analysis/stale";
 import { toActionError } from "@/features/errors";
@@ -15,7 +16,8 @@ import { first } from "@/lib/first";
 type Outcome = { result: unknown; issues: EvidenceIssue[]; usage?: TokenUsage; revision?: string };
 
 // The signal aborts at the run's deadline; model calls take it so the run ends before the host kills the request.
-type Execute = (deadline: AbortSignal) => Promise<Outcome>;
+// `onUsage` lets a model call report tokens as it finishes, so a failed run still records what it spent.
+type Execute = (deadline: AbortSignal, onUsage: (usage: TokenUsage) => void) => Promise<Outcome>;
 
 // Provider, GitHub and database messages can carry internal URLs, ids or model output, so members see this instead.
 export const UNEXPECTED_RUN_ERROR =
@@ -41,23 +43,33 @@ async function applyOutcome(
 async function recordOutcome(db: Database, id: string, runToken: string, execute: Execute): Promise<void> {
   const startedAt = Date.now();
   const deadline = AbortSignal.timeout(RUN_BUDGET_MS);
+  const meter = createUsageMeter();
   try {
-    const { result, issues, usage, revision } = await execute(deadline);
+    const { result, issues, usage, revision } = await execute(deadline, meter.add);
+    // A fake provider reports its usage only in the outcome; a real one reports every call as it finishes.
+    const total = meter.total() ?? usage;
     await applyOutcome(db, id, runToken, {
       status: "completed",
       result,
+      // The new draft replaces the previous one and any edits made to it.
+      editedResult: null,
       sourceRevision: revision ?? null,
       evidenceIssues: issues,
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
+      inputTokens: total?.inputTokens,
+      outputTokens: total?.outputTokens,
       latencyMs: Date.now() - startedAt,
     });
   } catch (error) {
     const known = toActionError(error);
-    if (!known) console.error(`[analysis] run ${id} failed`, error);
+    if (!known) console.error(`[analysis] run ${id} failed`, errorSummary(error));
+    // The run's own deadline, the agent's 90 s cap and each model call's cap all mean the same thing to the user.
+    const timedOut = deadline.aborted || (error instanceof Error && error.name === "TimeoutError");
+    const total = meter.total();
     await applyOutcome(db, id, runToken, {
       status: "failed",
-      error: deadline.aborted ? RUN_TIMEOUT_ERROR : (known?.error ?? UNEXPECTED_RUN_ERROR),
+      error: timedOut ? RUN_TIMEOUT_ERROR : (known?.error ?? UNEXPECTED_RUN_ERROR),
+      inputTokens: total?.inputTokens,
+      outputTokens: total?.outputTokens,
       latencyMs: Date.now() - startedAt,
     });
   }
@@ -115,9 +127,6 @@ export async function restartAnalysis(args: RestartArgs): Promise<string> {
       // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.
       previousSourceRevision: sql`coalesce(${analysis.sourceRevision}, ${analysis.previousSourceRevision})`,
       sourceRevision: null,
-      result: null,
-      editedResult: null,
-      evidenceIssues: null,
       inputTokens: null,
       outputTokens: null,
       latencyMs: null,

@@ -73,7 +73,8 @@ type BaseProvider = {
 
 export type SourceProvider = BaseProvider & {
   kind: "source";
-  openSource(ctx: ConnectionContext, resourceId: string): Promise<ContextSource>;
+  // `deadline` bounds the provider's own calls (an API walk, a search) to the run that opened it.
+  openSource(ctx: ConnectionContext, resourceId: string, options?: { deadline?: AbortSignal }): Promise<ContextSource>;
   // Folds a folder restriction into the resource id in this provider's own notation; providers that cannot narrow
   // a repository return the id unchanged.
   scopeResource(resourceId: string, subdirectory: string | undefined): string;

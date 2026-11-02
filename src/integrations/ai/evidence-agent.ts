@@ -1,8 +1,9 @@
 import { generateText, hasToolCall, stepCountIs, tool } from "ai";
 import { z } from "zod";
-import type { EvidenceSelector } from "@/core/analysis/generators";
+import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { ContextSource, SearchResult } from "@/core/context/source";
 import { resolveModel } from "./model";
+import { asText } from "./prompt";
 import { tokenUsage } from "./usage";
 
 const MAX_STEPS = 8;
@@ -37,10 +38,15 @@ const AGENT_SYSTEM_PROMPT = `You find the files a software ticket must cite, in 
 
 type AgentInput = { query: string; source: ContextSource };
 
+// The audit's ticket text is untrusted: a `</request>` in it must not end the block that marks it as data.
+export const agentPrompt = (query: string, fileCount: number) =>
+  `<request>\n${asText(query)}\n</request>\n\nThe repository holds ${fileCount} files. Find the files the ticket must cite.`;
+
 export class AiEvidenceAgent implements EvidenceSelector {
   constructor(
     private readonly modelId: string,
     private readonly deadline?: AbortSignal,
+    private readonly onUsage?: (usage: TokenUsage) => void,
   ) {}
 
   async select({ query, source }: AgentInput) {
@@ -52,7 +58,7 @@ export class AiEvidenceAgent implements EvidenceSelector {
     const result = await generateText({
       model: resolveModel(this.modelId),
       instructions: AGENT_SYSTEM_PROMPT,
-      prompt: `<request>\n${query}\n</request>\n\nThe repository holds ${files.length} files. Find the files the ticket must cite.`,
+      prompt: agentPrompt(query, files.length),
       tools: {
         listFiles: tool({
           description: "List repository paths, optionally only those containing a substring.",
@@ -100,6 +106,8 @@ export class AiEvidenceAgent implements EvidenceSelector {
       stopWhen: [stepCountIs(MAX_STEPS), hasToolCall("selectFiles")],
       timeout: AGENT_TIMEOUT_MS,
       abortSignal: this.deadline,
+      // A step that finished was billed even if a later one times out or throws.
+      onStepEnd: ({ usage }) => this.onUsage?.(tokenUsage(usage)),
     });
 
     const calls = result.steps.flatMap((step) => step.toolCalls);
@@ -110,11 +118,11 @@ export class AiEvidenceAgent implements EvidenceSelector {
   }
 }
 
-// An unsearched term must not read as "no file contains it", or the agent stops looking for code that exists.
+// A term that was never searched must not read as "no file contains it", or the agent stops looking for code that exists.
 export function searchReply({ paths, failedTerms }: SearchResult): string[] | string {
   const shown = paths.slice(0, SEARCH_PATHS);
   if (!failedTerms.length) return shown;
-  const note = `(Search failed for ${failedTerms.join(", ")}: the code host refused it, so those words may still be in the code. Use listFiles with contains, or readFile.)`;
+  const note = `(Could not search for ${failedTerms.join(", ")}: the code host refused it or the search was capped, so those words may still be in the code. Use listFiles with contains, or readFile.)`;
   return shown.length ? `${shown.join("\n")}\n${note}` : note;
 }
 
@@ -125,13 +133,28 @@ const readPath = (input: unknown): string | undefined => {
   return parsed.success ? parsed.data.path : undefined;
 };
 
-// The model's selection, or, when it never concluded, the files it actually read: both are filtered against the
+// Models write paths as they see them in tool output, but also as "./src/a.ts" or "/src/a.ts"; the repository knows
+// them without either prefix.
+const normalizePath = (path: string) => path.replace(/^(?:\.\/)+/, "").replace(/^\//, "");
+
+const knownPaths = (paths: (string | undefined)[], known: Set<string>): string[] =>
+  [
+    ...new Set(
+      paths.flatMap((path) => {
+        if (!path) return [];
+        const normalized = normalizePath(path);
+        return known.has(normalized) ? [normalized] : [];
+      }),
+    ),
+  ].slice(0, MAX_FILES);
+
+// The model's selection, or, when it named nothing usable, the files it actually read: both are filtered against the
 // repository, deduplicated in order, and capped. A later selectFiles call wins over an earlier one.
 export function pathsFromCalls(calls: ToolCall[], known: Set<string>): string[] {
   const named = calls.filter((call) => call.toolName === "selectFiles").at(-1);
   const parsed = selectionSchema.safeParse(named?.input);
-  const selected = parsed.success
-    ? parsed.data.paths
-    : calls.flatMap((call) => (call.toolName === "readFile" ? [readPath(call.input)] : []));
-  return [...new Set(selected.filter((path): path is string => Boolean(path && known.has(path))))].slice(0, MAX_FILES);
+  const read = calls.flatMap((call) => (call.toolName === "readFile" ? [readPath(call.input)] : []));
+  const selected = parsed.success ? knownPaths(parsed.data.paths, known) : [];
+  // A selection holding only paths outside the repository proves nothing; fall back to what the agent read.
+  return selected.length ? selected : knownPaths(read, known);
 }
