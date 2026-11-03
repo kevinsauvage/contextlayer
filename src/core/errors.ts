@@ -38,7 +38,24 @@ export class TrackerNotFoundError extends Error {
   }
 }
 
+// The provider revoked or expired the grant: only a new consent can fix it.
+export class InvalidGrantError extends Error {}
+
+// The connected account must be authorized again before its provider can be used.
+export class ReconnectRequiredError extends Error {
+  constructor(readonly connectionLabel: string) {
+    super(`The connection to ${connectionLabel} expired.`);
+  }
+}
+
 // A logged failure keeps only what identifies it: the raw object can carry a request with its bearer token, or a whole
 // prompt with source excerpts.
 export const errorSummary = (error: unknown) =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+// Integrations throw their own error classes; each carries the provider's HTTP status on `status`.
+export const httpStatusOf = (error: unknown): number | undefined => {
+  if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
+  const status = Number(error.status);
+  return Number.isNaN(status) ? undefined : status;
+};

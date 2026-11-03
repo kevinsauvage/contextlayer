@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalTime } from "@/components/local-time";
 import { getOrganization, listMembers, listPendingInvitations } from "@/features/organizations/queries";
-import { MEMBER_ROLE, OWNER_ROLE, isAdminRole } from "@/core/organizations/roles";
+import { MEMBER_ROLE, OWNER_ROLE, canChangeMemberRole, canRemoveMember, isAdminRole } from "@/core/organizations/roles";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
@@ -25,11 +25,7 @@ export default async function Page() {
     isAdmin ? listPendingInvitations(db, organizationId) : [],
   ]);
   // Owners manage every non-owner; admins manage members. Nobody changes their own role here.
-  const canChangeRole = (member: { userId: string; role: string }) =>
-    isAdmin &&
-    member.userId !== userId &&
-    member.role !== OWNER_ROLE &&
-    (currentRole === OWNER_ROLE || member.role === MEMBER_ROLE);
+  const actor = { userId, role: currentRole, isAdmin };
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,14 +60,14 @@ export default async function Page() {
                   </span>
                   <span className="truncate text-xs text-muted-foreground">{m.email}</span>
                 </div>
-                {canChangeRole(m) ? (
+                {canChangeMemberRole(actor, m) ? (
                   <MemberRoleSelect memberId={m.id} role={m.role} />
                 ) : (
                   <Badge variant={isAdminRole(m.role) ? "secondary" : "outline"} className="capitalize">
                     {m.role}
                   </Badge>
                 )}
-                {isAdmin && m.userId !== userId && m.role !== OWNER_ROLE && <RemoveMemberButton memberId={m.id} />}
+                {canRemoveMember(actor, m) && <RemoveMemberButton memberId={m.id} />}
               </li>
             ))}
           </ul>

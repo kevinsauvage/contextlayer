@@ -1,11 +1,15 @@
 import "server-only";
+import ky, { HTTPError, isKyError } from "ky";
 import { z } from "zod";
-import { InvalidGrantError, type OAuthTokens } from "@/core/integrations/provider";
+import { InvalidGrantError } from "@/core/errors";
+import type { OAuthTokens } from "@/core/integrations/provider";
 import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const SCOPES = ["read:jira-work", "write:jira-work", "offline_access"];
 // A token refresh runs while the grant's rows are locked, so a hung Atlassian request must not hold them for long.
 const REQUEST_TIMEOUT_MS = 15_000;
+// A refresh token is single use: a retried request could spend it twice.
+const noRetry = { timeout: REQUEST_TIMEOUT_MS, retry: 0 } as const;
 
 const tokenSchema = z.object({
   access_token: z.string(),
@@ -31,24 +35,32 @@ export function jiraAuthorizeUrl(state: string, redirectUri: string): string {
   return `https://auth.atlassian.com/authorize?${params}`;
 }
 
+// ky's timeout and network errors carry the Request, whose headers or body hold a token or the client secret.
+const withoutRequest = (error: unknown) =>
+  isKyError(error) ? new Error(`Atlassian request failed: ${error.name}: ${error.message}`) : error;
+
 async function requestTokens(body: Record<string, string>): Promise<OAuthTokens> {
   const { JIRA_CLIENT_ID, JIRA_CLIENT_SECRET } = requireEnv("JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET");
-  const response = await fetch("https://auth.atlassian.com/oauth/token", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ client_id: JIRA_CLIENT_ID, client_secret: JIRA_CLIENT_SECRET, ...body }),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (response.status === 400 || response.status === 401 || response.status === 403) {
-    throw new InvalidGrantError(`Atlassian rejected the token request (${response.status})`);
+  try {
+    const tokens = tokenSchema.parse(
+      await ky
+        .post("https://auth.atlassian.com/oauth/token", {
+          ...noRetry,
+          json: { client_id: JIRA_CLIENT_ID, client_secret: JIRA_CLIENT_SECRET, ...body },
+        })
+        .json(),
+    );
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+    };
+  } catch (error) {
+    if (!(error instanceof HTTPError)) throw withoutRequest(error);
+    if ([400, 401, 403].includes(error.response.status))
+      throw new InvalidGrantError(`Atlassian rejected the token request (${error.response.status})`);
+    throw new Error(`Atlassian token request failed (${error.response.status})`);
   }
-  if (!response.ok) throw new Error(`Atlassian token request failed (${response.status})`);
-  const tokens = tokenSchema.parse(await response.json());
-  return {
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-  };
 }
 
 export const exchangeJiraCode = (code: string, redirectUri: string) =>
@@ -58,10 +70,17 @@ export const refreshJiraTokens = (refreshToken: string) =>
   requestTokens({ grant_type: "refresh_token", refresh_token: refreshToken });
 
 export async function listJiraSites(accessToken: string): Promise<JiraSite[]> {
-  const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
-    headers: { authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error(`Could not list Jira sites (${response.status})`);
-  return resourcesSchema.parse(await response.json());
+  try {
+    return resourcesSchema.parse(
+      await ky
+        .get("https://api.atlassian.com/oauth/token/accessible-resources", {
+          ...noRetry,
+          headers: { authorization: `Bearer ${accessToken}` },
+        })
+        .json(),
+    );
+  } catch (error) {
+    if (error instanceof HTTPError) throw new Error(`Could not list Jira sites (${error.response.status})`);
+    throw withoutRequest(error);
+  }
 }

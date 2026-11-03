@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { PUBLISH_CLAIM_MS } from "@/core/analysis/stale";
 import { TrackerRejectedError } from "@/core/errors";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { publishApproved } from "@/features/analysis/publish";
@@ -54,6 +55,25 @@ async function completedAnalysis(): Promise<{ id: string; runToken: string }> {
 }
 
 describe("publishApproved", () => {
+  const rowOf = async (id: string) => first(await db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
+
+  const claimedAt = async (id: string, ageMs: number) =>
+    db
+      .update(schema.analysis)
+      .set({ publishingSince: new Date(Date.now() - ageMs) })
+      .where(eq(schema.analysis.id, id));
+
+  // Fails the nth call to `db.update` after the claim, which is the publish record.
+  const failingRecord = (failures: number[]) => {
+    const original = db.update.bind(db);
+    let calls = 0;
+    return vi.spyOn(db, "update").mockImplementation((...args: Parameters<typeof db.update>) => {
+      calls += 1;
+      if (failures.includes(calls)) throw new Error("database unavailable");
+      return original(...args);
+    });
+  };
+
   it("creates the issue once and records its key and URL", async () => {
     const { id, runToken } = await completedAnalysis();
     const result = await publishApproved(db, id, runToken, draft, async () => ({ key: "SHOP-1", url: "u/1" }));
@@ -107,5 +127,81 @@ describe("publishApproved", () => {
     });
     expect(retried).toEqual({ error: "This analysis is already being published" });
     expect(writes).toBe(0);
+  });
+
+  it("publishes once a dead request's claim has expired", async () => {
+    const { id, runToken } = await completedAnalysis();
+    await claimedAt(id, PUBLISH_CLAIM_MS + 1000);
+
+    expect(await publishApproved(db, id, runToken, draft, async () => ({ key: "SHOP-5", url: "u/5" }))).toEqual({
+      issueKey: "SHOP-5",
+      issueUrl: "u/5",
+    });
+    expect((await rowOf(id)).publishingSince).toBeNull();
+  });
+
+  it("refuses while another approval's claim is still live", async () => {
+    const { id, runToken } = await completedAnalysis();
+    await claimedAt(id, 10_000);
+    let writes = 0;
+
+    const result = await publishApproved(db, id, runToken, draft, async () => {
+      writes += 1;
+      return { key: "SHOP-6", url: "u/6" };
+    });
+
+    expect(result).toEqual({ error: "This analysis is already being published" });
+    expect(writes).toBe(0);
+  });
+
+  it("refuses a row that is already published", async () => {
+    const { id, runToken } = await completedAnalysis();
+    await db
+      .update(schema.analysis)
+      .set({ publishedIssueKey: "SHOP-7", publishedIssueUrl: "u/7" })
+      .where(eq(schema.analysis.id, id));
+    let writes = 0;
+
+    const result = await publishApproved(db, id, runToken, draft, async () => {
+      writes += 1;
+      return { key: "SHOP-8", url: "u/8" };
+    });
+
+    expect(result).toEqual({ error: "This analysis is already being published" });
+    expect(writes).toBe(0);
+  });
+
+  it("retries recording the issue once the write landed", async () => {
+    const { id, runToken } = await completedAnalysis();
+    const spy = failingRecord([2]);
+
+    try {
+      expect(await publishApproved(db, id, runToken, draft, async () => ({ key: "SHOP-9", url: "u/9" }))).toEqual({
+        issueKey: "SHOP-9",
+        issueUrl: "u/9",
+      });
+      expect((await rowOf(id)).publishedIssueKey).toBe("SHOP-9");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("names the issue when it could not record the publish at all", async () => {
+    const { id, runToken } = await completedAnalysis();
+    const spy = failingRecord([2, 3]);
+    let writes = 0;
+
+    try {
+      const result = await publishApproved(db, id, runToken, draft, async () => {
+        writes += 1;
+        return { key: "SHOP-10", url: "u/10" };
+      });
+      expect(result).toMatchObject({ issueKey: "SHOP-10", issueUrl: "u/10" });
+      expect(result.error).toMatch(/Do not approve this draft again; use SHOP-10\./);
+      expect(writes).toBe(1);
+      expect((await rowOf(id)).publishedIssueKey).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

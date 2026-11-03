@@ -1,7 +1,6 @@
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TrackerNotFoundError, TrackerRejectedError } from "@/core/errors";
-import { ReconnectRequiredError } from "@/core/integrations/provider";
+import { ReconnectRequiredError, TrackerNotFoundError, TrackerRejectedError } from "@/core/errors";
 import { JiraClient, getJiraProject, listJiraProjects } from "@/integrations/jira/client";
 
 const site = { cloudId: "cloud-1", siteUrl: "https://shop.atlassian.net" };

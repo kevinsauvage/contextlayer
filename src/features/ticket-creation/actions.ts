@@ -6,8 +6,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
 import type { TokenUsage } from "@/core/analysis/generators";
-import { citedEvidence } from "@/core/evidence/validate";
-import { clarificationSchema, draftBodySchema, draftSections, type Refinement } from "@/core/requirements/schemas";
+import { withCitedEvidence } from "@/core/evidence/validate";
+import { clarificationSchema, draftBodySchema, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, defaultSelector, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
@@ -20,6 +20,7 @@ import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
+import { formString } from "@/lib/form";
 import { firstIssueMessage } from "@/lib/zod";
 
 const REGENERATED_ERROR = "The draft was regenerated or published since you edited it; reload the page";
@@ -53,7 +54,7 @@ export async function createTicketAnalysis(
   _: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const request = requestSchema.safeParse(formData.get("request"));
+  const request = requestSchema.safeParse(formString(formData, "request"));
   if (!request.success) return { error: firstIssueMessage(request.error) };
 
   const loaded = await loadProject(projectId);
@@ -143,7 +144,7 @@ export async function saveDraftEdits(analysisId: string, runToken: string, draft
   const evidence = storedEvidence(loaded.analysis);
   const [row] = await loaded.db
     .update(analysis)
-    .set({ editedResult: { ...draft.data, evidence: citedEvidence(evidence, draftSections(draft.data)) } })
+    .set({ editedResult: withCitedEvidence(draft.data, evidence) })
     .where(
       and(
         eq(analysis.id, analysisId),

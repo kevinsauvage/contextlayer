@@ -6,8 +6,10 @@ import {
   citedEvidence,
   draftIssues,
   isTicketIntrinsic,
+  numberEvidence,
   validateAuditFindings,
   validateEvidenceReferences,
+  withCitedEvidence,
   type EvidenceIssue,
 } from "@/core/evidence/validate";
 import { draftSections, refinementText, type Refinement, type TicketDraft } from "@/core/requirements/schemas";
@@ -38,7 +40,7 @@ export async function draftTicket(
     candidates: context.evidence,
   });
 
-  const draft: TicketDraft = { ...body, evidence: citedEvidence(context.evidence, draftSections(body)) };
+  const draft: TicketDraft = withCitedEvidence(body, context.evidence);
   return {
     draft,
     candidates: context.evidence,
@@ -57,10 +59,7 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
   });
   // The audited ticket is the first source: a finding about the ticket itself (no description, vague title) can only
   // cite the ticket, not a code excerpt.
-  const candidates = [issueEvidence(issue), ...context.evidence].map((candidate, i) => ({
-    ...candidate,
-    id: `e${i + 1}`,
-  }));
+  const candidates = numberEvidence([issueEvidence(issue), ...context.evidence]);
   const { body, usage } = await input.generator.audit({ issue, candidates });
 
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };

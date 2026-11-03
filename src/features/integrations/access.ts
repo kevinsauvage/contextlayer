@@ -1,10 +1,6 @@
 import { eq } from "drizzle-orm";
-import {
-  InvalidGrantError,
-  ReconnectRequiredError,
-  type ConnectionContext,
-  type IntegrationProvider,
-} from "@/core/integrations/provider";
+import { InvalidGrantError, ReconnectRequiredError } from "@/core/errors";
+import type { ConnectionContext, IntegrationProvider } from "@/core/integrations/provider";
 import { decrypt, encrypt } from "@/infrastructure/crypto";
 import type { Database } from "@/infrastructure/db/client";
 import { integrationConnection } from "@/infrastructure/db/schema";

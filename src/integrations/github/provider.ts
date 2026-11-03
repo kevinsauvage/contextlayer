@@ -66,6 +66,8 @@ function scopeResource(resourceId: string, subdirectory: string | undefined): st
 const labelOf = (owner: string, name: string, subdirectory?: string) =>
   subdirectory ? `${owner}/${name} · ${subdirectory}` : `${owner}/${name}`;
 
+const repoId = (owner: string, name: string) => `${owner}/${name}`;
+
 export const githubProvider: SourceProvider = {
   id: "github",
   name: "GitHub",
@@ -98,7 +100,7 @@ export const githubProvider: SourceProvider = {
   async listResources(ctx) {
     const repos = await listInstallationRepos(Number(ctx.externalId));
     return repos
-      .map((repo) => ({ id: `${repo.owner}/${repo.name}`, label: `${repo.owner}/${repo.name}` }))
+      .map((repo) => ({ id: repoId(repo.owner, repo.name), label: labelOf(repo.owner, repo.name) }))
       .sort((a, b) => a.label.localeCompare(b.label));
   },
 
@@ -111,7 +113,7 @@ export const githubProvider: SourceProvider = {
     if (subdirectory && !(await getInstallationDirectory(installationId, repo.owner, repo.name, subdirectory)))
       return null;
     return {
-      id: subdirectory ? `${repo.owner}/${repo.name}#${subdirectory}` : `${repo.owner}/${repo.name}`,
+      id: scopeResource(repoId(repo.owner, repo.name), subdirectory),
       label: labelOf(repo.owner, repo.name, subdirectory),
     };
   },

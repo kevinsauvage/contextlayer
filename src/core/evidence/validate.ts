@@ -1,4 +1,5 @@
-import { draftSections, type TicketDraft } from "@/core/requirements/schemas";
+import { findingCategorySchema, type Finding, type FindingCategory } from "@/core/audit/schemas";
+import { draftSections, type DraftBody, type TicketDraft } from "@/core/requirements/schemas";
 import type { Claim, Evidence } from "./schemas";
 
 // `kind` says what has to change: a claim whose evidence does not support it blocks approval; a claim that answers an
@@ -19,7 +20,9 @@ const SECTION_ITEM_LABELS: Record<string, string> = {
   findings: "Finding",
 };
 
-const itemLabel = (section: string, index: number) => `${SECTION_ITEM_LABELS[section] ?? section} ${index + 1}`;
+export const sectionItemLabel = (section: string) => SECTION_ITEM_LABELS[section] ?? section;
+
+const itemLabel = (section: string, index: number) => `${sectionItemLabel(section)} ${index + 1}`;
 
 // Only the sources a claim actually cites are published, so a ticket never carries unused excerpts.
 export function citedEvidence(evidence: Evidence[], sections: ClaimSections): Evidence[] {
@@ -27,29 +30,42 @@ export function citedEvidence(evidence: Evidence[], sections: ClaimSections): Ev
   return evidence.filter((item) => ids.has(item.id));
 }
 
-const EVIDENCE_REQUIRED_CATEGORIES: Record<string, string> = {
+// The body the model wrote plus the excerpts its claims cite; a source can only be one the analysis stored.
+export function withCitedEvidence<T extends DraftBody>(body: T, evidence: Evidence[]): T & { evidence: Evidence[] } {
+  return { ...body, evidence: citedEvidence(evidence, draftSections(body)) };
+}
+
+// Candidate ids are positional and the draft cites them by position; numbering happens once per selection.
+export function numberEvidence(candidates: Omit<Evidence, "id">[]): Evidence[] {
+  return candidates.map((candidate, index) => ({ ...candidate, id: `e${index + 1}` }));
+}
+
+const EVIDENCE_REQUIRED_CATEGORIES: Partial<Record<FindingCategory, string>> = {
   conflict_with_code: "a conflict with the code",
   existing_implementation_or_duplicate: "an existing implementation or duplicate",
 };
 
 // Findings that describe the ticket itself: the ticket is the source, so no code excerpt can support them.
-const TICKET_INTRINSIC_CATEGORIES = new Set(["ambiguity", "missing_acceptance_criteria", "needs_human_decision"]);
+const TICKET_INTRINSIC_CATEGORIES = new Set<FindingCategory>([
+  "ambiguity",
+  "missing_acceptance_criteria",
+  "needs_human_decision",
+]);
 
-export const isTicketIntrinsic = (claim: Claim): boolean =>
-  "category" in claim && TICKET_INTRINSIC_CATEGORIES.has(String(claim.category));
+const categoryOf = (claim: Claim): FindingCategory | undefined =>
+  "category" in claim ? findingCategorySchema.safeParse(claim.category).data : undefined;
+
+export const isTicketIntrinsic = (claim: Claim): boolean => {
+  const category = categoryOf(claim);
+  return category ? TICKET_INTRINSIC_CATEGORIES.has(category) : false;
+};
 
 // A conflict or a duplicate is a claim about the code that only evidence can settle. A finding that says the
 // question cannot be answered ("unknown", "needs_clarification") asserts nothing, so it is allowed to say so.
-export function validateAuditFindings(findings: (Claim & { category: string })[]): EvidenceIssue[] {
+export function validateAuditFindings(findings: Finding[]): EvidenceIssue[] {
   return findings.flatMap((finding, i) => {
     const label = EVIDENCE_REQUIRED_CATEGORIES[finding.category];
-    if (
-      !label ||
-      finding.status === "verified" ||
-      finding.status === "unknown" ||
-      finding.status === "needs_clarification"
-    )
-      return [];
+    if (!label || finding.status !== "inferred") return [];
     return [
       {
         path: `findings[${i}]`,

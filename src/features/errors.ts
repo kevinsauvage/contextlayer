@@ -3,10 +3,10 @@ import {
   AnalysisAlreadyRunningError,
   ConnectionMissingError,
   ForbiddenError,
+  ReconnectRequiredError,
   TrackerNotFoundError,
   TrackerRejectedError,
 } from "@/core/errors";
-import { ReconnectRequiredError } from "@/core/integrations/provider";
 import type { ActionState } from "@/lib/action-state";
 
 export function toActionError(error: unknown): { error: string } | null {

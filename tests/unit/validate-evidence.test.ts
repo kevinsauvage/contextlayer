@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FindingCategory } from "@/core/audit/schemas";
 import type { Claim, Evidence } from "@/core/evidence/schemas";
 import {
   isTicketIntrinsic,
@@ -153,7 +154,12 @@ describe("validateOpenQuestions", () => {
 });
 
 describe("audit findings", () => {
-  const finding = (category: string, status: Claim["status"]) => ({ text: "x", status, evidenceIds: [], category });
+  const finding = (category: FindingCategory, status: Claim["status"]) => ({
+    text: "x",
+    status,
+    evidenceIds: [],
+    category,
+  });
 
   it("lets a finding about the ticket itself be verified without code evidence", () => {
     const claims = [finding("ambiguity", "verified"), finding("missing_acceptance_criteria", "verified")];

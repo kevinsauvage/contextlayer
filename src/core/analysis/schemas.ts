@@ -10,4 +10,6 @@ const auditAnalysisInputSchema = z.object({ issueKey: z.string().min(1) });
 
 // What `analysis.input` holds. The row's `kind` column picks the variant, so the JSON does not repeat it.
 export const storedAnalysisInputSchema = z.union([createAnalysisInputSchema, auditAnalysisInputSchema]);
+export type CreateAnalysisInput = z.infer<typeof createAnalysisInputSchema>;
+export type AuditAnalysisInput = z.infer<typeof auditAnalysisInputSchema>;
 export type StoredAnalysisInput = z.infer<typeof storedAnalysisInputSchema>;

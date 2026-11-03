@@ -4,8 +4,11 @@ import { APIError } from "better-auth/api";
 import type { Route } from "next";
 import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
+import pRetry from "p-retry";
+import slugify from "slugify";
 import { z } from "zod";
 import { INVITABLE_ROLES, OWNER_ROLE } from "@/core/organizations/roles";
+import { organizationNameSchema } from "@/core/organizations/schemas";
 import { toActionError } from "@/features/errors";
 import { getAuth } from "@/infrastructure/auth/auth";
 import { getSession, requireOrgAdmin, requireOrgContext } from "@/infrastructure/auth/session";
@@ -17,11 +20,6 @@ import { listUserOrganizations } from "./queries";
 // Organization actions may hand back the id of the row they created, so the client can finish the job.
 export type OrganizationActionResult = ActionState & { organizationId?: string; invitationId?: string; email?: string };
 
-const nameSchema = z
-  .string()
-  .trim()
-  .min(2, "Enter a name of at least 2 characters")
-  .max(100, "Keep the name under 100 characters");
 const emailSchema = z.email("Enter a valid email address");
 const roleSchema = z.enum(INVITABLE_ROLES);
 const idSchema = z.string().min(1, "Choose an entry");
@@ -37,55 +35,58 @@ function failure(error: unknown, fallback: string): ActionState {
   return { error: fallback };
 }
 
-const slugBase = (name: string) =>
-  name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "org";
+// Every action below has the same shape: run the Better Auth call, map a thrown error to a message for the person.
+async function authAction<T extends object>(fallback: string, run: () => Promise<T>): Promise<T | ActionState> {
+  try {
+    return await run();
+  } catch (error) {
+    return failure(error, fallback);
+  }
+}
+
+type ParsedId = { value: string } | { error: string };
+
+function parseId(value: string): ParsedId {
+  const parsed = idSchema.safeParse(value);
+  return parsed.success ? { value: parsed.data } : { error: firstIssueMessage(parsed.error) };
+}
+
+// Slugs carry a random suffix and are never parsed back, so the package's stricter transliteration is safe.
+const slugBase = (name: string) => slugify(name, { lower: true, strict: true }).slice(0, 40) || "org";
 
 const isSlugTaken = (error: unknown) =>
   error instanceof APIError && error.body?.code === "ORGANIZATION_SLUG_ALREADY_TAKEN";
 
-async function createWithUniqueSlug(name: string) {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await getAuth().api.createOrganization({
+const createWithUniqueSlug = async (name: string) =>
+  pRetry(
+    async () =>
+      getAuth().api.createOrganization({
         body: { name, slug: `${slugBase(name)}-${crypto.randomUUID().slice(0, 8)}` },
         headers: await headers(),
-      });
-    } catch (error) {
-      if (attempt >= 3 || !isSlugTaken(error)) throw error;
-    }
-  }
-}
+      }),
+    { retries: 2, minTimeout: 0, shouldRetry: ({ error }) => isSlugTaken(error) },
+  );
 
 export async function createOrganization(name: string): Promise<OrganizationActionResult> {
-  const parsed = nameSchema.safeParse(name);
+  const parsed = organizationNameSchema.safeParse(name);
   if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  return authAction("Could not create the organization", async () => {
     const organization = await createWithUniqueSlug(parsed.data);
     return { organizationId: organization.id };
-  } catch (error) {
-    return failure(error, "Could not create the organization");
-  }
+  });
 }
 
 export async function renameOrganization(name: string): Promise<ActionState> {
-  const parsed = nameSchema.safeParse(name);
+  const parsed = organizationNameSchema.safeParse(name);
   if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  return authAction("Could not rename the organization", async () => {
     const { organizationId } = await requireOrgAdmin();
     await getAuth().api.updateOrganization({
       body: { organizationId, data: { name: parsed.data } },
       headers: await headers(),
     });
     return {};
-  } catch (error) {
-    return failure(error, "Could not rename the organization");
-  }
+  });
 }
 
 export async function inviteMember(email: string, role: string): Promise<OrganizationActionResult> {
@@ -93,45 +94,39 @@ export async function inviteMember(email: string, role: string): Promise<Organiz
   if (!address.success) return { error: firstIssueMessage(address.error) };
   const parsedRole = roleSchema.safeParse(role);
   if (!parsedRole.success) return { error: "Choose a valid role" };
-  try {
+  return authAction("Could not create the invitation", async () => {
     const { organizationId } = await requireOrgAdmin();
     const invitation = await getAuth().api.createInvitation({
       body: { email: address.data, role: parsedRole.data, organizationId },
       headers: await headers(),
     });
     return { invitationId: invitation.id, email: invitation.email };
-  } catch (error) {
-    return failure(error, "Could not create the invitation");
-  }
+  });
 }
 
 export async function removeMember(memberId: string): Promise<ActionState> {
-  const parsed = idSchema.safeParse(memberId);
-  if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  const id = parseId(memberId);
+  if ("error" in id) return id;
+  return authAction("Could not remove the member", async () => {
     await requireOrgAdmin();
-    await getAuth().api.removeMember({ body: { memberIdOrEmail: parsed.data }, headers: await headers() });
+    await getAuth().api.removeMember({ body: { memberIdOrEmail: id.value }, headers: await headers() });
     return {};
-  } catch (error) {
-    return failure(error, "Could not remove the member");
-  }
+  });
 }
 
 export async function updateMemberRole(memberId: string, role: string): Promise<ActionState> {
-  const parsedId = idSchema.safeParse(memberId);
-  if (!parsedId.success) return { error: firstIssueMessage(parsedId.error) };
+  const id = parseId(memberId);
+  if ("error" in id) return id;
   const parsedRole = roleSchema.safeParse(role);
   if (!parsedRole.success) return { error: "Choose a valid role" };
-  try {
+  return authAction("Could not change the member role", async () => {
     await requireOrgAdmin();
     await getAuth().api.updateMemberRole({
-      body: { memberId: parsedId.data, role: parsedRole.data },
+      body: { memberId: id.value, role: parsedRole.data },
       headers: await headers(),
     });
     return {};
-  } catch (error) {
-    return failure(error, "Could not change the member role");
-  }
+  });
 }
 
 // After leaving or deleting the active organization, land on another membership instead of onboarding jail.
@@ -150,64 +145,59 @@ async function nextOrganizationPath(userId: string): Promise<Route> {
   }
 }
 
+// The redirect after a successful leave or delete stays outside the wrapper: it is navigation, not an outcome.
 export async function leaveOrganization(): Promise<ActionState> {
   const { organizationId, userId } = await requireOrgContext();
-  try {
+  const result = await authAction<ActionState>("Could not leave the organization", async () => {
     await getAuth().api.leaveOrganization({ body: { organizationId }, headers: await headers() });
-  } catch (error) {
-    return failure(error, "Could not leave the organization");
-  }
+    return {};
+  });
+  if (result.error) return result;
   redirect(await nextOrganizationPath(userId));
 }
 
 export async function deleteOrganization(): Promise<ActionState> {
   const { organizationId, userId, role } = await requireOrgContext();
   if (role !== OWNER_ROLE) return { error: "Only the organization owner can delete it" };
-  try {
+  const result = await authAction<ActionState>("Could not delete the organization", async () => {
     await getAuth().api.deleteOrganization({ body: { organizationId }, headers: await headers() });
-  } catch (error) {
-    return failure(error, "Could not delete the organization");
-  }
+    return {};
+  });
+  if (result.error) return result;
   redirect(await nextOrganizationPath(userId));
 }
 
 export async function cancelInvitation(invitationId: string): Promise<ActionState> {
-  const parsed = idSchema.safeParse(invitationId);
-  if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  const id = parseId(invitationId);
+  if ("error" in id) return id;
+  return authAction("Could not cancel the invitation", async () => {
     await requireOrgAdmin();
-    await getAuth().api.cancelInvitation({ body: { invitationId: parsed.data }, headers: await headers() });
+    await getAuth().api.cancelInvitation({ body: { invitationId: id.value }, headers: await headers() });
     return {};
-  } catch (error) {
-    return failure(error, "Could not cancel the invitation");
-  }
+  });
 }
 
 export async function acceptInvitation(invitationId: string): Promise<OrganizationActionResult> {
-  const parsed = idSchema.safeParse(invitationId);
-  if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  const id = parseId(invitationId);
+  if ("error" in id) return id;
+  return authAction("Could not accept the invitation", async () => {
     const session = await getSession();
     if (!session) return { error: "Sign in to respond to the invitation" };
     const invitation = await getAuth().api.acceptInvitation({
-      body: { invitationId: parsed.data },
+      body: { invitationId: id.value },
       headers: await headers(),
     });
     return { organizationId: invitation.invitation.organizationId };
-  } catch (error) {
-    return failure(error, "Could not accept the invitation");
-  }
+  });
 }
 
 export async function rejectInvitation(invitationId: string): Promise<ActionState> {
-  const parsed = idSchema.safeParse(invitationId);
-  if (!parsed.success) return { error: firstIssueMessage(parsed.error) };
-  try {
+  const id = parseId(invitationId);
+  if ("error" in id) return id;
+  return authAction("Could not decline the invitation", async () => {
     const session = await getSession();
     if (!session) return { error: "Sign in to respond to the invitation" };
-    await getAuth().api.rejectInvitation({ body: { invitationId: parsed.data }, headers: await headers() });
+    await getAuth().api.rejectInvitation({ body: { invitationId: id.value }, headers: await headers() });
     return {};
-  } catch (error) {
-    return failure(error, "Could not decline the invitation");
-  }
+  });
 }

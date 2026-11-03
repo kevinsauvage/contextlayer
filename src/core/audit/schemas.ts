@@ -2,7 +2,7 @@ import { z } from "zod";
 import { claimSchema, evidenceSchema } from "@/core/evidence/schemas";
 import { draftBodySchema } from "@/core/requirements/schemas";
 
-const findingCategorySchema = z.enum([
+export const findingCategorySchema = z.enum([
   "ambiguity",
   "missing_acceptance_criteria",
   "non_testable_criteria",
@@ -11,11 +11,13 @@ const findingCategorySchema = z.enum([
   "unsupported_assumption",
   "needs_human_decision",
 ]);
+export type FindingCategory = z.infer<typeof findingCategorySchema>;
 
 const findingSchema = claimSchema.extend({
   category: findingCategorySchema,
   suggestion: z.string().optional().describe("Concrete improvement for the ticket, when one is supported."),
 });
+export type Finding = z.infer<typeof findingSchema>;
 
 export const auditBodySchema = z.object({
   summary: z.string().min(1),

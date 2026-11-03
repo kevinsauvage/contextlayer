@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { InvalidGrantError, ReconnectRequiredError, type IntegrationProvider } from "@/core/integrations/provider";
+import { InvalidGrantError, ReconnectRequiredError } from "@/core/errors";
+import type { IntegrationProvider } from "@/core/integrations/provider";
 import { connectionContext } from "@/features/integrations/access";
 import {
   getConnection,

@@ -1,5 +1,6 @@
 import "server-only";
-import { ReconnectRequiredError, type ConnectionContext, type TrackerProvider } from "@/core/integrations/provider";
+import { ReconnectRequiredError } from "@/core/errors";
+import type { ConnectionContext, TrackerProvider } from "@/core/integrations/provider";
 import { JiraApiError, JiraClient, getJiraProject, listJiraProjects } from "./client";
 import { exchangeJiraCode, isJiraConfigured, jiraAuthorizeUrl, listJiraSites, refreshJiraTokens } from "./oauth";
 
@@ -23,9 +24,15 @@ async function withJiraAuth<T>(ctx: ConnectionContext, run: () => Promise<T>): P
 // Accepts "shop-12", "SHOP-12" or a pasted issue URL ending in /browse/SHOP-12.
 export function parseJiraIssueKey(projectKey: string, input: string): string | null {
   const candidate = (input.trim().split(/[?#]/)[0] ?? "").split("/").filter(Boolean).at(-1)?.toUpperCase() ?? "";
-  const escaped = projectKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped}-\\d+$`).test(candidate) ? candidate : null;
+  const prefix = `${projectKey}-`;
+  if (!candidate.startsWith(prefix)) return null;
+  return /^\d+$/.test(candidate.slice(prefix.length)) ? candidate : null;
 }
+
+const projectResource = (project: { key: string; name: string }) => ({
+  id: project.key,
+  label: `${project.key} · ${project.name}`,
+});
 
 export const jiraProvider: TrackerProvider = {
   id: "jira",
@@ -62,14 +69,14 @@ export const jiraProvider: TrackerProvider = {
   async listResources(ctx) {
     return withJiraAuth(ctx, async () => {
       const projects = await listJiraProjects(siteOf(ctx.metadata, ctx.externalId), await ctx.accessToken());
-      return projects.map((project) => ({ id: project.key, label: `${project.key} · ${project.name}` }));
+      return projects.map(projectResource);
     });
   },
 
   async getResource(ctx, projectKey) {
     return withJiraAuth(ctx, async () => {
       const project = await getJiraProject(siteOf(ctx.metadata, ctx.externalId), await ctx.accessToken(), projectKey);
-      return project ? { id: project.key, label: `${project.key} · ${project.name}` } : null;
+      return project ? projectResource(project) : null;
     });
   },
 

@@ -1,37 +1,25 @@
 "use client";
 
-import { CircleAlert, CircleCheck, ExternalLink } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { ApprovalBar } from "@/components/analysis/approval-bar";
 import { DraftEditor } from "@/components/analysis/draft-editor";
 import { EvidenceWarnings } from "@/components/analysis/evidence-warnings";
+import { PublishedBar } from "@/components/analysis/published-bar";
+import { readinessLabels } from "@/components/analysis/readiness-labels";
 import { useOptionalRefinement } from "@/components/analysis/refinement-context";
 import { TicketPreview } from "@/components/analysis/ticket-preview";
+import { useAutosave } from "@/components/analysis/use-autosave";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation } from "@/components/use-mutation";
 import type { Evidence } from "@/core/evidence/schemas";
 import { draftIssues, isBlockingIssue, isClaimPath, type EvidenceIssue } from "@/core/evidence/validate";
-import { withoutIncompleteItems, type TicketDraft } from "@/core/requirements/schemas";
+import { draftReadiness } from "@/core/requirements/readiness";
+import type { TicketDraft } from "@/core/requirements/schemas";
 import type { PublishResult } from "@/features/analysis/publish";
 import type { ActionState } from "@/lib/action-state";
-
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-function readinessOf(draft: TicketDraft, unappliedAnswers: number) {
-  const claims = [...draft.description, ...draft.acceptanceCriteria];
-  const withStatus = (status: string) => claims.filter((claim) => claim.status === status).length;
-  const unresolved = [
-    draft.openQuestions.length && count(draft.openQuestions.length, "open question", "open questions"),
-    withStatus("needs_clarification") &&
-      count(withStatus("needs_clarification"), "claim needs clarification", "claims need clarification"),
-    unappliedAnswers && count(unappliedAnswers, "answer not applied yet", "answers not applied yet"),
-  ].filter((item): item is string => Boolean(item));
-  const labelled = withStatus("inferred") + withStatus("unknown");
-  return { unresolved, labelled };
-}
+import { countLabel } from "@/lib/count";
 
 function useWarnBeforeLeaving(active: boolean) {
   useEffect(() => {
@@ -85,14 +73,17 @@ export function DraftWorkspace({
   const router = useRouter();
   const [tab, setTab] = useState("preview");
   const [highlight, setHighlight] = useState<"description" | "acceptanceCriteria" | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const published = Boolean(result.issueUrl);
   const refinement = useOptionalRefinement();
   const updating = refinement?.updating ?? false;
   const edited = !published && JSON.stringify(draft) !== JSON.stringify(initial);
   const setDraftEdited = refinement?.setDraftEdited;
   const unappliedAnswers = refinement?.answered.length ?? 0;
-  const { unresolved: pendingReasons, labelled } = readinessOf(draft, unappliedAnswers);
+  const readiness = draftReadiness(draft);
+  const pendingReasons = [
+    ...readinessLabels(readiness),
+    ...(unappliedAnswers ? [countLabel(unappliedAnswers, "answer not applied yet", "answers not applied yet")] : []),
+  ];
   const target = existingKey ? `Updates ${existingKey}` : `Creates a new issue in ${projectLabel}`;
   // The stored warnings can be older than the draft on screen (an autosaved edit survived a reload), so re-check the
   // claims when the evidence is available. Issues about the report (a finding) or the evidence list itself are not
@@ -108,9 +99,11 @@ export function DraftWorkspace({
   const unresolved = [
     ...pendingReasons,
     ...(blocking.length
-      ? [count(blocking.length, "claim does not match its evidence", "claims do not match their evidence")]
+      ? [countLabel(blocking.length, "claim does not match its evidence", "claims do not match their evidence")]
       : []),
-    ...(warningCount ? [count(warningCount, "claim decides an open question", "claims decide an open question")] : []),
+    ...(warningCount
+      ? [countLabel(warningCount, "claim decides an open question", "claims decide an open question")]
+      : []),
   ];
 
   // An evidence warning is a link into the editor: show the section it points at and mark it.
@@ -127,25 +120,9 @@ export function DraftWorkspace({
 
   useEffect(() => setDraftEdited?.(edited), [edited, setDraftEdited]);
   useWarnBeforeLeaving(edited);
-
-  const [saveStatus, setSaveStatus] = useState<{ saved: boolean; error?: string }>({ saved: false });
-  const saveRef = useRef(save);
-  useEffect(() => {
-    saveRef.current = save;
-  }, [save]);
-  useEffect(() => {
-    if (!edited || !saveRef.current) return;
-    const timer = setTimeout(() => {
-      void saveRef.current?.(withoutIncompleteItems(draft)).then(
-        (outcome) => setSaveStatus({ saved: !outcome.error, error: outcome.error }),
-        () => setSaveStatus({ saved: false, error: "Could not reach the server" }),
-      );
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [draft, edited, published]);
+  const saveStatus = useAutosave(draft, save, edited);
 
   const approve = () => {
-    setConfirming(false);
     run(async () => {
       const outcome = await publish(draft);
       setResult(outcome);
@@ -154,6 +131,7 @@ export function DraftWorkspace({
       return {};
     });
   };
+
   return (
     <div className="flex flex-col gap-4">
       <EvidenceWarnings issues={shownIssues} onSelect={showClaim} />
@@ -199,84 +177,26 @@ export function DraftWorkspace({
         </Alert>
       )}
       {published ? (
-        <div
-          role="status"
-          className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur"
-        >
-          <p className="flex items-center gap-1.5 text-sm font-medium">
-            <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
-            {existingKey ? "Updated" : "Created"} {result.issueKey ?? "the issue"} in {trackerName}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {projectId && (
-              <Link href={`/projects/${projectId}#request`} className={buttonVariants({ variant: "outline" })}>
-                Draft another ticket
-              </Link>
-            )}
-            <a href={result.issueUrl} target="_blank" rel="noreferrer" className={buttonVariants()}>
-              Open {result.issueKey ?? "issue"} <ExternalLink aria-hidden />
-            </a>
-          </div>
-        </div>
+        <PublishedBar
+          trackerName={trackerName}
+          issueKey={result.issueKey ?? null}
+          issueUrl={result.issueUrl ?? null}
+          existingKey={existingKey}
+          projectId={projectId}
+        />
       ) : (
-        <div
-          className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur"
-          aria-label="Approval"
-          role="region"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-0.5 text-sm">
-              {unresolved.length ? (
-                <p className="flex items-center gap-1.5 font-medium">
-                  <CircleAlert aria-hidden className="size-4 shrink-0 text-warning" />
-                  {unresolved.join(" · ")}
-                </p>
-              ) : (
-                <p className="flex items-center gap-1.5 font-medium">
-                  <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
-                  Nothing left to decide
-                </p>
-              )}
-              <p className="text-muted-foreground">
-                {target}
-                {labelled > 0 && ` with ${count(labelled, "labelled claim", "labelled claims")}`}. Nothing is sent to{" "}
-                {trackerName} until you approve.
-              </p>
-            </div>
-            {!confirming && (
-              <Button
-                disabled={pending || updating || blocking.length > 0}
-                title={
-                  blocking.length
-                    ? "Fix the claims that do not match their evidence first"
-                    : updating
-                      ? "The draft is being redrafted"
-                      : undefined
-                }
-                onClick={() => (unresolved.length ? setConfirming(true) : approve())}
-              >
-                {pending ? "Publishing…" : updating ? "Waiting for the draft…" : publishLabel}
-              </Button>
-            )}
-          </div>
-          {confirming && (
-            <div role="alert" className="flex flex-col gap-2 rounded-lg bg-warning/10 p-3 text-sm">
-              <p>
-                <span className="font-medium">Still unresolved: {unresolved.join(" · ")}.</span> Open questions and
-                claims that need clarification are published labelled in {trackerName}.
-                {unappliedAnswers > 0 && " Answers you have not applied are not included."}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" onClick={approve}>
-                  Publish anyway
-                </Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(false)}>
-                  Keep editing
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <ApprovalBar
+          publishLabel={publishLabel}
+          trackerName={trackerName}
+          target={target}
+          labelled={readiness.labelled}
+          unresolved={unresolved}
+          unappliedAnswers={unappliedAnswers}
+          blocking={blocking.length}
+          pending={pending}
+          updating={updating}
+          onApprove={approve}
+        />
       )}
     </div>
   );

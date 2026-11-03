@@ -1,8 +1,7 @@
 import "server-only";
 import type { Octokit } from "octokit";
 import type { ContextSource, LineRange, SearchResult } from "@/core/context/source";
-import { ConnectionMissingError } from "@/core/errors";
-import { ReconnectRequiredError } from "@/core/integrations/provider";
+import { ConnectionMissingError, ReconnectRequiredError, httpStatusOf } from "@/core/errors";
 import { getGithubApp, type RepoRef } from "./app";
 import {
   isIgnoredPath,
@@ -13,14 +12,6 @@ import {
   skippedTerms,
 } from "../source-filters";
 import { walkTree, type TreeEntry } from "./tree";
-
-// Octokit throws RequestError for an HTTP failure; reading `status` instead of the class keeps the mapping testable
-// without the retry plugin's error types.
-const statusOf = (error: unknown) => {
-  if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
-  const status = Number(error.status);
-  return Number.isNaN(status) ? undefined : status;
-};
 
 export class GithubSource implements ContextSource {
   private constructor(
@@ -51,7 +42,7 @@ export class GithubSource implements ContextSource {
     try {
       octokit = await getGithubApp().getInstallationOctokit(installationId);
     } catch (error) {
-      const status = statusOf(error);
+      const status = httpStatusOf(error);
       if (status === 401 || status === 403 || status === 404)
         throw new ReconnectRequiredError(`the GitHub App installation for ${label}`);
       throw error;
@@ -62,7 +53,7 @@ export class GithubSource implements ContextSource {
       const { data } = await octokit.rest.repos.get({ owner: repo.owner, repo: repo.name, ...signal });
       branch = data.default_branch;
     } catch (error) {
-      const status = statusOf(error);
+      const status = httpStatusOf(error);
       if (status === 403 || status === 404)
         throw new ConnectionMissingError(
           `The repository ${label} is no longer accessible to the ContextLayer GitHub App.`,
@@ -79,7 +70,7 @@ export class GithubSource implements ContextSource {
       });
       return new GithubSource(octokit, repo, data.commit.sha, subdirectory, deadline);
     } catch (error) {
-      const status = statusOf(error);
+      const status = httpStatusOf(error);
       if (status === 404)
         throw new ConnectionMissingError(`The repository ${label} has no commits yet, or its default branch is gone.`);
       throw error;

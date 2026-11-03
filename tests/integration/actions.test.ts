@@ -2,12 +2,8 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Issue, IssueTracker } from "@/core/context/source";
-import {
-  ReconnectRequiredError,
-  type IntegrationProvider,
-  type SourceProvider,
-  type TrackerProvider,
-} from "@/core/integrations/provider";
+import { ReconnectRequiredError } from "@/core/errors";
+import type { IntegrationProvider, SourceProvider, TrackerProvider } from "@/core/integrations/provider";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { disconnectConnection } from "@/features/integrations/actions";
 import { removeMember } from "@/features/organizations/actions";

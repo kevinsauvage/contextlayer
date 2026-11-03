@@ -15,15 +15,16 @@ import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { plainInline } from "@/core/requirements/render";
+import { draftReadiness } from "@/core/requirements/readiness";
 import { isFollowUp, type Clarification } from "@/core/requirements/schemas";
-import { estimateCostUsd } from "@/features/analysis/cost";
 import { answersOf, firstLine, requestOf } from "@/features/analysis/input";
-import { readAnalysis, revisionChange, shortRevision } from "@/features/analysis/read";
+import { canRefineAnalysis, readAnalysis, revisionChange, runSummary } from "@/features/analysis/read";
 import { getAnalysis } from "@/features/projects/queries";
 import { refineTicket, retryAnalysis } from "@/features/ticket-creation/actions";
 import { projectIntegrations } from "@/features/projects/view";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
+import { readinessLabels } from "@/components/analysis/readiness-labels";
 
 export const maxDuration = 300;
 
@@ -55,12 +56,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   if (!loaded) notFound();
   const { analysis, project, db, content, draftTitle, request, heading } = loaded;
   const { trackerName } = await projectIntegrations(db, project);
-  const canRefine = analysis.kind === "create" && !analysis.publishedIssueKey && analysis.status !== "running";
-  // Cost is derived when the page renders, not stored: the price table may change without touching a row.
-  const costUsd =
-    analysis.inputTokens === null || analysis.outputTokens === null
-      ? null
-      : estimateCostUsd(analysis.model, { inputTokens: analysis.inputTokens, outputTokens: analysis.outputTokens });
+  const canRefine = canRefineAnalysis(analysis);
 
   const header = (
     <PageHeader
@@ -77,16 +73,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
           New ticket
         </Link>
       }
-      description={
-        analysis.status === "completed" &&
-        [
-          analysis.model ?? "Unknown model",
-          `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
-          `${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`,
-          ...(costUsd === null ? [] : [`$${costUsd.toFixed(4)}`]),
-          ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
-        ].join(" · ")
-      }
+      description={runSummary(analysis)}
     />
   );
   const runKey = analysis.startedAt.toISOString();
@@ -121,11 +108,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
     (refinement): refinement is Clarification => !isFollowUp(refinement) && refinement.answer !== "",
   );
   const questions = analysis.status === "completed" ? (content.draft?.openQuestions ?? []) : [];
-  const needsClarification = content.draft
-    ? [...content.draft.description, ...content.draft.acceptanceCriteria].filter(
-        (claim) => claim.status === "needs_clarification",
-      ).length
-    : 0;
+  const readiness = content.draft ? draftReadiness(content.draft) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,7 +134,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
             {analysis.status === "completed" ? (
               <>
                 {!analysis.publishedIssueKey && (
-                  <ProvisionalNotice questions={questions.length} claims={needsClarification} />
+                  <ProvisionalNotice reasons={readiness ? readinessLabels(readiness) : []} />
                 )}
                 {!analysis.publishedIssueKey && <RevisionNotice change={revisionChange(analysis)} />}
                 <CreationView
@@ -186,18 +169,12 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   );
 }
 
-const plural = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
-
 // Says up front that the draft is not settled yet, instead of leaving the state to the counts by the approve button.
-function ProvisionalNotice({ questions, claims }: { questions: number; claims: number }) {
-  if (!questions && !claims) return null;
-  const parts = [
-    questions ? plural(questions, "open question", "open questions") : "",
-    claims ? plural(claims, "claim needs clarification", "claims need clarification") : "",
-  ].filter(Boolean);
+function ProvisionalNotice({ reasons }: { reasons: string[] }) {
+  if (!reasons.length) return null;
   return (
     <div role="status" className="flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-      <p className="font-medium">Provisional draft — {parts.join(" and ")}</p>
+      <p className="font-medium">Provisional draft — {reasons.join(" and ")}</p>
       <p className="text-muted-foreground">
         Answer below and the draft regenerates; nothing is sent until you approve.
       </p>

@@ -92,15 +92,6 @@ export type IntegrationProvider = SourceProvider | TrackerProvider;
 
 export type ProviderDescriptor = Pick<IntegrationProvider, (typeof PROVIDER_DESCRIPTOR_KEYS)[number]>;
 
-// The provider revoked or expired the grant: only a new consent can fix it.
-export class InvalidGrantError extends Error {}
-
-export class ReconnectRequiredError extends Error {
-  constructor(readonly connectionLabel: string) {
-    super(`The connection to ${connectionLabel} expired.`);
-  }
-}
-
 export function describeProvider(provider: IntegrationProvider): ProviderDescriptor {
   return Object.fromEntries(PROVIDER_DESCRIPTOR_KEYS.map((key) => [key, provider[key]])) as ProviderDescriptor;
 }

@@ -1,5 +1,5 @@
 import type { Evidence } from "@/core/evidence/schemas";
-import { citedEvidence, validateEvidenceReferences } from "@/core/evidence/validate";
+import { withCitedEvidence, validateEvidenceReferences } from "@/core/evidence/validate";
 import { draftBodySchema, draftSections, type TicketDraft } from "@/core/requirements/schemas";
 import { firstIssueMessage } from "@/lib/zod";
 
@@ -14,5 +14,5 @@ export function parseApprovedDraft(
   if (!parsed.success) return { error: firstIssueMessage(parsed.error, invalidMessage) };
   const [issue] = validateEvidenceReferences(evidence, draftSections(parsed.data));
   if (issue) return { error: `${issue.message} Fix it in Edit, then approve again.` };
-  return { draft: { ...parsed.data, evidence: citedEvidence(evidence, draftSections(parsed.data)) } };
+  return { draft: withCitedEvidence(parsed.data, evidence) };
 }

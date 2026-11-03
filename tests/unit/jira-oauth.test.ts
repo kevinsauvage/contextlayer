@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { InvalidGrantError } from "@/core/errors";
 import { listJiraSites, refreshJiraTokens } from "@/integrations/jira/oauth";
 
 vi.stubEnv("JIRA_CLIENT_ID", "client");
@@ -8,8 +9,8 @@ afterEach(() => vi.unstubAllGlobals());
 
 const signals: (AbortSignal | null | undefined)[] = [];
 const stubFetch = (body: unknown) =>
-  vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
-    signals.push(init.signal);
+  vi.stubGlobal("fetch", async (request: Request) => {
+    signals.push(request.signal);
     return new Response(JSON.stringify(body), { status: 200 });
   });
 
@@ -25,5 +26,11 @@ describe("Atlassian requests", () => {
     stubFetch([]);
     await listJiraSites("at");
     expect(signals.at(-1)).toBeInstanceOf(AbortSignal);
+  });
+
+  it("reads a rejected token request as a revoked grant", async () => {
+    vi.stubGlobal("fetch", async () => new Response("{}", { status: 400 }));
+
+    await expect(refreshJiraTokens("rt-old")).rejects.toBeInstanceOf(InvalidGrantError);
   });
 });

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, type Claim, type ClaimStatus } from "@/core/evidence/schemas";
+import { sectionItemLabel } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
 
 type Props = {
@@ -57,6 +58,39 @@ function ClaimStatusField({ claim, label, onChange }: ClaimStatusFieldProps) {
   );
 }
 
+type ClaimFieldsProps = {
+  claim: Claim;
+  label: string;
+  disabled: boolean;
+  onTextChange: (text: string) => void;
+  onStatusChange: (status: ClaimStatus) => void;
+  // Acceptance criteria carry a product-decision flag; description paragraphs do not.
+  decision?: { checked: boolean; onChange: (checked: boolean) => void };
+};
+
+// A claim's text, status and optional product-decision flag: the two list kinds render the same fields.
+function ClaimFields({ claim, label, disabled, onTextChange, onStatusChange, decision }: ClaimFieldsProps) {
+  return (
+    <>
+      <Textarea
+        aria-label={label}
+        value={claim.text}
+        onChange={(e) => onTextChange(e.target.value)}
+        disabled={disabled}
+      />
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <ClaimStatusField claim={claim} label={label} onChange={onStatusChange} />
+        {decision && (
+          <label className="flex items-center gap-1">
+            <input type="checkbox" checked={decision.checked} onChange={(e) => decision.onChange(e.target.checked)} />
+            Needs product decision
+          </label>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function DraftEditor({
   draft,
   onChange,
@@ -86,7 +120,7 @@ export function DraftEditor({
         id="edit-description"
         highlight={highlight === "description"}
         title="Description"
-        itemLabel="Description paragraph"
+        itemLabel={sectionItemLabel("description")}
         hint={`Verified claims need cited evidence. Every other status is labelled in ${trackerName}.`}
         items={draft.description}
         minItems={1}
@@ -94,17 +128,13 @@ export function DraftEditor({
         createItem={() => ({ text: "", status: "needs_clarification" as const, evidenceIds: [] })}
         addLabel="Add paragraph"
         renderItem={(item, update, label) => (
-          <>
-            <Textarea
-              aria-label={label}
-              value={item.text}
-              onChange={(e) => update({ text: e.target.value })}
-              disabled={published}
-            />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ClaimStatusField claim={item} label={label} onChange={(status) => update({ status })} />
-            </div>
-          </>
+          <ClaimFields
+            claim={item}
+            label={label}
+            disabled={published}
+            onTextChange={(text) => update({ text })}
+            onStatusChange={(status) => update({ status })}
+          />
         )}
       />
 
@@ -112,7 +142,7 @@ export function DraftEditor({
         id="edit-acceptanceCriteria"
         highlight={highlight === "acceptanceCriteria"}
         title="Acceptance criteria"
-        itemLabel="Acceptance criterion"
+        itemLabel={sectionItemLabel("acceptanceCriteria")}
         items={draft.acceptanceCriteria}
         onChange={(acceptanceCriteria) => patch({ acceptanceCriteria })}
         createItem={() => ({
@@ -123,25 +153,17 @@ export function DraftEditor({
         })}
         addLabel="Add criterion"
         renderItem={(item, update, label) => (
-          <>
-            <Textarea
-              aria-label={label}
-              value={item.text}
-              onChange={(e) => update({ text: e.target.value })}
-              disabled={published}
-            />
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <ClaimStatusField claim={item} label={label} onChange={(status) => update({ status })} />
-              <label className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={item.requiresProductDecision}
-                  onChange={(e) => update({ requiresProductDecision: e.target.checked })}
-                />
-                Needs product decision
-              </label>
-            </div>
-          </>
+          <ClaimFields
+            claim={item}
+            label={label}
+            disabled={published}
+            onTextChange={(text) => update({ text })}
+            onStatusChange={(status) => update({ status })}
+            decision={{
+              checked: item.requiresProductDecision,
+              onChange: (requiresProductDecision) => update({ requiresProductDecision }),
+            }}
+          />
         )}
       />
 

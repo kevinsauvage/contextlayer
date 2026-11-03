@@ -1,6 +1,7 @@
 import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { Evidence } from "@/core/evidence/schemas";
 import { errorSummary } from "@/core/errors";
+import { numberEvidence } from "@/core/evidence/validate";
 import { extractTerms } from "./terms";
 import { evidenceFromPaths, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
@@ -46,6 +47,6 @@ export async function gatherContext(input: {
   ]);
   const files = await evidenceFromPaths(selection.paths, terms, input.source);
   const related = issues.filter((issue) => issue.key !== input.excludeIssueKey).map(issueEvidence);
-  const evidence = [...files, ...related].map((candidate, i) => ({ ...candidate, id: `e${i + 1}` }));
+  const evidence = numberEvidence([...files, ...related]);
   return { evidence, usage: selection.usage };
 }

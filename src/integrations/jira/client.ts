@@ -3,7 +3,7 @@ import ky, { HTTPError, isKyError } from "ky";
 import { z } from "zod";
 import type { Issue, IssueTracker, PublishedIssue } from "@/core/context/source";
 import { foldText } from "@/core/context/terms";
-import { TrackerNotFoundError, TrackerRejectedError } from "@/core/errors";
+import { TrackerNotFoundError, TrackerRejectedError, httpStatusOf } from "@/core/errors";
 import { ticketSections } from "@/core/requirements/render";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { adfToText, sectionsToAdf } from "./adf";
@@ -41,6 +41,8 @@ const TOTAL_TIMEOUT_MS = 60_000;
 const MAX_RETRY_AFTER_S = 10;
 const SEARCH_TERMS = 5;
 const SEARCH_POOL = 20;
+
+const browseUrl = (siteUrl: string, key: string) => `${siteUrl}/browse/${key}`;
 
 // Jira answers 401 when the token was revoked or the grant was removed: that needs a new consent, not a retry.
 export class JiraApiError extends Error {
@@ -112,9 +114,8 @@ async function jiraRequest(site: Site, accessToken: string, path: string, init: 
       headers: {
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
-        ...(init.body ? { "content-type": "application/json" } : {}),
       },
-      body: init.body ? JSON.stringify(init.body) : undefined,
+      ...(init.body ? { json: init.body } : {}),
       timeout: REQUEST_TIMEOUT_MS,
       totalTimeout: TOTAL_TIMEOUT_MS,
       // A 429 means Jira did not process the request, so every method is safe to retry; ky honors Retry-After.
@@ -162,7 +163,7 @@ export async function getJiraProject(
     );
     return { key: project.key, name: project.name };
   } catch (error) {
-    if (error instanceof JiraApiError && error.status === 404) return null;
+    if (httpStatusOf(error) === 404) return null;
     throw error;
   }
 }
@@ -276,7 +277,7 @@ export class JiraClient implements IssueTracker {
     }
   }
 
-  private published = (key: string): PublishedIssue => ({ key, url: `${this.site.siteUrl}/browse/${key}` });
+  private published = (key: string): PublishedIssue => ({ key, url: browseUrl(this.site.siteUrl, key) });
 
   private toIssue(issue: z.infer<typeof issueSchema>): Issue {
     return {
@@ -284,7 +285,7 @@ export class JiraClient implements IssueTracker {
       summary: issue.fields.summary,
       description: adfToText(issue.fields.description).trim(),
       status: issue.fields.status?.name ?? "Unknown",
-      url: `${this.site.siteUrl}/browse/${issue.key}`,
+      url: browseUrl(this.site.siteUrl, issue.key),
       updated: issue.fields.updated,
     };
   }

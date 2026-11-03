@@ -1,5 +1,6 @@
 import "server-only";
-import { App, Octokit, RequestError } from "octokit";
+import { App, Octokit } from "octokit";
+import { httpStatusOf } from "@/core/errors";
 import { hasEnv, requireEnv } from "@/infrastructure/env";
 
 const APP_KEYS = [
@@ -75,7 +76,7 @@ export async function getInstallationRepo(
     const { data } = await octokit.rest.repos.get({ owner, repo: name });
     return { owner: data.owner.login, name: data.name };
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) return null;
+    if (httpStatusOf(error) === 404) return null;
     throw error;
   }
 }
@@ -91,7 +92,7 @@ export async function getInstallationDirectory(
     const { data } = await octokit.rest.repos.getContent({ owner, repo: name, path });
     return Array.isArray(data);
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) return false;
+    if (httpStatusOf(error) === 404) return false;
     throw error;
   }
 }

@@ -6,20 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation } from "@/components/use-mutation";
+import { organizationNameSchema } from "@/core/organizations/schemas";
 import { createOrganization } from "@/features/organizations/actions";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
+import { firstIssueMessage } from "@/lib/zod";
 
 export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: string }) {
   const router = useRouter();
   const { run, pending, error, setError } = useMutation();
 
   function submit(formData: FormData) {
-    const name = formString(formData, "name").trim();
-    if (name.length < 2) {
-      setError("Enter a name of at least 2 characters");
+    const parsed = organizationNameSchema.safeParse(formString(formData, "name"));
+    if (!parsed.success) {
+      setError(firstIssueMessage(parsed.error));
       return;
     }
+    const name = parsed.data;
     run(async () => {
       const created = await createOrganization(name);
       if (created.error) return created;

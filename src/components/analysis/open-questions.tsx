@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Clarification } from "@/core/requirements/schemas";
+import { countLabel } from "@/lib/count";
 import { cn } from "@/lib/utils";
 
 export const OPEN_QUESTIONS_ANCHOR = "open-questions";
@@ -119,8 +120,6 @@ function Decided({ decided }: { decided: Clarification[] }) {
   );
 }
 
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
 export function OpenQuestions({ decided }: { decided: Clarification[] }) {
   const { questions, answers, setAnswer, answered, canRefine, sent, errorFor, send, confirmingFor } = useRefinement();
   if (!questions.length && !decided.length) return null;
@@ -189,7 +188,7 @@ export function OpenQuestions({ decided }: { decided: Clarification[] }) {
                       <Loader2 aria-hidden className="animate-spin" /> Updating draft
                     </>
                   ) : answered.length ? (
-                    `Update draft with ${plural(answered.length, "answer")}`
+                    `Update draft with ${countLabel(answered.length, "answer", "answers")}`
                   ) : (
                     "Update draft"
                   )}

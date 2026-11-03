@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence } from "@/core/evidence/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
-import { readAnalysis, revisionChange } from "@/features/analysis/read";
+import { readAnalysis, revisionChange, storedDraft } from "@/features/analysis/read";
 import type { Analysis } from "@/features/projects/queries";
 
 const evidence: Evidence[] = [
@@ -66,6 +66,21 @@ describe("readAnalysis", () => {
 
     expect(readAnalysis(row).draft?.evidence).toEqual([]);
     expect(parseApprovedDraft(edited, evidence, "invalid")).toMatchObject({ draft: { evidence: [] } });
+  });
+});
+
+describe("storedDraft", () => {
+  it("reads an unedited audit's proposed ticket with the report's evidence, so the badge sees its open questions", () => {
+    const { evidence: _, ...proposedTicket } = draft({
+      openQuestions: [{ question: "Which currency?", impact: "Changes rounding." }],
+    });
+    const row = {
+      kind: "audit",
+      result: { summary: "Gaps found.", findings: [], proposedTicket, evidence },
+      editedResult: null,
+    } as unknown as Analysis;
+
+    expect(storedDraft(row)?.openQuestions).toHaveLength(1);
   });
 });
 

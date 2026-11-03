@@ -1,5 +1,6 @@
 import "server-only";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
+import pRetry from "p-retry";
 import { PUBLISH_CLAIM_MS } from "@/core/analysis/stale";
 import type { PublishedIssue } from "@/core/context/source";
 import { errorSummary } from "@/core/errors";
@@ -65,26 +66,26 @@ async function recordPublished(
   draft: TicketDraft,
   published: PublishedIssue,
 ): Promise<PublishResult> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      await db
-        .update(analysis)
-        .set({
-          publishedIssueKey: published.key,
-          publishedIssueUrl: published.url,
-          editedResult: draft,
-          publishingSince: null,
-        })
-        .where(eq(analysis.id, analysisId));
-      return { issueKey: published.key, issueUrl: published.url };
-    } catch (error) {
-      if (attempt < RECORD_ATTEMPTS) continue;
-      console.error("[analysis] published but could not record it", error);
-      return {
-        issueKey: published.key,
-        issueUrl: published.url,
-        error: `Published as ${published.key}, but the app could not record it and may offer to publish again. Do not approve this draft again; use ${published.key}.`,
-      };
-    }
+  const record = () =>
+    db
+      .update(analysis)
+      .set({
+        publishedIssueKey: published.key,
+        publishedIssueUrl: published.url,
+        editedResult: draft,
+        publishingSince: null,
+      })
+      .where(eq(analysis.id, analysisId));
+
+  try {
+    await pRetry(record, { retries: RECORD_ATTEMPTS - 1, minTimeout: 0 });
+    return { issueKey: published.key, issueUrl: published.url };
+  } catch (error) {
+    console.error("[analysis] published but could not record it", errorSummary(error));
+    return {
+      issueKey: published.key,
+      issueUrl: published.url,
+      error: `Published as ${published.key}, but the app could not record it and may offer to publish again. Do not approve this draft again; use ${published.key}.`,
+    };
   }
 }
