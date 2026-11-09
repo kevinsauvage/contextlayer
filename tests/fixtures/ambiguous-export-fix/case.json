@@ -1,0 +1,22 @@
+{
+  "id": "ambiguous-export-fix",
+  "title": "The export is broken, please fix it.",
+  "tags": ["ambiguous"],
+  "expected": {
+    "relevantFiles": ["repo/src/export/exportOrdersCsv.ts", "repo/src/export/exportUsersCsv.ts"],
+    "verifiedFacts": [
+      "Two CSV exporters exist: exportOrdersCsv and exportUsersCsv",
+      "Both exporters build their file with toCsv"
+    ],
+    "mustStayUncertain": [
+      "Which export is broken",
+      "The observed failure",
+      "The expected behaviour after the fix"
+    ],
+    "forbiddenClaims": [
+      "A root cause presented as fact",
+      "Scoping the fix to one exporter without asking",
+      "A fix such as escaping or encoding presented as a requirement"
+    ]
+  }
+}

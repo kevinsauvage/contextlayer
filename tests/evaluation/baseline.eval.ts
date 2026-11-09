@@ -8,7 +8,7 @@ import { resolveJudgeModel, resolveModel } from "@/integrations/ai/model";
 import { buildCreatePrompt } from "@/integrations/ai/prompt";
 import { getEnv } from "@/infrastructure/env";
 import { draftCase, RESULTS_DIR } from "./draft-case";
-import { loadEvaluationCases, readRepository, requestOf, type LoadedCase, type RepositoryFile } from "./fixtures";
+import { loadEvaluationCases, readRepository, repositoryPrompt, requestOf, type LoadedCase } from "./fixtures";
 
 const modelId = getEnv().AI_MODEL;
 const model = resolveModel(modelId);
@@ -48,16 +48,13 @@ const judgmentSchema = z.object({
   contextlayer: scoresSchema,
 });
 
-const repositoryBlock = (files: RepositoryFile[]) =>
-  files.map((file) => `<file path="${file.path}">\n${file.content}\n</file>`).join("\n");
-
 // The repository is the source of truth: a claim it supports is correct even if `expected` does not list it.
 function buildJudgePrompt(c: LoadedCase, baseline: string, retrievalBaseline: string, contextlayer: unknown) {
   return [
     "Score four versions of a ticket written for the repository below, 0-2 per criterion (0 fails, 1 partial, 2 good).",
     "What each version received: original is the request as written; baseline answered it alone, with no repository; retrieval_baseline saw the same repository excerpts as contextlayer but wrote free text with no claim-status or citation format; contextlayer is the product's draft, whose claims carry a status and structure their sources as evidence ids.",
     "Source of truth: the repository files. A claim is correct when the files support it. It is wrong when the files contradict it, or when it states as fact something the files cannot show (business intent, users' complaints, numbers, deadlines, compliance targets). Check every factual claim against the files yourself, whether or not it cites a source.",
-    `<repository>\n${repositoryBlock(readRepository(c))}\n</repository>`,
+    repositoryPrompt(readRepository(c)),
     "Reviewer notes for this case (guidance, not an exhaustive list of true facts): verifiedFacts are facts a good ticket should establish; mustStayUncertain are points the files cannot settle, so a good ticket leaves them open; forbiddenClaims must not be presented as requirements.",
     JSON.stringify(c.expected, null, 2),
     "Criteria: factualCorrectness (every factual claim is supported by the files; one contradicted or invented fact caps it at 1, several at 0), evidenceTraceability (a reader can inspect the source of each claim: contextlayer through its structured evidence, retrieval_baseline through the file each claim names in its text; a claim that names no source it saw scores 0, so a version that saw no repository cannot score here), requirementFidelity (no invented business intent; a forbiddenClaim presented as a requirement scores 0), actionability (a developer knows what to change and where), acceptanceCriteria (clear, testable, product decisions marked), uncertaintyHandling (mustStayUncertain items exposed rather than decided).",

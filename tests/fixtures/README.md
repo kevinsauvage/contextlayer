@@ -15,11 +15,11 @@
 | `answers`       | Answers (`{ question, answer }`) and follow-ups (`{ message }`) replayed as an earlier clarification round.               |
 | `repository`    | `{ root, commit }`: read a checkout at a pinned commit instead of a copied `repo/` directory.                             |
 | `tags`          | Used to select subsets: `injection` and `control` make up the nightly eval.                                               |
-| `expected`      | `relevantFiles`, `verifiedFacts`, `mustStayUncertain`, `forbiddenClaims`, `appliedAnswers`.                                |
+| `expected`      | `relevantFiles`, `verifiedFacts`, `mustStayUncertain`, `forbiddenClaims`, `mustNotContain`, `appliedAnswers`.            |
 
-`relevantFiles` are paths relative to the `repo/` root (`repo/src/...`). An empty `answer` means the question stays open. `appliedAnswers` are case-insensitive substrings a good draft must contain once its answers are applied.
+`relevantFiles` are paths relative to the `repo/` root (`repo/src/...`). An empty `answer` means the question stays open. `mustNotContain` are case-insensitive substrings that must appear nowhere in the ticket text (evidence excerpts quote the repository verbatim, so they are not checked). `appliedAnswers` are case-insensitive substrings a good draft must contain once its answers are applied.
 
-`relevantFiles` are what the evidence agent must reach; `pnpm eval tests/evaluation/recall.eval.ts` records the misses per case.
+`relevantFiles` are what the evidence agent must reach; `pnpm eval tests/evaluation/recall.eval.ts` records the misses per case. The judged evals (analysis, clarification, injection) also fail a case unless a claim cites every one of them.
 
 ### Large checkouts
 

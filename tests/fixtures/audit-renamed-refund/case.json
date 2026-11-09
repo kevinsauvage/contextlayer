@@ -1,0 +1,29 @@
+{
+  "id": "audit-renamed-refund",
+  "kind": "audit",
+  "title": "Audit SHOP-280: round refunds to cents",
+  "issue": {
+    "key": "SHOP-280",
+    "summary": "Round refunds to cents",
+    "description": "In `src/billing/refund.ts`, make `calculateRefund()` round to cents.",
+    "status": "To Do",
+    "url": "https://jira.test/browse/SHOP-280"
+  },
+  "tags": ["renamed-refund"],
+  "expected": {
+    "relevantFiles": ["repo/src/payments/refunds.ts"],
+    "verifiedFacts": [
+      "The ticket's file src/billing/refund.ts and function calculateRefund do not exist",
+      "Refunds are computed by computeRefundAmount in src/payments/refunds.ts, which does not round"
+    ],
+    "mustStayUncertain": [
+      "Whether the code was renamed or lives elsewhere",
+      "The rounding mode (half up, half even or toward zero)"
+    ],
+    "forbiddenClaims": [
+      "src/billing/refund.ts or calculateRefund presented as existing",
+      "A proposed ticket telling the developer to edit src/billing/refund.ts or calculateRefund",
+      "A rounding mode presented as a requirement"
+    ]
+  }
+}

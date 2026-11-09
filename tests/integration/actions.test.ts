@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   providers: [] as IntegrationProvider[],
   isAdmin: true,
   tracker: undefined as unknown as IssueTracker,
+  restarts: [] as { input: unknown }[],
 }));
 
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -55,6 +56,18 @@ vi.mock("@/infrastructure/auth/session", async () => {
 });
 
 vi.mock("@/infrastructure/db/client", () => ({ getDb: () => state.db }));
+
+// A redraft spends tokens and replaces the draft; the test only checks what it would be given.
+vi.mock("@/features/analysis/run", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    restartAnalysis: async (args: { input: unknown }) => {
+      state.restarts.push({ input: args.input });
+      return "restarted";
+    },
+  };
+});
 
 vi.mock("@/integrations/registry", () => ({
   findProvider: (id: string) => state.providers.find((provider) => provider.id === id),
@@ -129,6 +142,119 @@ const projectForm = (overrides: Record<string, string> = {}) =>
     trackerResourceId: "SHOP",
     ...overrides,
   });
+
+const proposal = {
+  title: "Round cart totals half up",
+  description: [{ text: "Totals round down today.", status: "inferred" as const, evidenceIds: [] }],
+  acceptanceCriteria: [],
+  assumptions: [],
+  openQuestions: [],
+};
+
+const audited = (updated: string): Issue => ({
+  key: "SHOP-12",
+  summary: "Cart total",
+  description: "Rounds oddly",
+  status: "To Do",
+  url: "u",
+  updated,
+});
+
+type AuditOverrides = Partial<typeof schema.analysis.$inferInsert> & { issueUpdatedAt?: string | null };
+
+async function auditAnalysis({
+  issueUpdatedAt = "2026-10-25T10:00:00.000+0000",
+  ...overrides
+}: AuditOverrides = {}): Promise<string> {
+  const project = await seedProject(state.db, "orgA", connections);
+  const row = first(
+    await state.db
+      .insert(schema.analysis)
+      .values({
+        projectId: project.id,
+        createdByUserId: "u1",
+        kind: "audit",
+        status: "completed",
+        input: { issueKey: "SHOP-12" },
+        result: {
+          summary: "Vague",
+          findings: [],
+          proposedTicket: proposal,
+          evidence: [],
+          ...(issueUpdatedAt ? { issueUpdatedAt } : {}),
+        },
+        ...overrides,
+      })
+      .returning({ id: schema.analysis.id }),
+  );
+  return row.id;
+}
+
+const stored: TicketDraft = {
+  title: "Round cart totals",
+  description: [{ text: "Totals are rounded down.", status: "verified", evidenceIds: ["e1"] }],
+  acceptanceCriteria: [],
+  assumptions: [],
+  openQuestions: [],
+  evidence: [{ id: "e1", kind: "code", reference: "src/cart/loadCart.ts", excerpt: "Math.floor(total)" }],
+};
+const { evidence: _evidence, ...editable } = stored;
+
+async function draftAnalysis(overrides: Partial<typeof schema.analysis.$inferInsert> = {}): Promise<string> {
+  const project = await seedProject(state.db, "orgA", connections);
+  const row = first(
+    await state.db
+      .insert(schema.analysis)
+      .values({
+        projectId: project.id,
+        createdByUserId: "u1",
+        kind: "create",
+        status: "completed",
+        input: { request: "Round totals" },
+        result: stored,
+        runToken: "run-1",
+        ...overrides,
+      })
+      .returning({ id: schema.analysis.id }),
+  );
+  return row.id;
+}
+
+const rowOf = async (id: string) =>
+  first(await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
+const runKeyOf = async (id: string) => (await rowOf(id)).runToken ?? "";
+
+function fakeTracker(current: Issue) {
+  const calls = { reads: 0, updates: [] as string[] };
+  state.tracker = {
+    searchRelated: async () => [],
+    getIssue: async () => {
+      calls.reads += 1;
+      return current;
+    },
+    createIssue: async () => {
+      throw new Error("unused");
+    },
+    updateIssue: async (key) => {
+      calls.updates.push(key);
+      return { key, url: `u/${key}` };
+    },
+  };
+  return calls;
+}
+
+function creatingTracker(create: IssueTracker["createIssue"]) {
+  state.tracker = {
+    searchRelated: async () => [],
+    getIssue: async () => {
+      throw new Error("unused");
+    },
+    createIssue: create,
+    updateIssue: async () => {
+      throw new Error("unused");
+    },
+  };
+}
 
 describe("createProject", () => {
   it("returns the first validation message", async () => {
@@ -256,128 +382,108 @@ describe("refineTicket", () => {
       error: "Analysis not found",
     });
   });
+
+  it("redrafts with the earlier answers, this round and the follow-up", async () => {
+    const id = await draftAnalysis({
+      input: { request: "Round totals", answers: [{ question: "Which rounding mode?", answer: "Half up" }] },
+    });
+    state.restarts.length = 0;
+
+    expect(
+      await refineTicket(id, {
+        answers: [{ question: "Round refunds too?", answer: "No" }],
+        message: "Also mention the tax line",
+      }),
+    ).toEqual({});
+    expect(state.restarts).toEqual([
+      {
+        input: {
+          request: "Round totals",
+          answers: [
+            { question: "Which rounding mode?", answer: "Half up" },
+            { question: "Round refunds too?", answer: "No" },
+            { message: "Also mention the tax line" },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("refuses to redraft a published or a running analysis", async () => {
+    const published = await draftAnalysis({ publishedIssueKey: "SHOP-11", publishedIssueUrl: "u" });
+    const running = await draftAnalysis({ status: "running", result: null });
+
+    expect(await refineTicket(published, { answers: [], message: "Change the title" })).toEqual({
+      error: "Already published as SHOP-11",
+    });
+    expect(await refineTicket(running, { answers: [], message: "Change the title" })).toEqual({
+      error: "This analysis is still running",
+    });
+  });
 });
 
 describe("applyAuditToTracker", () => {
-  const proposal = {
-    title: "Round cart totals half up",
-    description: [{ text: "Totals round down today.", status: "inferred" as const, evidenceIds: [] }],
-    acceptanceCriteria: [],
-    assumptions: [],
-    openQuestions: [],
-  };
-  const audited = (updated: string): Issue => ({
-    key: "SHOP-12",
-    summary: "Cart total",
-    description: "Rounds oddly",
-    status: "To Do",
-    url: "u",
-    updated,
-  });
-
-  async function auditAnalysis(issueUpdatedAt: string): Promise<string> {
-    const project = await seedProject(state.db, "orgA", connections);
-    const row = first(
-      await state.db
-        .insert(schema.analysis)
-        .values({
-          projectId: project.id,
-          createdByUserId: "u1",
-          kind: "audit",
-          status: "completed",
-          input: { issueKey: "SHOP-12" },
-          result: { summary: "Vague", findings: [], proposedTicket: proposal, evidence: [], issueUpdatedAt },
-        })
-        .returning({ id: schema.analysis.id }),
-    );
-    return row.id;
-  }
-
-  function fakeTracker(current: Issue) {
-    const updates: string[] = [];
-    state.tracker = {
-      searchRelated: async () => [],
-      getIssue: async () => current,
-      createIssue: async () => {
-        throw new Error("unused");
-      },
-      updateIssue: async (key) => {
-        updates.push(key);
-        return { key, url: `u/${key}` };
-      },
-    };
-    return updates;
-  }
-
   it("applies the proposal when the issue is unchanged since the audit", async () => {
-    const id = await auditAnalysis("2026-10-25T10:00:00.000+0000");
-    const updates = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
+    const id = await auditAnalysis();
+    const calls = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
 
     expect(await applyAuditToTracker(id, proposal)).toEqual({ issueKey: "SHOP-12", issueUrl: "u/SHOP-12" });
-    expect(updates).toEqual(["SHOP-12"]);
+    expect(calls).toEqual({ reads: 1, updates: ["SHOP-12"] });
   });
 
   it("refuses to overwrite an issue edited in Jira since the audit, and leaves the analysis applicable", async () => {
-    const id = await auditAnalysis("2026-10-25T10:00:00.000+0000");
-    const updates = fakeTracker(audited("2026-10-25T11:30:00.000+0000"));
+    const id = await auditAnalysis();
+    const calls = fakeTracker(audited("2026-10-25T11:30:00.000+0000"));
 
     expect(await applyAuditToTracker(id, proposal)).toEqual({
       error: "The issue changed in Jira since this audit. Re-run the audit, then apply it again.",
     });
-    expect(updates).toEqual([]);
+    expect(calls).toEqual({ reads: 1, updates: [] });
     const [row] = await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id));
     expect(row?.publishingSince).toBeNull();
+  });
+
+  it("does not apply an audit twice", async () => {
+    const id = await auditAnalysis({ publishedIssueKey: "SHOP-11", publishedIssueUrl: "u" });
+    const calls = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
+
+    expect(await applyAuditToTracker(id, proposal)).toEqual({ error: "Already applied to the ticket" });
+    expect(calls).toEqual({ reads: 0, updates: [] });
+  });
+
+  it("refuses a proposal citing evidence the audit does not hold, without reading or writing the issue", async () => {
+    const id = await auditAnalysis();
+    const calls = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
+    const citing = {
+      ...proposal,
+      description: [{ text: "Unsupported.", status: "verified" as const, evidenceIds: ["e9"] }],
+    };
+
+    expect(await applyAuditToTracker(id, citing)).toEqual({
+      error:
+        "Description paragraph 1 cites evidence e9, which is not in the evidence list. Fix it in Edit, then approve again.",
+    });
+    expect(calls).toEqual({ reads: 0, updates: [] });
+  });
+
+  it("reports a stored input that is not an audit", async () => {
+    const id = await auditAnalysis({ input: { request: "x" } });
+    const calls = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
+
+    expect(await applyAuditToTracker(id, proposal)).toEqual({ error: "Analysis input is invalid" });
+    expect(calls).toEqual({ reads: 0, updates: [] });
+  });
+
+  it("applies a legacy audit with no stored issue timestamp without reading the issue first", async () => {
+    const id = await auditAnalysis({ issueUpdatedAt: null });
+    const calls = fakeTracker(audited("2026-11-01T09:00:00.000+0000"));
+
+    expect(await applyAuditToTracker(id, proposal)).toEqual({ issueKey: "SHOP-12", issueUrl: "u/SHOP-12" });
+    expect(calls).toEqual({ reads: 0, updates: ["SHOP-12"] });
   });
 });
 
 describe("publishTicket and saveDraftEdits", () => {
-  const stored: TicketDraft = {
-    title: "Round cart totals",
-    description: [{ text: "Totals are rounded down.", status: "verified", evidenceIds: ["e1"] }],
-    acceptanceCriteria: [],
-    assumptions: [],
-    openQuestions: [],
-    evidence: [{ id: "e1", kind: "code", reference: "src/cart/loadCart.ts", excerpt: "Math.floor(total)" }],
-  };
-  const { evidence: _evidence, ...editable } = stored;
-
-  async function draftAnalysis(overrides: Partial<typeof schema.analysis.$inferInsert> = {}): Promise<string> {
-    const project = await seedProject(state.db, "orgA", connections);
-    const row = first(
-      await state.db
-        .insert(schema.analysis)
-        .values({
-          projectId: project.id,
-          createdByUserId: "u1",
-          kind: "create",
-          status: "completed",
-          input: { request: "Round totals" },
-          result: stored,
-          runToken: "run-1",
-          ...overrides,
-        })
-        .returning({ id: schema.analysis.id }),
-    );
-    return row.id;
-  }
-
-  const rowOf = async (id: string) =>
-    first(await state.db.select().from(schema.analysis).where(eq(schema.analysis.id, id)));
-  const runKeyOf = async (id: string) => (await rowOf(id)).runToken ?? "";
-
-  function creatingTracker(create: IssueTracker["createIssue"]) {
-    state.tracker = {
-      searchRelated: async () => [],
-      getIssue: async () => {
-        throw new Error("unused");
-      },
-      createIssue: create,
-      updateIssue: async () => {
-        throw new Error("unused");
-      },
-    };
-  }
-
   it("creates the issue with the stored evidence and records its key and URL", async () => {
     const id = await draftAnalysis();
     const created: TicketDraft[] = [];
@@ -439,6 +545,30 @@ describe("publishTicket and saveDraftEdits", () => {
       error: "The connection to Acme Jira expired. An admin needs to reconnect it in Integrations.",
     });
     expect(await rowOf(id)).toMatchObject({ publishedIssueKey: null, publishingSince: null });
+  });
+
+  it("does not publish an analysis that is already published", async () => {
+    const id = await draftAnalysis({ publishedIssueKey: "SHOP-11", publishedIssueUrl: "u" });
+    let calls = 0;
+    creatingTracker(async () => {
+      calls += 1;
+      return { key: "SHOP-12", url: "u" };
+    });
+
+    expect(await publishTicket(id, "run-1", editable)).toEqual({ error: "Already published as SHOP-11" });
+    expect(calls).toBe(0);
+  });
+
+  it("refuses an audit id", async () => {
+    const id = await auditAnalysis();
+    let calls = 0;
+    creatingTracker(async () => {
+      calls += 1;
+      return { key: "SHOP-12", url: "u" };
+    });
+
+    expect(await publishTicket(id, "run-1", editable)).toEqual({ error: "Analysis not found" });
+    expect(calls).toBe(0);
   });
 
   it("autosaves edits with the stored evidence only", async () => {

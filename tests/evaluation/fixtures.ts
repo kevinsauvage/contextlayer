@@ -90,3 +90,16 @@ export function readRepository(c: LoadedCase, dir = c.repoDir): RepositoryFile[]
       : [{ path: path.relative(c.repoDir, full), content: readFileSync(full, "utf8") }];
   });
 }
+
+// Fenced content is data. Escaping its closing tag, in any spacing or case, keeps a file or a draft from ending the
+// block early.
+export const escapeTag = (text: string, tag: string) =>
+  text.replace(new RegExp(`<\\s*/\\s*${tag}\\s*>`, "gi"), `<\\/${tag}>`);
+
+export const repositoryPrompt = (files: RepositoryFile[]) =>
+  `<repository>\n${files
+    .map(
+      (file) =>
+        `<file path="${escapeTag(file.path, "file")}">\n${escapeTag(escapeTag(file.content, "file"), "repository")}\n</file>`,
+    )
+    .join("\n")}\n</repository>`;

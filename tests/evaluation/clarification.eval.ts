@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { isFollowUp } from "@/core/requirements/schemas";
-import { draftCase, recordVerdict } from "./draft-case";
+import { bannedSubstrings, draftCase, recordVerdict, uncitedRelevantFiles } from "./draft-case";
 import { loadEvaluationCases } from "./fixtures";
-import { judgeVerdict } from "./judge";
+import { judgeVerdict, verdictProblems } from "./judge";
 import { matchesQuestion } from "./questions";
 
 const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY) || Boolean(process.env.AI_BASE_URL);
@@ -15,9 +15,12 @@ describe.skipIf(!hasModel)("clarification evaluation", () => {
     expect(run.kind).toBe("create");
     if (run.kind !== "create") return;
     expect(run.result.issues).toEqual([]);
+    expect(uncitedRelevantFiles(c, run), "every relevant file is cited").toEqual([]);
 
     const text = JSON.stringify(run.result.draft).toLowerCase();
     for (const marker of c.expected.appliedAnswers) expect(text).toContain(marker.toLowerCase());
+
+    expect(bannedSubstrings(c, run), "mustNotContain").toEqual([]);
 
     for (const refinement of c.answers) {
       if (isFollowUp(refinement)) continue;
@@ -30,7 +33,6 @@ describe.skipIf(!hasModel)("clarification evaluation", () => {
 
     const verdict = await judgeVerdict(c, run.text);
     recordVerdict(c, verdict);
-    expect(verdict.forbiddenClaims, verdict.rationale).toEqual([]);
-    expect(verdict.uncertainMarkedVerified, verdict.rationale).toEqual([]);
+    expect(verdictProblems(verdict), verdict.rationale).toEqual([]);
   });
 });

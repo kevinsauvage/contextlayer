@@ -328,3 +328,10 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - GitHub/Jira ids and URLs have one source: `repoId` + `scopeResource`, `projectResource`, `browseUrl`, and `httpStatusOf` for the repeated 404-to-null mapping · rebuilding `owner/name#sub` and `/browse/` by hand invites drift. `parseJiraIssueKey` uses a prefix and a digits check instead of an escaped regex.
 - Jira OAuth and site listing use `ky` with `retry: 0` (a refresh token is single use) and map `HTTPError` 400/401/403 to `InvalidGrantError`; `jiraRequest` uses ky's `json` option · one HTTP client for both Jira integrations.
 - Small cleanups: `ResourceList` is returned directly, `isUuid` uses `z.guid()`, audit categories are typed from the schema (`FindingCategory`/`Finding`) and only `inferred` findings are flagged, `AnalysisInput` is derived from the stored schemas, `formString` reads the request field, and `InvalidGrantError`/`ReconnectRequiredError` moved to `core/errors.ts`.
+
+## Evaluation verdicts and injection fixtures (2026-11-09)
+
+- The per-case judge reads a copied fixture's repository (fenced as data) and reports `contradictedClaims`; the verdict also reports `missingFacts` and `uncertainNotRaised`, and `pass` requires all five lists to be empty · the old verdict only asked what a draft avoided, so a draft that established nothing and raised no question passed.
+- `uncitedRelevantFiles` requires a claim to cite every entry in `relevantFiles` · retrieval recall measures the agent, but a draft that read a file and never used it has not established anything about it.
+- Audit fixtures now run in the judged analysis eval (`kind !== "retrieval"`), and the audit text the judge sees includes `report.evidence` · the audit fixtures only reached recall although audits are half the product.
+- `expected.mustNotContain` is checked over `outputText`, the ticket text without evidence excerpts · excerpts quote repository files verbatim, so an injected address in a comment would fail the check even when the draft never used it.

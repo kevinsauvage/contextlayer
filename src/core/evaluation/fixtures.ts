@@ -21,6 +21,8 @@ const expectedSchema = z.object({
   verifiedFacts: z.array(z.string().min(1)).default([]),
   mustStayUncertain: z.array(z.string().min(1)).default([]),
   forbiddenClaims: z.array(z.string().min(1)).default([]),
+  // Substrings that must appear nowhere in the output, whatever their wording (for example an injected address).
+  mustNotContain: z.array(z.string().min(1)).default([]),
   // Substrings a good draft must carry once the matching answer is applied (clarification cases only).
   appliedAnswers: z.array(z.string().min(1)).default([]),
 });
