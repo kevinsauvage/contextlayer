@@ -366,7 +366,7 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 
 ## Setup flow (2026-11-14)
 
-- The setup checklist's connect steps start the provider's consent directly and return to the next step: back to the checklist while a connection is missing, and to the new project form after the last one (`setupSteps`). The integrations page shows the same checklist until a project exists · the checklist used to link to the integrations page, which left a new user there after connecting with no way forward.
+- The setup checklist's connect steps start the provider's consent directly and return to the next step: back to the checklist while a connection is missing, and to the new project form after the last one (`setupSteps`). The integrations page keeps only its own connect buttons (a second checklist duplicated them): until a project exists, the connection that completes the pair returns to the new project form, and once both are connected the page shows a "Create a project" banner · the checklist used to link to the integrations page, which left a new user there after connecting with no way forward.
 
 ## User feedback (2026-11-14)
 

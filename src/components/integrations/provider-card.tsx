@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { connectHref } from "@/features/integrations/notices";
 import type { ProviderOverview } from "@/features/integrations/overview";
 
-type Props = { provider: ProviderOverview; isAdmin: boolean };
+type Props = { provider: ProviderOverview; isAdmin: boolean; returnTo?: string };
 
 function ConnectionStatusBadge({ provider }: { provider: ProviderOverview }) {
   if (!provider.configured) return <Badge variant="outline">Not configured</Badge>;
@@ -16,7 +16,7 @@ function ConnectionStatusBadge({ provider }: { provider: ProviderOverview }) {
   return <Badge variant="outline">Not connected</Badge>;
 }
 
-export function ProviderCard({ provider, isAdmin }: Props) {
+export function ProviderCard({ provider, isAdmin, returnTo }: Props) {
   const { connections } = provider;
   const needsReconnect = connections.some((c) => c.status === "needs_reconnect");
 
@@ -76,7 +76,7 @@ export function ProviderCard({ provider, isAdmin }: Props) {
         ) : isAdmin ? (
           <>
             <a
-              href={connectHref(provider.id)}
+              href={connectHref(provider.id, { returnTo })}
               className={buttonVariants({ variant: connections.length && !needsReconnect ? "outline" : "default" })}
             >
               {needsReconnect ? "Reconnect" : connections.length ? "Refresh access" : `Connect ${provider.name}`}
