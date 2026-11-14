@@ -1,4 +1,5 @@
 import type { Issue } from "@/core/context/source";
+import { redactSecrets } from "@/core/context/redact";
 import type { Evidence } from "@/core/evidence/schemas";
 import { isFollowUp, type Refinement } from "@/core/requirements/schemas";
 
@@ -54,14 +55,14 @@ const contextBlock = (candidates: Evidence[]) =>
   candidates
     .map(
       (c) =>
-        `<source id="${asAttribute(c.id)}" kind="${asAttribute(c.kind)}" path="${asAttribute(c.reference)}">\n${asText(c.excerpt)}\n</source>`,
+        `<source id="${asAttribute(c.id)}" kind="${asAttribute(c.kind)}" path="${asAttribute(c.reference)}">\n${asText(redactSecrets(c.excerpt))}\n</source>`,
     )
     .join("\n") || "(no relevant context found)";
 
 const refinementLine = (r: Refinement) =>
   isFollowUp(r)
-    ? `Follow-up: ${r.message}`
-    : `Q: ${r.question}\nA: ${r.answer || "(no answer yet; keep this question open)"}`;
+    ? `Follow-up: ${asText(redactSecrets(r.message))}`
+    : `Q (the assistant's earlier question): ${asText(redactSecrets(r.question))}\nA: ${asText(redactSecrets(r.answer)) || "(no answer yet; keep this question open)"}`;
 
 const answersBlock = (answers: Refinement[]) =>
   answers.length ? `\n\n<answers>\n${answers.map(refinementLine).join("\n\n")}\n</answers>` : "";
@@ -70,4 +71,4 @@ export const buildCreatePrompt = (request: string, answers: Refinement[], candid
   `<request>\n${asText(request)}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>
-  `<ticket key="${asAttribute(issue.key)}" status="${asAttribute(issue.status)}">\nTitle: ${asText(issue.summary)}\n\n${asText(issue.description) || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;
+  `<ticket key="${asAttribute(issue.key)}" status="${asAttribute(issue.status)}">\nTitle: ${asText(redactSecrets(issue.summary))}\n\n${asText(redactSecrets(issue.description)) || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;

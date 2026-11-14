@@ -50,7 +50,7 @@ describe("create prompt", () => {
       ],
       [],
     );
-    expect(prompt).toContain("Q: Which banner?\nA: The home hero");
+    expect(prompt).toContain("Q (the assistant's earlier question): Which banner?\nA: The home hero");
     expect(prompt).toContain("A: (no answer yet; keep this question open)");
     expect(buildCreatePrompt("x", [], [])).not.toContain("<answers>");
     expect(buildCreatePrompt("x", [{ message: "Make it red" }], [])).toContain("Follow-up: Make it red");

@@ -103,7 +103,12 @@ export const analysis = pgTable(
     startedAt: timestamp("started_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [index("analysis_project_created_idx").on(t.projectId, t.createdAt)],
+  (t) => [
+    index("analysis_project_created_idx").on(t.projectId, t.createdAt),
+    // The run limits count by creator and by the whole table on every run.
+    index("analysis_creator_created_idx").on(t.createdByUserId, t.createdAt),
+    index("analysis_created_idx").on(t.createdAt),
+  ],
 );
 
 export const projectRelations = relations(project, ({ many }) => ({

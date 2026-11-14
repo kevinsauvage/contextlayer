@@ -6,8 +6,12 @@ const TEXT_EXTENSIONS =
   /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|css|scss|sql|ya?ml|py|rb|go|java|kt|php|cs|rs|html|vue|svelte)$/i;
 const IGNORED_PATH =
   /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)\/|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|\.min\./;
+// Files that usually hold credentials, not code: the agent must not read them, so no excerpt can store or quote one.
+const SECRET_PATH =
+  /(?:^|\/)(?:\.env[^/]*|\.npmrc|[^/]*(?:secret|credential)[^/]*|[^/]*\.(?:pem|key)|id_rsa[^/]*|[^/]*\.tfvars|service-account[^/]*\.json|appsettings[^/]*\.json)$/i;
 
-export const isReadablePath = (path: string) => TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path);
+export const isReadablePath = (path: string) =>
+  TEXT_EXTENSIONS.test(path) && !IGNORED_PATH.test(path) && !SECRET_PATH.test(path);
 
 // A directory the walk must not descend into: `node_modules/`, `dist/`, `vendor/` and their siblings.
 const IGNORED_DIRECTORY = /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)(\/|$)/;

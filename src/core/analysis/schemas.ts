@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { refinementSchema } from "@/core/requirements/schemas";
+import { boundRefinements, refinementSchema } from "@/core/requirements/schemas";
 
 const createAnalysisInputSchema = z.object({
   request: z.string().min(1),
-  answers: z.array(refinementSchema).optional(),
+  // Stored inputs predate the cap, so trim on read instead of rejecting an old row.
+  answers: z.array(refinementSchema).transform(boundRefinements).optional(),
 });
 
 const auditAnalysisInputSchema = z.object({ issueKey: z.string().min(1) });

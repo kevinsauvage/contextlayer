@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -18,7 +19,9 @@ export const metadata: Metadata = {
   description: "Evidence-backed tickets from a plain-language request, grounded in your code.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The proxy puts a fresh nonce on every request; next-themes' inline script needs it to pass the CSP.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     // next-themes sets the theme class on <html> before hydration, so React must not compare that attribute.
     <html
@@ -27,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange nonce={nonce}>
           {children}
         </ThemeProvider>
       </body>

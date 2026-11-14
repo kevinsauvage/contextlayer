@@ -7,16 +7,16 @@ import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
 import type { TokenUsage } from "@/core/analysis/generators";
 import { withCitedEvidence } from "@/core/evidence/validate";
-import { clarificationSchema, draftBodySchema, type Refinement } from "@/core/requirements/schemas";
+import { boundRefinements, clarificationSchema, draftBodySchema, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, defaultSelector, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
 import { buildProjectContext, buildProjectTracker } from "@/features/analysis/project-context";
 import { publishApproved, type PublishResult } from "@/features/analysis/publish";
-import { storedEvidence } from "@/features/analysis/read";
+import { storedDraft, storedEvidence } from "@/features/analysis/read";
 import { restartAnalysis, startAnalysis } from "@/features/analysis/run";
 import { withActionErrors } from "@/features/errors";
-import type { Project } from "@/features/projects/queries";
+import type { Analysis, Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
 import { analysis } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
@@ -73,13 +73,12 @@ export async function createTicketAnalysis(
 }
 
 // Until a ticket is published, refining replaces the draft instead of adding another analysis to the history.
-async function redraft(
-  analysisId: string,
-  change: (current: { request: string; answers: Refinement[] }) => {
-    request: string;
-    answers: Refinement[];
-  },
-): Promise<ActionState> {
+type RedraftChange = (
+  current: { request: string; answers: Refinement[] },
+  analysis: Analysis,
+) => { request: string; answers: Refinement[] } | { error: string };
+
+async function redraft(analysisId: string, change: RedraftChange): Promise<ActionState> {
   return withActionErrors(async () => {
     const loaded = await loadAnalysis(analysisId, {
       kind: "create",
@@ -87,12 +86,14 @@ async function redraft(
       runningError: "This analysis is still running",
     });
     if ("error" in loaded) return loaded;
-    const { db, project, analysis } = loaded;
+    const { db, userId, project, analysis } = loaded;
     const input = readAnalysisInput(analysis);
-    const next = change({ request: requestOf(input), answers: answersOf(input) });
+    const next = change({ request: requestOf(input), answers: answersOf(input) }, analysis);
+    if ("error" in next) return next;
 
     await restartAnalysis({
       db,
+      userId,
       input: next.answers.length ? next : { request: next.request },
       execute: (deadline, onUsage) => draftFromRequest(db, project, deadline, next.request, next.answers, onUsage),
       rerunId: analysisId,
@@ -109,15 +110,24 @@ const chatTurnSchema = z.object({
 });
 export type ChatTurn = z.input<typeof chatTurnSchema>;
 
+// The UI sends back the question text it rendered, so whitespace and case are the only differences that matter.
+const normalizeQuestion = (question: string) => question.replace(/\s+/g, " ").trim().toLowerCase();
+
 export async function refineTicket(analysisId: string, input: unknown): Promise<ActionState> {
   const turn = chatTurnSchema.safeParse(input);
   if (!turn.success) return { error: firstIssueMessage(turn.error, "The message is invalid") };
   const { answers: round, message } = turn.data;
   if (!message && !round.some((pair) => pair.answer)) return { error: "Answer a question or describe what to change" };
-  return redraft(analysisId, ({ request, answers }) => ({
-    request,
-    answers: [...mergeAnswers(answers, round), ...(message ? [{ message }] : [])],
-  }));
+  return redraft(analysisId, ({ request, answers }, analysis) => {
+    const asked = new Set((storedDraft(analysis)?.openQuestions ?? []).map((item) => normalizeQuestion(item.question)));
+    const accepted = round.filter((pair) => asked.has(normalizeQuestion(pair.question)));
+    if (!message && !accepted.some((pair) => pair.answer))
+      return { error: "Those questions are no longer in the draft. Reload the page before answering." };
+    return {
+      request,
+      answers: boundRefinements([...mergeAnswers(answers, accepted), ...(message ? [{ message }] : [])]),
+    };
+  });
 }
 
 // A failed run keeps the previous draft on screen; retrying re-runs the stored input without inventing a chat message.

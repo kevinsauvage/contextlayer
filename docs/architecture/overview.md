@@ -70,10 +70,10 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 ## Security model
 
 - **Untrusted content**: repository files, docs and Jira text are data. They reach the model only as quoted candidates, the system prompt states they cannot change rules, and the approval step is independent of model output.
-- **Secrets**: integration tokens are encrypted at rest (`ENCRYPTION_KEY`); OAuth `state` is HMAC-signed, bound to user, organization and provider, carries a same-origin return path, and is valid 10 minutes; a connection whose refresh is rejected, or whose fresh token Jira answers with 401, is marked `needs_reconnect`; the GitHub install callback exchanges the OAuth `code` because `installation_id` in the URL is attacker-controlled.
+- **Secrets**: integration tokens are encrypted at rest (`ENCRYPTION_KEY`); OAuth `state` is HMAC-signed, bound to user, organization and provider, carries a same-origin return path, and is valid 10 minutes; a connection whose refresh is rejected, or whose fresh token Jira answers with 401, is marked `needs_reconnect`; the GitHub install callback exchanges the OAuth `code` because `installation_id` in the URL is attacker-controlled. Credential-looking paths are refused, and secret-shaped values (private keys, provider tokens, credential assignments) are masked in file reads, excerpts, Jira text and prompts (`src/core/context/redact.ts`).
 - **Source code handling**: files are read on demand through the GitHub API and sent to the configured AI provider. They are not stored; only evidence excerpts cited by a draft are kept.
-- **Access**: `src/proxy.ts` redirects unauthenticated requests; `requireOrgContext` and `requireOrgAdmin` guard actions; creating projects, managing integrations and inviting members need an owner or admin. An exclusive account (a GitHub installation) can belong to one organization only.
-- **Headers**: `next.config.ts` sets `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy and a restrictive permissions policy. A Content Security Policy is open work ([`TODO-FEATURE.md`](../../TODO-FEATURE.md)).
+- **Access**: `src/proxy.ts` redirects unauthenticated requests and sets a per-request CSP nonce; `requireOrgContext` and `requireOrgAdmin` guard actions; creating projects, managing integrations and inviting members need an owner or admin. An exclusive account (a GitHub installation) can belong to one organization only.
+- **Headers**: `next.config.ts` sets `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy, a restrictive permissions policy and, in production, HSTS. The proxy enforces a nonce-based CSP (`frame-ancestors 'none'`), so pages render dynamically.
 
 ## AI provider seam
 

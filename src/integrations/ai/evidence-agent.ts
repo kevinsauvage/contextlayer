@@ -1,6 +1,7 @@
 import { generateText, hasToolCall, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
+import { redactSecrets } from "@/core/context/redact";
 import type { ContextSource, SearchResult } from "@/core/context/source";
 import { resolveModel } from "./model";
 import { asText } from "./prompt";
@@ -40,7 +41,7 @@ type AgentInput = { query: string; source: ContextSource };
 
 // The audit's ticket text is untrusted: a `</request>` in it must not end the block that marks it as data.
 export const agentPrompt = (query: string, fileCount: number) =>
-  `<request>\n${asText(query)}\n</request>\n\nThe repository holds ${fileCount} files. Find the files the ticket must cite.`;
+  `<request>\n${asText(redactSecrets(query))}\n</request>\n\nThe repository holds ${fileCount} files. Find the files the ticket must cite.`;
 
 export class AiEvidenceAgent implements EvidenceSelector {
   constructor(
@@ -90,7 +91,7 @@ export class AiEvidenceAgent implements EvidenceSelector {
             if (!known.has(path)) return `No such file: ${path}`;
             if (reads >= MAX_READS) return "Read budget exhausted: call selectFiles with the paths you already have.";
             reads += 1;
-            const content = await source.readFile(path);
+            const content = redactSecrets(await source.readFile(path));
             const window = content.slice(offset, offset + FILE_CHARS);
             return content.length > offset + FILE_CHARS
               ? `${window}\n… cut at ${offset + FILE_CHARS} of ${content.length} characters; call readFile with offset=${offset + FILE_CHARS} to continue`

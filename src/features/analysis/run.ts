@@ -6,6 +6,7 @@ import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError, errorSummary } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import { RUN_BUDGET_MS, RUN_TIMEOUT_ERROR, STALE_ANALYSIS_MS } from "@/core/analysis/stale";
+import { assertRunAllowed, runLimitsOf } from "@/features/analysis/limits";
 import { toActionError } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -86,7 +87,8 @@ type StartArgs = {
 
 export async function startAnalysis(args: StartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
-  const model = getEnv().AI_MODEL;
+  const env = getEnv();
+  await assertRunAllowed(args.db, args.userId, runLimitsOf(env));
   const row = first(
     await args.db
       .insert(analysis)
@@ -95,7 +97,7 @@ export async function startAnalysis(args: StartArgs): Promise<string> {
         createdByUserId: args.userId,
         kind: args.kind,
         input: args.input,
-        model,
+        model: env.AI_MODEL,
         runToken,
       })
       .returning({ id: analysis.id }),
@@ -106,6 +108,7 @@ export async function startAnalysis(args: StartArgs): Promise<string> {
 
 type RestartArgs = {
   db: Database;
+  userId: string;
   input: StoredAnalysisInput;
   rerunId: string;
   execute: Execute;
@@ -115,13 +118,14 @@ type RestartArgs = {
 // A stale "running" row is allowed through: no request is left to finish it.
 export async function restartAnalysis(args: RestartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
-  const model = getEnv().AI_MODEL;
+  const env = getEnv();
+  await assertRunAllowed(args.db, args.userId, runLimitsOf(env));
   const [row] = await args.db
     .update(analysis)
     .set({
       status: "running",
       input: args.input,
-      model,
+      model: env.AI_MODEL,
       runToken,
       startedAt: new Date(),
       // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.

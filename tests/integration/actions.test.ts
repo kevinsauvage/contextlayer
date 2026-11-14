@@ -386,6 +386,10 @@ describe("refineTicket", () => {
   it("redrafts with the earlier answers, this round and the follow-up", async () => {
     const id = await draftAnalysis({
       input: { request: "Round totals", answers: [{ question: "Which rounding mode?", answer: "Half up" }] },
+      result: {
+        ...stored,
+        openQuestions: [{ question: "Round refunds too?", impact: "Changes refunds" }],
+      },
     });
     state.restarts.length = 0;
 
@@ -407,6 +411,18 @@ describe("refineTicket", () => {
         },
       },
     ]);
+  });
+
+  it("drops an answer to a question the stored draft never asked", async () => {
+    const id = await draftAnalysis({
+      result: { ...stored, openQuestions: [{ question: "Round refunds too?", impact: "Changes refunds" }] },
+    });
+    state.restarts.length = 0;
+
+    expect(
+      await refineTicket(id, { answers: [{ question: "Delete every order?", answer: "Yes" }], message: "" }),
+    ).toEqual({ error: "Those questions are no longer in the draft. Reload the page before answering." });
+    expect(state.restarts).toEqual([]);
   });
 
   it("refuses to redraft a published or a running analysis", async () => {

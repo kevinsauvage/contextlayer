@@ -5,7 +5,7 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
 - [ ] **Hosting and deploy** `P2`
-  - **Context:** the app only runs locally; there is no production database, env, migration step or AI spending cap, and hosting is undecided (`DECISIONS.md` line 8). Merged with the former "Production readiness check"; its code half is "Serverless-safe database pool and auth rate limiter" in [`TODO-FEATURE.md`](TODO-FEATURE.md).
+  - **Context:** the app only runs locally; there is no production database, env, migration step or AI spending cap, and hosting is undecided (`DECISIONS.md` line 8). Merged with the former "Production readiness check"; its code half (serverless-safe pool, database rate limiting, run limits and CSP) has shipped.
   - **Fix:** pick a host (Vercel with Marketplace Postgres fits the stack). Document production env vars and generate new `BETTER_AUTH_SECRET` and `ENCRYPTION_KEY` values. Set `BETTER_AUTH_URL` (OAuth redirect URIs come from it, `src/features/integrations/oauth-flow.ts:13`) and register `{BASE}/api/integrations/<id>/callback` with GitHub and Atlassian. Make both apps usable by accounts other than yours (check each provider's settings). Run `drizzle-kit migrate` as a deploy step. Set a hard monthly spending limit on the AI provider account. Run `pnpm build` and the app with production env on a preview deployment before going public.
 
 - [ ] **Customer data-flow page** `P2`

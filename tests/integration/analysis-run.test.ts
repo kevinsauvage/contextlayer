@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vitest";
-import { AnalysisAlreadyRunningError, ConnectionMissingError } from "@/core/errors";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { AnalysisAlreadyRunningError, AnalysisLimitError, ConnectionMissingError } from "@/core/errors";
 import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
+import { assertRunAllowed } from "@/features/analysis/limits";
 import { restartAnalysis, startAnalysis, UNEXPECTED_RUN_ERROR } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -16,6 +17,10 @@ beforeAll(async () => {
   await seedOrgs(db, ["orgA"]);
   const connections = await seedConnections(db, "orgA");
   project = await seedProject(db, "orgA", connections, { trackerResourceId: "P" });
+  const now = new Date();
+  await db
+    .insert(schema.user)
+    .values({ id: "u-limits", name: "Limits", email: "limits@x.test", createdAt: now, updatedAt: now });
 });
 
 type Execute = (
@@ -32,7 +37,7 @@ const start = (request: string, execute: Execute) =>
   startAnalysis({ db, project, userId: "u1", kind: "create", input: { request }, execute });
 
 const restart = (request: string, execute: Execute, rerunId: string) =>
-  restartAnalysis({ db, input: { request }, execute, rerunId });
+  restartAnalysis({ db, userId: "u1", input: { request }, execute, rerunId });
 
 // `startAnalysis` returns the id only once its run finished, so a pending run is found by its stored input.
 async function waitForRow(request: string): Promise<string> {
@@ -47,6 +52,63 @@ async function waitForRow(request: string): Promise<string> {
   }
   throw new Error(`no analysis row for ${request}`);
 }
+
+describe("usage limits", () => {
+  const now = new Date("2030-01-01T12:00:00.000Z");
+  const limits = { perUserPerDay: 3, totalPerDay: 100, perUserPerMinute: 100 };
+  const insertRun = (userId: string, createdAt: Date) =>
+    db.insert(schema.analysis).values({
+      projectId: project.id,
+      createdByUserId: userId,
+      kind: "create",
+      input: { request: "limit" },
+      createdAt,
+      startedAt: createdAt,
+    });
+
+  beforeEach(async () => {
+    await db.delete(schema.analysis).where(eq(schema.analysis.createdByUserId, "u-limits"));
+  });
+
+  it("allows a run under every limit", async () => {
+    await insertRun("u-limits", new Date(now.getTime() - 2 * 60_000));
+
+    await expect(assertRunAllowed(db, "u-limits", limits, now)).resolves.toBeUndefined();
+  });
+
+  it("refuses a caller at their daily limit", async () => {
+    await insertRun("u-limits", new Date(now.getTime() - 60 * 60_000));
+    await insertRun("u-limits", new Date(now.getTime() - 2 * 60 * 60_000));
+    await insertRun("u-limits", new Date(now.getTime() - 3 * 60 * 60_000));
+
+    await expect(assertRunAllowed(db, "u-limits", limits, now)).rejects.toBeInstanceOf(AnalysisLimitError);
+    await expect(assertRunAllowed(db, "u-limits", limits, now)).rejects.toThrow(
+      "You have reached your daily analysis limit. Try again tomorrow.",
+    );
+  });
+
+  it("refuses everyone once the deployment's day is spent", async () => {
+    await insertRun("u-limits", new Date(now.getTime() - 60 * 60_000));
+    await insertRun("u1", new Date(now.getTime() - 60 * 60_000));
+
+    await expect(
+      assertRunAllowed(db, "u-limits", { ...limits, totalPerDay: 2, perUserPerDay: 100 }, now),
+    ).rejects.toThrow("The daily analysis limit is reached. Try again tomorrow.");
+  });
+
+  it("refuses a caller running too fast, and ignores an older run", async () => {
+    await insertRun("u-limits", new Date(now.getTime() - 30_000));
+    await expect(
+      assertRunAllowed(db, "u-limits", { ...limits, perUserPerDay: 100, perUserPerMinute: 1 }, now),
+    ).rejects.toThrow("You are running analyses too quickly. Wait a minute and try again.");
+
+    await db.delete(schema.analysis).where(eq(schema.analysis.createdByUserId, "u-limits"));
+    await insertRun("u-limits", new Date(now.getTime() - 2 * 60_000));
+    await expect(
+      assertRunAllowed(db, "u-limits", { ...limits, perUserPerDay: 100, perUserPerMinute: 1 }, now),
+    ).resolves.toBeUndefined();
+  });
+});
 
 describe("source revisions", () => {
   const revisionsOf = async (id: string) => {

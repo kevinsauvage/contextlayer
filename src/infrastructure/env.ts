@@ -20,6 +20,13 @@ const envSchema = z
     AI_JUDGE_BASE_URL: z.url().optional(),
     AI_JUDGE_API_KEY: z.string().optional(),
     AI_JUDGE_STRUCTURED_OUTPUTS: z.stringbool().optional(),
+    // Runs, not dollars: the cost table prices only some models, so runs are the one figure that is always known.
+    ANALYSIS_PER_USER_PER_DAY: z.coerce.number().int().positive().default(20),
+    ANALYSIS_TOTAL_PER_DAY: z.coerce.number().int().positive().default(200),
+    ANALYSIS_PER_USER_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    // Serverless Postgres poolers cannot use prepared statements; a direct connection can.
+    DB_POOL_SIZE: z.coerce.number().int().positive().default(10),
+    DB_PREPARE: z.stringbool().default(true),
     GITHUB_APP_ID: z.string().optional(),
     GITHUB_APP_PRIVATE_KEY: z.string().optional(),
     GITHUB_APP_SLUG: z.string().optional(),

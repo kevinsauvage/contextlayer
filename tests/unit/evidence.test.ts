@@ -45,6 +45,15 @@ describe("evidenceFromPaths", () => {
     expect(file?.excerpt).toBe(body.trim());
   });
 
+  it("redacts a secret before it becomes a stored excerpt", async () => {
+    const body = "const dbPassword = 'hunter2';\n// deploy key AKIAIOSFODNN7EXAMPLE\n";
+    const [file] = await evidenceFromPaths(["src/config.ts"], [], source({ "src/config.ts": body }));
+
+    expect(file?.excerpt).not.toContain("hunter2");
+    expect(file?.excerpt).not.toContain("AKIAIOSFODNN7EXAMPLE");
+    expect(file?.excerpt).toContain("[redacted]");
+  });
+
   it("returns the head and the tail of a file longer than its share", async () => {
     const big = `HEAD\n${"a".repeat(12_000)}\nMIDDLE\n${"m".repeat(12_000)}\nTAIL`;
     const [file] = await evidenceFromPaths(["src/big.ts"], [], source({ "src/big.ts": big }));

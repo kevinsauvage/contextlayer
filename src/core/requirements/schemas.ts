@@ -68,6 +68,28 @@ export const isFollowUp = (refinement: Refinement): refinement is FollowUp => "m
 export const refinementText = (refinement: Refinement) =>
   isFollowUp(refinement) ? refinement.message : refinement.answer;
 
+export const MAX_REFINEMENTS = 30;
+export const MAX_REFINEMENT_CHARS = 20_000;
+
+const refinementLength = (refinement: Refinement) =>
+  isFollowUp(refinement) ? refinement.message.length : refinement.question.length + refinement.answer.length;
+
+// A long chat keeps the latest turns and drops the oldest: the fresh answer is what the next draft needs, and an
+// injected or forged history cannot grow every later prompt without bound.
+export function boundRefinements(refinements: Refinement[]): Refinement[] {
+  const kept: Refinement[] = [];
+  let characters = 0;
+  for (let index = refinements.length - 1; index >= 0; index -= 1) {
+    const refinement = refinements[index];
+    if (!refinement) continue;
+    const length = refinementLength(refinement);
+    if (kept.length >= MAX_REFINEMENTS || characters + length > MAX_REFINEMENT_CHARS) break;
+    kept.unshift(refinement);
+    characters += length;
+  }
+  return kept;
+}
+
 export const ticketDraftSchema = draftBodySchema.extend({ evidence: z.array(evidenceSchema) });
 export type TicketDraft = z.infer<typeof ticketDraftSchema>;
 

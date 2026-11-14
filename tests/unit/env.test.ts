@@ -47,6 +47,32 @@ describe("parseEnv", () => {
     expect(env.AI_JUDGE_STRUCTURED_OUTPUTS).toBe(false);
   });
 
+  it("defaults the analysis limits and reads overrides", () => {
+    expect(parseEnv(required)).toMatchObject({
+      ANALYSIS_PER_USER_PER_DAY: 20,
+      ANALYSIS_TOTAL_PER_DAY: 200,
+      ANALYSIS_PER_USER_PER_MINUTE: 5,
+      DB_POOL_SIZE: 10,
+      DB_PREPARE: true,
+    });
+    expect(
+      parseEnv({
+        ...required,
+        ANALYSIS_PER_USER_PER_DAY: "3",
+        ANALYSIS_TOTAL_PER_DAY: "9",
+        ANALYSIS_PER_USER_PER_MINUTE: "1",
+        DB_POOL_SIZE: "2",
+        DB_PREPARE: "false",
+      }),
+    ).toMatchObject({
+      ANALYSIS_PER_USER_PER_DAY: 3,
+      ANALYSIS_TOTAL_PER_DAY: 9,
+      ANALYSIS_PER_USER_PER_MINUTE: 1,
+      DB_POOL_SIZE: 2,
+      DB_PREPARE: false,
+    });
+  });
+
   it("rejects a blank required secret", () =>
     expect(() => parseEnv({ ...required, BETTER_AUTH_SECRET: "" })).toThrow());
 

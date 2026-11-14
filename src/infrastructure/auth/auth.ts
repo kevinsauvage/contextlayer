@@ -16,6 +16,8 @@ function createAuth() {
     baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(getDb(), { provider: "pg", schema }),
     emailAndPassword: { enabled: true, minPasswordLength: 10 },
+    // The default in-memory store resets on every instance, so sign-in limits would vanish on a serverless host.
+    rateLimit: { enabled: true, storage: "database" },
     databaseHooks: {
       session: {
         create: {

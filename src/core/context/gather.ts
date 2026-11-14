@@ -2,6 +2,7 @@ import type { EvidenceSelector, TokenUsage } from "@/core/analysis/generators";
 import type { Evidence } from "@/core/evidence/schemas";
 import { errorSummary } from "@/core/errors";
 import { numberEvidence } from "@/core/evidence/validate";
+import { redactSecrets } from "./redact";
 import { extractTerms } from "./terms";
 import { evidenceFromPaths, type EvidenceCandidate } from "./retrieve";
 import type { ContextSource, Issue, IssueTracker } from "./source";
@@ -15,10 +16,9 @@ export function issueEvidence(issue: Issue): EvidenceCandidate {
     kind: "jira_issue",
     reference: issue.key,
     url: issue.url,
-    excerpt: `${issue.summary} [${issue.status}]\n${issue.description.trim() || "(no description)"}`.slice(
-      0,
-      ISSUE_EXCERPT_CHARS,
-    ),
+    excerpt: redactSecrets(
+      `${issue.summary} [${issue.status}]\n${issue.description.trim() || "(no description)"}`,
+    ).slice(0, ISSUE_EXCERPT_CHARS),
   };
 }
 

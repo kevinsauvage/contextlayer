@@ -8,7 +8,13 @@ import * as schema from "./schema";
 const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
 
 function createDb() {
-  const sql = (globalForDb.sql ??= postgres(getEnv().DATABASE_URL, { max: 10 }));
+  const env = getEnv();
+  // On a serverless host each instance opens its own pool, so the size comes from the host's limits, and a pooler
+  // in front of Postgres cannot use prepared statements (`prepare: false`).
+  const sql = (globalForDb.sql ??= postgres(env.DATABASE_URL, {
+    max: env.DB_POOL_SIZE,
+    prepare: env.DB_PREPARE,
+  }));
   return drizzle(sql, { schema });
 }
 

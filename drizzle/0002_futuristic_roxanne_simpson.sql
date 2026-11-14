@@ -1,0 +1,2 @@
+CREATE INDEX "analysis_creator_created_idx" ON "analysis" USING btree ("created_by_user_id","created_at");--> statement-breakpoint
+CREATE INDEX "analysis_created_idx" ON "analysis" USING btree ("created_at");

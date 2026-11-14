@@ -14,6 +14,14 @@ export class AnalysisAlreadyRunningError extends Error {
   }
 }
 
+// A caller, or the deployment as a whole, has spent its analysis budget for the period.
+export class AnalysisLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AnalysisLimitError";
+  }
+}
+
 // The project points at an integration account that was deleted or disconnected since it was created.
 export class ConnectionMissingError extends Error {
   constructor(message: string) {

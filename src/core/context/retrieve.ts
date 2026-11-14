@@ -1,5 +1,6 @@
 import type { Evidence, EvidenceKind } from "@/core/evidence/schemas";
 import type { ContextSource } from "@/core/context/source";
+import { redactSecrets } from "./redact";
 import { foldText } from "@/core/context/terms";
 
 export type EvidenceCandidate = Omit<Evidence, "id">;
@@ -69,7 +70,7 @@ export async function evidenceFromPaths(
   const read = await Promise.all(
     files.map((path) =>
       source.readFile(path).then(
-        (content) => ({ path, content }),
+        (content) => ({ path, content: redactSecrets(content) }),
         () => null,
       ),
     ),
