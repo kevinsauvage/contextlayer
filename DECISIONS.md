@@ -5,7 +5,7 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 ## Open
 
 - AI model choice: compare quality and cost on paid mid-tier models with a separate judge model (`pnpm eval`).
-- Hosting and background job mechanism: analyses run inside the server action (`maxDuration = 300`); revisit when pilot data shows requests near the limit.
+- Background job mechanism: analyses run inside the server action (`maxDuration = 300`); revisit when pilot data shows requests near the limit.
 - Narrower Jira scopes than `write:jira-work`.
 
 ## Foundations (2026-10-22)
@@ -357,3 +357,9 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Search terms carrying a code-host qualifier (`repo:`, `org:`, `path:` and the like) are dropped in `searchableTerms` and reported as skipped · the model writes the terms from untrusted text, and a second `repo:` would widen the query past the project's repository.
 - `updateMemberRole` and `removeMember` apply `canChangeMemberRole` / `canRemoveMember` on the server · the rules only hid buttons, and Better Auth's own rules are looser.
 - Browser-edited drafts are parsed with `editedDraftSchema` (100 items a section, 4,000 characters an entry); the model's output schema stays unbounded. `JiraClient` refuses a description over 32,767 characters before the write, with a message that names the limit.
+
+## Hosting (2026-11-14)
+
+- Vercel (project `contextlayer`, Git-connected to `main`) with Neon Postgres from the Vercel Marketplace, both in `iad1` · fits the stack and needs no extra accounts. Production only: preview deployments have no database.
+- `vercel.json` runs `drizzle-kit migrate` before `pnpm build` on production builds, and `drizzle.config.ts` prefers `DATABASE_URL_UNPOOLED` · migrations need a direct connection, the app uses Neon's pooled `DATABASE_URL` with `DB_PREPARE=false` and `DB_POOL_SIZE=5`.
+- Production has its own `BETTER_AUTH_SECRET` and `ENCRYPTION_KEY`; it reuses the development GitHub App, Atlassian app and AI key until production ones exist. Run limits are lowered to 10 per user and 60 in total per day to cap AI spend.

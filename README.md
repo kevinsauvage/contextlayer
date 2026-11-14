@@ -2,7 +2,7 @@
 
 Turns a plain-language request (a line or a few paragraphs) into an actionable, evidence-backed Jira ticket by investigating code, docs, decisions and existing issues, and audits existing tickets for ambiguity and unsupported assumptions. Every claim is labelled **verified**, **inferred**, **unknown** or **needs clarification**; `verified` requires cited evidence, and nothing is written to Jira without explicit approval.
 
-**Status:** private prototype. The end-to-end flow works: sign up → create or join an organization → connect GitHub and Jira → create a project → describe a request → answer the draft's questions → preview → publish. Code hosts and trackers sit behind a provider registry, so others can be added. Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
+**Status:** prototype, deployed at <https://contextlayer-pearl.vercel.app> (Vercel + Neon Postgres; a push to `main` migrates the database and deploys). The end-to-end flow works: sign up → create or join an organization → connect GitHub and Jira → create a project → describe a request → answer the draft's questions → preview → publish. Code hosts and trackers sit behind a provider registry, so others can be added. Product validation is still open: see [`docs/product/phase-0-decision.md`](docs/product/phase-0-decision.md) and [`TODO.md`](TODO.md).
 
 Stack: Next.js (App Router), strict TypeScript, Tailwind, shadcn/ui, Zod, Drizzle + Postgres, Better Auth, Vercel AI SDK, Vitest.
 

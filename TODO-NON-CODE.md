@@ -4,9 +4,9 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Hosting and deploy** `P2`
-  - **Context:** the app only runs locally; there is no production database, env, migration step or AI spending cap, and hosting is undecided (`DECISIONS.md` line 8). Merged with the former "Production readiness check"; its code half (serverless-safe pool, database rate limiting, run limits and CSP) has shipped.
-  - **Fix:** pick a host (Vercel with Marketplace Postgres fits the stack). Document production env vars and generate new `BETTER_AUTH_SECRET` and `ENCRYPTION_KEY` values. Set `BETTER_AUTH_URL` (OAuth redirect URIs come from it, `src/features/integrations/oauth-flow.ts:13`) and register `{BASE}/api/integrations/<id>/callback` with GitHub and Atlassian. Make both apps usable by accounts other than yours (check each provider's settings). Run `drizzle-kit migrate` as a deploy step. Set a hard monthly spending limit on the AI provider account. Run `pnpm build` and the app with production env on a preview deployment before going public.
+- [~] **Hosting and deploy** `P2`
+  - **Context:** deployed on Vercel with Neon Postgres at <https://contextlayer-pearl.vercel.app> (`DECISIONS.md`, "Hosting"). Production reuses the development GitHub App (`contextlayer-dev`), Atlassian app and AI key, and their callbacks still point at localhost, so connecting GitHub or Jira fails there.
+  - **Fix:** register `https://contextlayer-pearl.vercel.app/api/integrations/<id>/callback` with GitHub and Atlassian (or create production apps and replace the env vars). Make both apps usable by accounts other than yours (GitHub: "Any account"; Atlassian: distribution "Sharing"). Set a hard monthly spending limit on the AI provider account. Walk the full flow once in production.
 
 - [ ] **Customer data-flow page** `P2`
   - **Context:** on a public site, visitors who connect a repository or a Jira site send source code and ticket text to the AI provider, and the app stores excerpts in `analysis.result`. They should be told where it goes and for how long before they connect anything.
