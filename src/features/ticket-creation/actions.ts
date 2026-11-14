@@ -57,19 +57,21 @@ export async function createTicketAnalysis(
   const request = requestSchema.safeParse(formString(formData, "request"));
   if (!request.success) return { error: firstIssueMessage(request.error) };
 
-  const loaded = await loadProject(projectId);
-  if ("error" in loaded) return loaded;
-  const { db, userId, project } = loaded;
+  return withActionErrors(async () => {
+    const loaded = await loadProject(projectId);
+    if ("error" in loaded) return loaded;
+    const { db, userId, project } = loaded;
 
-  const analysisId = await startAnalysis({
-    db,
-    project,
-    userId,
-    kind: "create",
-    input: { request: request.data },
-    execute: (deadline, onUsage) => draftFromRequest(db, project, deadline, request.data, [], onUsage),
+    const analysisId = await startAnalysis({
+      db,
+      project,
+      userId,
+      kind: "create",
+      input: { request: request.data },
+      execute: (deadline, onUsage) => draftFromRequest(db, project, deadline, request.data, [], onUsage),
+    });
+    redirect(`/projects/${projectId}/analyses/${analysisId}`);
   });
-  redirect(`/projects/${projectId}/analyses/${analysisId}`);
 }
 
 // Until a ticket is published, refining replaces the draft instead of adding another analysis to the history.

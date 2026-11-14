@@ -9,8 +9,9 @@ const TOKEN_SHAPES = [
   /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g,
 ];
 // A key named like a credential assigned a single opaque value: `POSTGRES_PASSWORD: hunter2`, `"apiKey": "abc123"`.
+// Whitespace never crosses a line: a match that swallowed the blank lines after it would shift every later citation.
 const ASSIGNMENT =
-  /^(\s*(?:(?:const|let|var|export\s+const)\s+)?["']?[A-Za-z0-9_.-]*(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key)[A-Za-z0-9_.-]*["']?\s*[:=]\s*)(["']?)(\S{6,})\2\s*[,;]?\s*$/gim;
+  /^([^\S\n]*(?:(?:const|let|var|export\s+const)\s+)?["']?[A-Za-z0-9_.-]*(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key)[A-Za-z0-9_.-]*["']?[^\S\n]*[:=][^\S\n]*)(["']?)(\S{6,})\2[^\S\n]*[,;]?[^\S\n]*$/gim;
 
 export function redactSecrets(text: string): string {
   const masked = text

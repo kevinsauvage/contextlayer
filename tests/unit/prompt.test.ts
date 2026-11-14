@@ -31,6 +31,13 @@ describe("buildCreatePrompt", () => {
     expect(prompt).not.toContain("<answers>");
   });
 
+  it("masks a secret pasted into the request", () => {
+    const prompt = buildCreatePrompt("Rotate the key\nAPI_KEY=sk-live-123456", [], []);
+
+    expect(prompt).not.toContain("sk-live-123456");
+    expect(prompt).toContain("API_KEY=[redacted]");
+  });
+
   it("keeps a closing tag in an excerpt from ending the context block", () => {
     const prompt = buildCreatePrompt(
       "Round totals",

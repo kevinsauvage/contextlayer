@@ -1,4 +1,5 @@
 import "server-only";
+import { errorSummary } from "@/core/errors";
 import type { IntegrationProvider } from "@/core/integrations/provider";
 import type { OrgContext } from "@/infrastructure/auth/session";
 import type { Database } from "@/infrastructure/db/client";
@@ -55,6 +56,8 @@ export async function finishConnect(
     const result = await provider.complete({ query, state: rawState, redirectUri: redirectUriFor(provider) });
     if (result.status === "redirect") return result.url;
     if (result.status !== "connected") return noticeRedirect(state.returnTo, provider, result.status);
+    // A consent that grants no account (a Jira user with no site) is not "taken by another organization".
+    if (!result.accounts.length) return noticeRedirect(state.returnTo, provider, "no_account");
     const outcome = await saveAccounts(db, {
       organizationId: context.organizationId,
       userId: context.userId,
@@ -63,7 +66,7 @@ export async function finishConnect(
     });
     return noticeRedirect(state.returnTo, provider, outcome);
   } catch (error) {
-    console.error(`[integrations] ${provider.id} callback failed`, error);
+    console.error(`[integrations] ${provider.id} callback failed`, errorSummary(error));
     return noticeRedirect(state.returnTo, provider, "failed");
   }
 }

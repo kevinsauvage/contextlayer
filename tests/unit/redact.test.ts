@@ -39,4 +39,12 @@ describe("redactSecrets", () => {
     expect(redacted).toContain('"apiKey": [redacted]');
     expect(redacted).toContain("const total = 42;");
   });
+
+  it("keeps the blank lines after a masked assignment, so later citations keep their line numbers", () => {
+    const text = "password=abcdef\n\n  token: 'abcdefgh',\n\n\nnext line";
+
+    const redacted = redactSecrets(text);
+
+    expect(redacted).toBe("password=[redacted]\n\n  token: [redacted]\n\n\nnext line");
+  });
 });

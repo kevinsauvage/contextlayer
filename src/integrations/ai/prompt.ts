@@ -68,7 +68,7 @@ const answersBlock = (answers: Refinement[]) =>
   answers.length ? `\n\n<answers>\n${answers.map(refinementLine).join("\n\n")}\n</answers>` : "";
 
 export const buildCreatePrompt = (request: string, answers: Refinement[], candidates: Evidence[]) =>
-  `<request>\n${asText(request)}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
+  `<request>\n${asText(redactSecrets(request))}\n</request>${answersBlock(answers)}\n\n<context>\n${contextBlock(candidates)}\n</context>`;
 
 export const buildAuditPrompt = (issue: Issue, candidates: Evidence[]) =>
   `<ticket key="${asAttribute(issue.key)}" status="${asAttribute(issue.status)}">\nTitle: ${asText(redactSecrets(issue.summary))}\n\n${asText(redactSecrets(issue.description)) || "(no description)"}\n</ticket>\n\n<context>\n${contextBlock(candidates)}\n</context>`;

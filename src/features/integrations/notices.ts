@@ -3,6 +3,7 @@ import { z } from "zod";
 const connectResults = [
   "connected",
   "taken",
+  "no_account",
   "forbidden",
   "cancelled",
   "invalid",
@@ -29,6 +30,7 @@ export function readConnectNotice(params: Record<string, string | string[] | und
 const MESSAGES: Record<ConnectResult, (name: string) => string> = {
   connected: (name) => `${name} connected.`,
   taken: (name) => `That ${name} account is already connected to another organization. Disconnect it there first.`,
+  no_account: (name) => `${name} returned nothing to connect. Check that your ${name} user has access, then try again.`,
   forbidden: (name) => `Your ${name} user does not have access to that installation.`,
   cancelled: (name) => `${name} connection was cancelled.`,
   invalid: (name) => `The ${name} connection request expired or was invalid. Try again.`,

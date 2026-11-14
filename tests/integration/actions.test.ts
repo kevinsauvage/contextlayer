@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Issue, IssueTracker } from "@/core/context/source";
-import { ReconnectRequiredError } from "@/core/errors";
+import { AnalysisLimitError, ReconnectRequiredError } from "@/core/errors";
 import type { IntegrationProvider, SourceProvider, TrackerProvider } from "@/core/integrations/provider";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { disconnectConnection } from "@/features/integrations/actions";
 import { removeMember } from "@/features/organizations/actions";
 import { createProject, deleteProject } from "@/features/projects/actions";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
-import { publishTicket, refineTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
+import { createTicketAnalysis, publishTicket, refineTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
 import { first } from "@/lib/first";
@@ -22,6 +22,7 @@ const state = vi.hoisted(() => ({
   isAdmin: true,
   tracker: undefined as unknown as IssueTracker,
   restarts: [] as { input: unknown }[],
+  startError: undefined as Error | undefined,
 }));
 
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -62,6 +63,10 @@ vi.mock("@/features/analysis/run", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
+    startAnalysis: async () => {
+      if (state.startError) throw state.startError;
+      return "started";
+    },
     restartAnalysis: async (args: { input: unknown }) => {
       state.restarts.push({ input: args.input });
       return "restarted";
@@ -361,6 +366,33 @@ describe("disconnectConnection", () => {
     const left = await state.db.select({ id: schema.integrationConnection.id }).from(schema.integrationConnection);
     expect(left.map((row) => row.id)).not.toContain(unused.id);
     expect(left.map((row) => row.id)).toContain(foreign.id);
+  });
+});
+
+describe("createTicketAnalysis", () => {
+  const form = (request: string) => {
+    const data = new FormData();
+    data.set("request", request);
+    return data;
+  };
+
+  it("returns the limit message instead of an error page when the caller is out of runs", async () => {
+    const { id } = await seedProject(state.db, "orgA", connections);
+    state.startError = new AnalysisLimitError("You have reached your daily analysis limit. Try again tomorrow.");
+    try {
+      expect(await createTicketAnalysis(id, {}, form("Round cart totals"))).toEqual({
+        error: "You have reached your daily analysis limit. Try again tomorrow.",
+      });
+    } finally {
+      state.startError = undefined;
+    }
+  });
+
+  it("redirects to the new analysis", async () => {
+    const { id } = await seedProject(state.db, "orgA", connections);
+    await expect(createTicketAnalysis(id, {}, form("Round cart totals"))).rejects.toThrow(
+      `NEXT_REDIRECT:/projects/${id}/analyses/started`,
+    );
   });
 });
 

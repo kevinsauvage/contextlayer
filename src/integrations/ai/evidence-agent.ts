@@ -87,8 +87,9 @@ export class AiEvidenceAgent implements EvidenceSelector {
           description:
             "Read a repository file by its exact path. A long file is cut at 6000 characters: call again with offset to continue.",
           inputSchema: z.object({ path: z.string().min(1), offset: z.number().int().min(0).optional() }),
-          execute: async ({ path, offset = 0 }) => {
-            if (!known.has(path)) return `No such file: ${path}`;
+          execute: async ({ path: requested, offset = 0 }) => {
+            const path = normalizePath(requested);
+            if (!known.has(path)) return `No such file: ${requested}`;
             if (reads >= MAX_READS) return "Read budget exhausted: call selectFiles with the paths you already have.";
             reads += 1;
             const content = redactSecrets(await source.readFile(path));

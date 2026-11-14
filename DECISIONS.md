@@ -344,3 +344,11 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Refinement history keeps the newest 30 turns within 20,000 characters (`boundRefinements`), stored inputs are trimmed when read, and `refineTicket` drops answers to questions the stored draft did not ask; earlier question text is escaped and labelled as the assistant's question · a script could otherwise add ~25k tokens to every later run, and model-written question text came back as trusted `<answers>`.
 - The CSP is enforced, not report-only: the proxy sets a fresh nonce on every HTML route (including sign-in and sign-up), Next applies it to its scripts and `next-themes` gets it through the `nonce` prop, and `pnpm e2e` passed before enforcement. Every page is now dynamically rendered, which nonces require; HSTS is production-only.
 - The Postgres pool size and `prepare` come from `DB_POOL_SIZE` / `DB_PREPARE` (serverless hosts pool per instance, and a pooler cannot use prepared statements), and Better Auth's rate limiter stores its counters in the `rate_limit` table, with a migration and a concurrent sign-in test · the in-memory default reset on every instance.
+
+## Code review fixes (2026-11-14)
+
+- `redactSecrets` never lets a match cross a line: the assignment pattern used `\s*`, which swallowed the blank lines after a masked value and shifted every later line number a citation points at.
+- The request is redacted in the create prompt like the answers and the agent's query already were · a secret pasted into a request reached the drafting model unmasked.
+- `createTicketAnalysis` runs inside `withActionErrors` like the audit action, so a caller at their run limit sees the limit message in the form instead of the error page.
+- A consent that returns no account reports `no_account` instead of `taken` · a Jira user with no accessible site was told the account belonged to another organization. The OAuth callback now logs `errorSummary(error)`, not the raw error object.
+- The agent's `readFile` accepts `./path` and `/path` like `pathsFromCalls` does, so a read is not refused for a prefix the selection would accept.

@@ -89,6 +89,11 @@ describe("finishing a connection", () => {
     expect(await finishConnect(db, redirect, context(), query(state()))).toBe("https://github.test/installations/new");
   });
 
+  it("reports a consent that granted no account, instead of blaming another organization", async () => {
+    const empty = provider(async () => ({ status: "connected", accounts: [] }));
+    expect(resultOf(await finishConnect(db, empty, context(), query(state())))).toBe("no_account");
+  });
+
   it("saves healthy accounts", async () => {
     const p = provider(async () => connected("1"));
     expect(resultOf(await finishConnect(db, p, context(), query(state())))).toBe("connected");
