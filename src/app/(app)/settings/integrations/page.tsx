@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { ConnectNotice } from "@/components/integrations/connect-notice";
 import { PageHeader } from "@/components/page-header";
+import { SetupChecklist } from "@/components/integrations/setup-checklist";
 import { ProviderCard } from "@/components/integrations/provider-card";
 import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
+import { setupSteps } from "@/features/integrations/setup";
+import { listProjects } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
@@ -15,7 +18,12 @@ const SECTIONS = [
 
 export default async function Page({ searchParams }: PageProps<"/settings/integrations">) {
   const { organizationId, isAdmin } = await requireOrgContext();
-  const [overview, params] = await Promise.all([integrationsOverview(getDb(), organizationId), searchParams]);
+  const db = getDb();
+  const [overview, projects, params] = await Promise.all([
+    integrationsOverview(db, organizationId),
+    listProjects(db, organizationId),
+    searchParams,
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -24,6 +32,9 @@ export default async function Page({ searchParams }: PageProps<"/settings/integr
         description="Connect where your code lives and where your tickets live. Code is only read; tickets are written only after you approve a draft."
       />
       <ConnectNotice params={params} providerNames={providerNames(overview)} />
+      {projects.length === 0 && (
+        <SetupChecklist isAdmin={isAdmin} steps={setupSteps(overview, "/settings/integrations")} />
+      )}
       {SECTIONS.map((section) => (
         <section key={section.kind} className="flex flex-col gap-3" aria-labelledby={`${section.kind}-heading`}>
           <div>

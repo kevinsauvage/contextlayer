@@ -363,3 +363,7 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Vercel (project `contextlayer`, Git-connected to `main`) with Neon Postgres from the Vercel Marketplace, both in `iad1` · fits the stack and needs no extra accounts. Production only: preview deployments have no database.
 - `vercel.json` runs `drizzle-kit migrate` before `pnpm build` on production builds, and `drizzle.config.ts` prefers `DATABASE_URL_UNPOOLED` · migrations need a direct connection, the app uses Neon's pooled `DATABASE_URL` with `DB_PREPARE=false` and `DB_POOL_SIZE=5`.
 - Production has its own `BETTER_AUTH_SECRET` and `ENCRYPTION_KEY`; it reuses the development GitHub App, Atlassian app and AI key until production ones exist. Run limits are lowered to 10 per user and 60 in total per day to cap AI spend.
+
+## Setup flow (2026-11-14)
+
+- The setup checklist's connect steps start the provider's consent directly and return to the next step: back to the checklist while a connection is missing, and to the new project form after the last one (`setupSteps`). The integrations page shows the same checklist until a project exists · the checklist used to link to the integrations page, which left a new user there after connecting with no way forward.

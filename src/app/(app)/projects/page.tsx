@@ -1,33 +1,28 @@
 import { ArrowRight, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ConnectNotice } from "@/components/integrations/connect-notice";
 import { PageHeader } from "@/components/page-header";
 import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { SetupChecklist } from "@/components/integrations/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
-import { integrationsOverview, ofKind, providerNames } from "@/features/integrations/overview";
+import { integrationsOverview, providerNames } from "@/features/integrations/overview";
+import { setupSteps } from "@/features/integrations/setup";
 import { listProjects } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
 
 export const metadata: Metadata = { title: "Projects" };
 
-const hasConnection = (providers: { connections: unknown[] }[]) => providers.some((p) => p.connections.length > 0);
-
-export default async function Page() {
+export default async function Page({ searchParams }: PageProps<"/projects">) {
   const { organizationId, isAdmin } = await requireOrgContext();
   const db = getDb();
-  const [projects, overview] = await Promise.all([
+  const [projects, overview, params] = await Promise.all([
     listProjects(db, organizationId),
     integrationsOverview(db, organizationId),
+    searchParams,
   ]);
   const names = providerNames(overview);
-  const sourceNames = ofKind(overview, "source")
-    .map((p) => p.name)
-    .join(" or ");
-  const trackerNames = ofKind(overview, "tracker")
-    .map((p) => p.name)
-    .join(" or ");
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,34 +39,9 @@ export default async function Page() {
         }
       />
 
-      {projects.length === 0 && (
-        <SetupChecklist
-          isAdmin={isAdmin}
-          steps={[
-            {
-              done: hasConnection(ofKind(overview, "source")),
-              title: "Connect your code",
-              description: `Give read-only access to repositories on ${sourceNames}.`,
-              href: "/settings/integrations",
-              cta: "Connect",
-            },
-            {
-              done: hasConnection(ofKind(overview, "tracker")),
-              title: "Connect your tickets",
-              description: `Link ${trackerNames} so drafts can be published after approval.`,
-              href: "/settings/integrations",
-              cta: "Connect",
-            },
-            {
-              done: false,
-              title: "Create a project",
-              description: "Pick one repository and one ticket project.",
-              href: "/projects/new",
-              cta: "Create",
-            },
-          ]}
-        />
-      )}
+      <ConnectNotice params={params} providerNames={names} />
+
+      {projects.length === 0 && <SetupChecklist isAdmin={isAdmin} steps={setupSteps(overview, "/projects")} />}
 
       {projects.length > 0 && (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

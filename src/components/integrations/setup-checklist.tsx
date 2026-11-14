@@ -3,11 +3,10 @@ import Link from "next/link";
 import type { Route } from "next";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { SetupStep } from "@/features/integrations/setup";
 import { cn } from "@/lib/utils";
 
-type Step = { done: boolean; title: string; description: string; href: Route; cta: string };
-
-export function SetupChecklist({ steps, isAdmin }: { steps: Step[]; isAdmin: boolean }) {
+export function SetupChecklist({ steps, isAdmin }: { steps: SetupStep[]; isAdmin: boolean }) {
   const next = steps.findIndex((step) => !step.done);
   return (
     <Card>
@@ -42,11 +41,18 @@ export function SetupChecklist({ steps, isAdmin }: { steps: Step[]; isAdmin: boo
                   </span>
                   <span className="text-sm text-muted-foreground">{step.description}</span>
                 </div>
-                {isAdmin && index === next && (
-                  <Link href={step.href} className={buttonVariants({ size: "sm" })}>
-                    {step.cta}
-                  </Link>
-                )}
+                {isAdmin &&
+                  index === next &&
+                  // A connect step is a route handler that redirects to the provider, so it needs a full navigation.
+                  (step.href.startsWith("/api/") ? (
+                    <a href={step.href} className={buttonVariants({ size: "sm" })}>
+                      {step.cta}
+                    </a>
+                  ) : (
+                    <Link href={step.href as Route} className={buttonVariants({ size: "sm" })}>
+                      {step.cta}
+                    </Link>
+                  ))}
               </li>
             );
           })}
