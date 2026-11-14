@@ -26,7 +26,12 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
       const { error } = signingUp
         ? await authClient.signUp.email({ email, password, name: formString(formData, "name") })
         : await authClient.signIn.email({ email, password });
-      if (error) return { error: error.message ?? "Something went wrong" };
+      if (error)
+        return {
+          error:
+            error.message ??
+            (signingUp ? "Could not create your account. Try again." : "Could not sign you in. Try again."),
+        };
       router.push(destination);
       router.refresh();
       return {};

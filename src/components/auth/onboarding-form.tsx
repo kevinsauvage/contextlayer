@@ -26,7 +26,7 @@ export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: str
     run(async () => {
       const created = await createOrganization(name);
       if (created.error) return created;
-      if (!created.organizationId) return { error: "Could not create the organization" };
+      if (!created.organizationId) return { error: "Could not create the organization. Try again." };
       await authClient.organization.setActive({ organizationId: created.organizationId });
       router.push("/projects");
       router.refresh();

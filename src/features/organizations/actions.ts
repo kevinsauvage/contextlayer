@@ -3,7 +3,7 @@
 import { APIError } from "better-auth/api";
 import type { Route } from "next";
 import { headers } from "next/headers";
-import { redirect, unstable_rethrow } from "next/navigation";
+import { unstable_rethrow } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import pRetry from "p-retry";
 import slugify from "slugify";
@@ -18,6 +18,7 @@ import {
 } from "@/core/organizations/roles";
 import { organizationNameSchema } from "@/core/organizations/schemas";
 import { toActionError } from "@/features/errors";
+import { redirectWithFlash } from "@/features/flash";
 import { getAuth } from "@/infrastructure/auth/auth";
 import { getSession, requireOrgAdmin, requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
@@ -33,15 +34,17 @@ const emailSchema = z.email("Enter a valid email address");
 const roleSchema = z.enum(INVITABLE_ROLES);
 const idSchema = z.string().min(1, "Choose an entry");
 
+const retry = (fallback: string) => `${fallback}. Try again.`;
+
 // Better Auth throws APIError with a message meant for the person; anything else is logged and replaced.
 function failure(error: unknown, fallback: string): ActionState {
   // A sign-in redirect from the role check must still navigate.
   unstable_rethrow(error);
-  if (error instanceof APIError) return { error: error.message || fallback };
+  if (error instanceof APIError) return { error: error.message || retry(fallback) };
   const known = toActionError(error);
   if (known) return known;
   console.error("[organizations]", error);
-  return { error: fallback };
+  return { error: retry(fallback) };
 }
 
 // Every action below has the same shape: run the Better Auth call, map a thrown error to a message for the person.
@@ -125,7 +128,7 @@ async function refusal(
     .select({ userId: member.userId, role: member.role })
     .from(member)
     .where(and(eq(member.id, memberId), eq(member.organizationId, actor.organizationId)));
-  if (!target) return { error: "Member not found" };
+  if (!target) return { error: "That member is no longer in the organization. Reload the page." };
   return allowed(actor, target) ? null : { error: message };
 }
 
@@ -180,7 +183,7 @@ export async function leaveOrganization(): Promise<ActionState> {
     return {};
   });
   if (result.error) return result;
-  redirect(await nextOrganizationPath(userId));
+  redirectWithFlash(await nextOrganizationPath(userId), "organization_left");
 }
 
 export async function deleteOrganization(): Promise<ActionState> {
@@ -191,7 +194,7 @@ export async function deleteOrganization(): Promise<ActionState> {
     return {};
   });
   if (result.error) return result;
-  redirect(await nextOrganizationPath(userId));
+  redirectWithFlash(await nextOrganizationPath(userId), "organization_deleted");
 }
 
 export async function cancelInvitation(invitationId: string): Promise<ActionState> {

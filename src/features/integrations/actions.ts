@@ -12,7 +12,7 @@ import { deleteConnection, projectsUsingConnection } from "./connections";
 export async function disconnectConnection(connectionId: string): Promise<ActionState> {
   return withActionErrors(async () => {
     const { organizationId } = await requireOrgAdmin();
-    if (!isUuid(connectionId)) return { error: "Connection not found" };
+    if (!isUuid(connectionId)) return { error: "That connection no longer exists. Reload the page." };
     const db = getDb();
     const projects = await projectsUsingConnection(db, organizationId, connectionId);
     if (projects.length) {

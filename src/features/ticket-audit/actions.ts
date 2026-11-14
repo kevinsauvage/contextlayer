@@ -61,7 +61,8 @@ export async function applyAuditToTracker(analysisId: string, draftInput: unknow
 
     const runToken = loaded.analysis.runToken ?? "";
     const input = readAnalysisInput(loaded.analysis);
-    if (input?.kind !== "audit") return { error: "Analysis input is invalid" };
+    if (input?.kind !== "audit")
+      return { error: "This audit cannot be re-run. Start a new audit from the project page." };
 
     // Inside the write, so a tracker failure here gets the same handling as the update itself.
     return publishApproved(loaded.db, analysisId, runToken, approved.draft, async () => {

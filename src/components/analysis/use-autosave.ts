@@ -20,7 +20,11 @@ export function useAutosave(
   const persist = useDebouncedCallback((current: TicketDraft) => {
     void save?.(withoutIncompleteItems(current)).then(
       (outcome) => setStatus({ saved: !outcome.error, error: outcome.error }),
-      () => setStatus({ saved: false, error: "Could not reach the server" }),
+      () =>
+        setStatus({
+          saved: false,
+          error: "the server could not be reached. Your edits stay on this page and save on your next change.",
+        }),
     );
   }, AUTOSAVE_DELAY_MS);
 

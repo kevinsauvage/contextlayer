@@ -26,7 +26,7 @@ export async function loadProject(
   const { organizationId, userId } = await requireOrgContext();
   const db = getDb();
   const project = await getProject(db, organizationId, projectId);
-  if (!project) return { error: "Project not found" };
+  if (!project) return { error: "That project no longer exists. Go back to Projects." };
   return { db, organizationId, userId, project };
 }
 
@@ -48,7 +48,7 @@ export async function loadAnalysis(
   const db = getDb();
   const found = await getAnalysis(db, organizationId, analysisId);
   if (found?.analysis.kind !== query.kind || (query.status && found.analysis.status !== query.status))
-    return { error: "Analysis not found" };
+    return { error: "That analysis no longer exists. Go back to the project." };
   if (found.analysis.publishedIssueKey && query.publishedError)
     return { error: query.publishedError(found.analysis.publishedIssueKey) };
   if (found.analysis.status === "running" && query.runningError) return { error: query.runningError };

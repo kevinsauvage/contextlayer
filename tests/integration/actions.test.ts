@@ -271,7 +271,7 @@ describe("createProject", () => {
 
   it("reports a missing source connection", async () => {
     expect(await createProject({}, projectForm({ sourceConnectionId: randomUUID() }))).toEqual({
-      error: "The code source connection no longer exists",
+      error: "This project's code source is no longer connected. Ask an admin to check Integrations.",
     });
   });
 
@@ -292,7 +292,7 @@ describe("createProject", () => {
     const [created] = await state.db.select().from(schema.project).where(eq(schema.project.name, "Shop"));
     expect(created?.sourceResourceLabel).toBe("o/r");
     expect(created?.trackerResourceLabel).toBe("SHOP · Shop");
-    expect(state.redirects.at(-1)).toBe(`/projects/${created?.id}`);
+    expect(state.redirects.at(-1)).toBe(`/projects/${created?.id}?notice=project_created`);
   });
 
   it("stores a monorepo folder scope in the source resource", async () => {
@@ -321,9 +321,11 @@ describe("admin actions", () => {
   it("return a message when the caller is no longer an admin", async () => {
     state.isAdmin = false;
     try {
-      expect(await removeMember("member-1")).toEqual({ error: "Only organization owners and admins can do this" });
+      expect(await removeMember("member-1")).toEqual({
+        error: "Only organization owners and admins can do this. Ask one of them.",
+      });
       expect(await deleteProject(randomUUID())).toEqual({
-        error: "Only organization owners and admins can do this",
+        error: "Only organization owners and admins can do this. Ask one of them.",
       });
     } finally {
       state.isAdmin = true;
@@ -351,16 +353,22 @@ describe("admin actions", () => {
     try {
       expect(await updateMemberRole("m-admin", "member")).toEqual({ error: "You cannot change this member's role" });
       expect(await removeMember("m-owner")).toEqual({ error: "You cannot remove this member" });
-      expect(await removeMember("m-foreign")).toEqual({ error: "Member not found" });
-      expect(await updateMemberRole("m-missing", "admin")).toEqual({ error: "Member not found" });
+      expect(await removeMember("m-foreign")).toEqual({
+        error: "That member is no longer in the organization. Reload the page.",
+      });
+      expect(await updateMemberRole("m-missing", "admin")).toEqual({
+        error: "That member is no longer in the organization. Reload the page.",
+      });
     } finally {
       state.role = undefined;
     }
   });
 
   it("answer not found for a malformed id instead of reaching the database", async () => {
-    expect(await deleteProject("not-a-uuid")).toEqual({ error: "Project not found" });
-    expect(await disconnectConnection("not-a-uuid")).toEqual({ error: "Connection not found" });
+    expect(await deleteProject("not-a-uuid")).toEqual({ error: "That project no longer exists. Go back to Projects." });
+    expect(await disconnectConnection("not-a-uuid")).toEqual({
+      error: "That connection no longer exists. Reload the page.",
+    });
   });
 });
 
@@ -440,7 +448,7 @@ describe("refineTicket", () => {
 
   it("reports an analysis that does not exist in the organization", async () => {
     expect(await refineTicket(randomUUID(), { answers: [], message: "Change the title" })).toEqual({
-      error: "Analysis not found",
+      error: "That analysis no longer exists. Go back to the project.",
     });
   });
 
@@ -547,7 +555,9 @@ describe("applyAuditToTracker", () => {
     const id = await auditAnalysis({ input: { request: "x" } });
     const calls = fakeTracker(audited("2026-10-25T10:00:00.000+0000"));
 
-    expect(await applyAuditToTracker(id, proposal)).toEqual({ error: "Analysis input is invalid" });
+    expect(await applyAuditToTracker(id, proposal)).toEqual({
+      error: "This audit cannot be re-run. Start a new audit from the project page.",
+    });
     expect(calls).toEqual({ reads: 0, updates: [] });
   });
 
@@ -644,7 +654,9 @@ describe("publishTicket and saveDraftEdits", () => {
       return { key: "SHOP-12", url: "u" };
     });
 
-    expect(await publishTicket(id, "run-1", editable)).toEqual({ error: "Analysis not found" });
+    expect(await publishTicket(id, "run-1", editable)).toEqual({
+      error: "That analysis no longer exists. Go back to the project.",
+    });
     expect(calls).toBe(0);
   });
 

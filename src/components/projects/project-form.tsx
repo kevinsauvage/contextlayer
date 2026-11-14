@@ -113,7 +113,7 @@ function ConnectionStep({ step, kind, title, description, providers, resourceLis
           )}
           <ResourcePicker
             key={current.id}
-            list={resourceLists[current.id] ?? { error: "This connection was not loaded" }}
+            list={resourceLists[current.id] ?? { error: "This connection was not loaded. Reload the page." }}
             name={`${field}ResourceId`}
             noun={current.provider.resourceNoun}
             emptyHint={`No ${current.provider.resourceNoun} is visible to this ${current.provider.name} ${current.provider.accountNoun}. Grant access in ${current.provider.name}, then reload.`}

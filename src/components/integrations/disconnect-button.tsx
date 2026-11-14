@@ -23,6 +23,7 @@ export function DisconnectButton({ connectionId, label, providerName, projectCou
       description={`ContextLayer forgets this ${providerName} connection and its stored credentials. You can connect it again later.`}
       confirmLabel="Disconnect"
       pendingLabel="Disconnecting…"
+      success={`${label} disconnected from ContextLayer.`}
       action={() => disconnectConnection(connectionId)}
     />
   );

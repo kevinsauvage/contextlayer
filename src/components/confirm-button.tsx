@@ -25,6 +25,7 @@ type Props = {
   description: React.ReactNode;
   confirmLabel: string;
   pendingLabel: string;
+  success?: string;
   action: () => Promise<ActionState>;
 };
 
@@ -36,10 +37,11 @@ export function ConfirmButton({
   description,
   confirmLabel,
   pendingLabel,
+  success,
   action,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { run, pending, error } = useMutation({ onSuccess: () => setOpen(false) });
+  const { run, pending, error } = useMutation({ onSuccess: () => setOpen(false), success });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

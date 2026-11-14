@@ -11,14 +11,16 @@ async function listConnectionResources(
   connectionId: string,
 ): Promise<ResourceList> {
   const resolved = await resolveConnection(db, organizationId, connectionId);
-  if (!resolved) return { error: "Connection not found" };
+  if (!resolved) return { error: "That connection no longer exists. Reload the page." };
   try {
     return { resources: await resolved.provider.listResources(resolved.context) };
   } catch (error) {
     const known = toActionError(error);
     if (known) return known;
     console.error(`[integrations] listing ${resolved.provider.id} resources failed`, errorSummary(error));
-    return { error: `Could not load ${resolved.provider.resourceNoun} list from ${resolved.provider.name}` };
+    return {
+      error: `Could not load the ${resolved.provider.resourceNoun} list from ${resolved.provider.name}. Reload the page; if it keeps failing, reconnect ${resolved.provider.name} in Integrations.`,
+    };
   }
 }
 

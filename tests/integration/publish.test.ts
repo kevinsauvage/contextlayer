@@ -99,7 +99,11 @@ describe("publishApproved", () => {
 
     expect(writes).toBe(1);
     expect(results.filter((result) => result.issueKey === "SHOP-2")).toHaveLength(1);
-    expect(results.filter((result) => result.error === "This analysis is already being published")).toHaveLength(1);
+    expect(
+      results.filter(
+        (result) => result.error === "This draft is already being published. Wait a moment, then reload the page.",
+      ),
+    ).toHaveLength(1);
   });
 
   it("releases the claim when the tracker refuses the write, so a retry can publish", async () => {
@@ -125,7 +129,7 @@ describe("publishApproved", () => {
       writes += 1;
       return { key: "SHOP-4", url: "u/4" };
     });
-    expect(retried).toEqual({ error: "This analysis is already being published" });
+    expect(retried).toEqual({ error: "This draft is already being published. Wait a moment, then reload the page." });
     expect(writes).toBe(0);
   });
 
@@ -150,7 +154,7 @@ describe("publishApproved", () => {
       return { key: "SHOP-6", url: "u/6" };
     });
 
-    expect(result).toEqual({ error: "This analysis is already being published" });
+    expect(result).toEqual({ error: "This draft is already being published. Wait a moment, then reload the page." });
     expect(writes).toBe(0);
   });
 
@@ -167,7 +171,7 @@ describe("publishApproved", () => {
       return { key: "SHOP-8", url: "u/8" };
     });
 
-    expect(result).toEqual({ error: "This analysis is already being published" });
+    expect(result).toEqual({ error: "This draft is already being published. Wait a moment, then reload the page." });
     expect(writes).toBe(0);
   });
 

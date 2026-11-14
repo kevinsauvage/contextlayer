@@ -2,17 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { notify } from "@/components/ui/toast";
 
 type MutationOptions = {
   // Refresh the current route after success so server-rendered data catches up.
   refresh?: boolean;
   onSuccess?: () => void;
+  // Shown as a toast after success, for actions whose only other trace is a row changing or disappearing.
+  success?: string;
 };
 
 type MutationResult = { error?: string } | undefined;
 
 // Runs one client-side mutation and reports its error; a returned `error` keeps it on screen.
-export function useMutation({ refresh = false, onSuccess }: MutationOptions = {}) {
+export function useMutation({ refresh = false, onSuccess, success }: MutationOptions = {}) {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
@@ -26,6 +29,7 @@ export function useMutation({ refresh = false, onSuccess }: MutationOptions = {}
         return;
       }
       onSuccess?.();
+      if (success) notify(success);
       if (refresh) router.refresh();
     });
   };

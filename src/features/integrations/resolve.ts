@@ -30,13 +30,17 @@ export async function resolveConnection(
 export async function resolveSource(db: Database, organizationId: string, connectionId: string) {
   const resolved = await resolveConnection(db, organizationId, connectionId);
   if (resolved?.provider.kind !== "source")
-    throw new ConnectionMissingError("The code source connection no longer exists");
+    throw new ConnectionMissingError(
+      "This project's code source is no longer connected. Ask an admin to check Integrations.",
+    );
   return { ...resolved, provider: resolved.provider } satisfies Resolved<SourceProvider>;
 }
 
 export async function resolveTracker(db: Database, organizationId: string, connectionId: string) {
   const resolved = await resolveConnection(db, organizationId, connectionId);
   if (resolved?.provider.kind !== "tracker")
-    throw new ConnectionMissingError("The issue tracker connection no longer exists");
+    throw new ConnectionMissingError(
+      "This project's issue tracker is no longer connected. Ask an admin to check Integrations.",
+    );
   return { ...resolved, provider: resolved.provider } satisfies Resolved<TrackerProvider>;
 }

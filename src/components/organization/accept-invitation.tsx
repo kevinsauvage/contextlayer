@@ -21,7 +21,7 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
       }
       const result = await acceptInvitation(invitationId);
       if (result.error) return result;
-      if (!result.organizationId) return { error: "Could not accept the invitation" };
+      if (!result.organizationId) return { error: "Could not accept the invitation. Reload the page and try again." };
       await authClient.organization.setActive({ organizationId: result.organizationId });
       router.push("/projects");
       router.refresh();

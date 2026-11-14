@@ -367,3 +367,10 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 ## Setup flow (2026-11-14)
 
 - The setup checklist's connect steps start the provider's consent directly and return to the next step: back to the checklist while a connection is missing, and to the new project form after the last one (`setupSteps`). The integrations page shows the same checklist until a project exists · the checklist used to link to the integrations page, which left a new user there after connecting with no way forward.
+
+## User feedback (2026-11-14)
+
+- Success is confirmed with a toast (`notify`, Base UI Toast), errors stay inline next to the control · a toast that disappears is fine for "Member removed" and wrong for something the person must read and act on. Base UI's toast was used over `sonner` because the CSP has no `'unsafe-inline'` for styles.
+- A redirect carries its confirmation as `?notice=<key>` (`src/lib/flash.ts`), shown once by `FlashToast` · only listed keys are accepted, so a crafted link cannot write its own message.
+- Connect notices have a title and a next step, and every one that can come from the wrong provider account says how to switch · OAuth reuses the account the browser is signed in to without asking, so "already connected to another organization" alone left no way forward.
+- Error messages say what to do next ("Reload the page", "Ask an admin to check Integrations"), not only what failed.

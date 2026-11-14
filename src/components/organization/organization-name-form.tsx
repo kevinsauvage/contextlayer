@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +11,9 @@ import { formString } from "@/lib/form";
 import { firstIssueMessage } from "@/lib/zod";
 
 export function OrganizationNameForm({ name, canEdit }: { name: string; canEdit: boolean }) {
-  const [saved, setSaved] = useState(false);
-  const { run, pending, error, setError } = useMutation({ refresh: true, onSuccess: () => setSaved(true) });
+  const { run, pending, error, setError } = useMutation({ refresh: true, success: "Organization renamed." });
 
   function submit(formData: FormData) {
-    setSaved(false);
     const parsed = organizationNameSchema.safeParse(formString(formData, "name"));
     if (!parsed.success) {
       setError(firstIssueMessage(parsed.error));
@@ -37,11 +34,6 @@ export function OrganizationNameForm({ name, canEdit }: { name: string; canEdit:
         )}
       </div>
       <FormError error={error} />
-      {saved && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Saved.
-        </p>
-      )}
     </form>
   );
 }

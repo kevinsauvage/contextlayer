@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { connectNoticeMessage, readConnectNotice } from "@/features/integrations/notices";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { connectNotice, readConnectNotice } from "@/features/integrations/notices";
 
 type Props = {
   params: Record<string, string | string[] | undefined>;
@@ -12,12 +12,12 @@ export function ConnectNotice({ params, providerNames }: Props) {
   if (!notice) return null;
   const success = notice.result === "connected";
   const Icon = success ? CircleCheck : CircleAlert;
+  const { title, detail } = connectNotice(notice.result, providerNames[notice.providerId] ?? "The integration");
   return (
     <Alert variant={success ? "default" : "destructive"} role="status">
       <Icon />
-      <AlertDescription>
-        {connectNoticeMessage(notice.result, providerNames[notice.providerId] ?? "The integration")}
-      </AlertDescription>
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{detail}</AlertDescription>
     </Alert>
   );
 }

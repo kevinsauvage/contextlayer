@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// The whole path a new team takes, on the fake providers: sign up, create an organization, connect code and tickets,
+// The whole path a new team takes, on the fake providers: sign up, create an organization, connect code and tickets from the setup checklist,
 // create a project, draft a ticket from a request, and publish it to the in-memory tracker.
 test("a new user drafts a ticket and publishes it", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.test`;
@@ -15,17 +15,19 @@ test("a new user drafts a ticket and publishes it", async ({ page }) => {
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL(/\/projects$/);
 
-  await page.goto("/settings/integrations");
-  await page.getByRole("link", { name: "Connect Sample repository" }).click();
-  await expect(page.getByText("Sample repository connected.")).toBeVisible();
-  await page.getByRole("link", { name: "Connect Sample tracker" }).click();
-  await expect(page.getByText("Sample tracker connected.")).toBeVisible();
+  // The checklist starts each consent itself and brings the user back to the next step.
+  await page.getByRole("link", { name: "Connect", exact: true }).click();
+  await expect(page.getByText("Sample repository connected", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\?/);
+  await page.getByRole("link", { name: "Connect", exact: true }).click();
+  await expect(page.getByText("Sample tracker connected", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/new\?/);
 
-  await page.goto("/projects/new");
   await page.getByText("sample/shop", { exact: true }).click();
   await page.getByText("SHOP · Sample shop", { exact: true }).click();
   await page.getByLabel("Project name").fill("Storefront");
   await page.getByRole("button", { name: "Create project" }).click();
+  await expect(page.getByText(/^Project created\./)).toBeVisible();
 
   await page.getByLabel("Draft a ticket").fill("Change the banner title on the home page");
   await page.getByRole("button", { name: "Draft ticket" }).click();

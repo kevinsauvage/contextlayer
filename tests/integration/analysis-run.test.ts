@@ -255,11 +255,13 @@ describe("running an analysis", () => {
 
   it("keeps the message of a failure the person can act on", async () => {
     const id = await start("vague", async () => {
-      throw new ConnectionMissingError("The code source connection no longer exists");
+      throw new ConnectionMissingError(
+        "This project's code source is no longer connected. Ask an admin to check Integrations.",
+      );
     });
     expect((await getAnalysis(db, "orgA", id))?.analysis).toMatchObject({
       status: "failed",
-      error: "The code source connection no longer exists",
+      error: "This project's code source is no longer connected. Ask an admin to check Integrations.",
     });
   });
 

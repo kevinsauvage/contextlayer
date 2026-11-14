@@ -1,7 +1,6 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   isSafeSubdirectory,
@@ -10,6 +9,7 @@ import {
   type Resource,
 } from "@/core/integrations/provider";
 import { withActionErrors } from "@/features/errors";
+import { redirectWithFlash } from "@/features/flash";
 import { resolveSource, resolveTracker } from "@/features/integrations/resolve";
 import { requireOrgAdmin } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
@@ -83,7 +83,7 @@ export async function createProject(_: ActionState, formData: FormData): Promise
         })
         .returning({ id: project.id }),
     );
-    redirect(`/projects/${created.id}`);
+    redirectWithFlash(`/projects/${created.id}`, "project_created");
   });
 }
 
@@ -91,10 +91,10 @@ export async function createProject(_: ActionState, formData: FormData): Promise
 export async function deleteProject(projectId: string): Promise<ActionState> {
   return withActionErrors(async () => {
     const { organizationId } = await requireOrgAdmin();
-    if (!isUuid(projectId)) return { error: "Project not found" };
+    if (!isUuid(projectId)) return { error: "That project no longer exists. Go back to Projects." };
     await getDb()
       .delete(project)
       .where(and(eq(project.id, projectId), eq(project.organizationId, organizationId)));
-    redirect("/projects");
+    redirectWithFlash("/projects", "project_deleted");
   });
 }

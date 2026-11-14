@@ -6,10 +6,10 @@ import { useMutation } from "@/components/use-mutation";
 import { cancelInvitation, removeMember } from "@/features/organizations/actions";
 import type { ActionState } from "@/lib/action-state";
 
-type Props = { label: string; pendingLabel: string; action: () => Promise<ActionState> };
+type Props = { label: string; pendingLabel: string; success: string; action: () => Promise<ActionState> };
 
-function MemberAction({ label, pendingLabel, action }: Props) {
-  const { run, pending, error } = useMutation({ refresh: true });
+function MemberAction({ label, pendingLabel, success, action }: Props) {
+  const { run, pending, error } = useMutation({ refresh: true, success });
   return (
     <span className="flex items-center gap-2">
       <FormError error={error} className="text-xs" />
@@ -21,9 +21,19 @@ function MemberAction({ label, pendingLabel, action }: Props) {
 }
 
 export const RemoveMemberButton = ({ memberId }: { memberId: string }) => (
-  <MemberAction label="Remove" pendingLabel="Removing…" action={() => removeMember(memberId)} />
+  <MemberAction
+    label="Remove"
+    pendingLabel="Removing…"
+    success="Member removed."
+    action={() => removeMember(memberId)}
+  />
 );
 
 export const CancelInvitationButton = ({ invitationId }: { invitationId: string }) => (
-  <MemberAction label="Revoke" pendingLabel="Revoking…" action={() => cancelInvitation(invitationId)} />
+  <MemberAction
+    label="Revoke"
+    pendingLabel="Revoking…"
+    success="Invitation revoked."
+    action={() => cancelInvitation(invitationId)}
+  />
 );

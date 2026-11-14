@@ -119,7 +119,7 @@ describe("organization actions", () => {
     actAs("member@x.test");
     const target = await memberOf(orgId, "admin@x.test");
     if (!target) throw new Error("missing admin");
-    const forbidden = { error: "Only organization owners and admins can do this" };
+    const forbidden = { error: "Only organization owners and admins can do this. Ask one of them." };
 
     expect(await inviteMember("new@x.test", "member")).toEqual(forbidden);
     expect(await updateMemberRole(target.id, "member")).toEqual(forbidden);

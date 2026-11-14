@@ -7,7 +7,7 @@ import { ADMIN_ROLE, MEMBER_ROLE } from "@/core/organizations/roles";
 import { updateMemberRole } from "@/features/organizations/actions";
 
 export function MemberRoleSelect({ memberId, role, disabled }: { memberId: string; role: string; disabled?: boolean }) {
-  const { run, pending, error } = useMutation({ refresh: true });
+  const { run, pending, error } = useMutation({ refresh: true, success: "Role updated." });
   return (
     <span className="flex items-center gap-2">
       <NativeSelect

@@ -35,7 +35,7 @@ export async function publishApproved(
       ),
     )
     .returning({ id: analysis.id });
-  if (!claimed) return { error: "This analysis is already being published" };
+  if (!claimed) return { error: "This draft is already being published. Wait a moment, then reload the page." };
 
   let published: PublishedIssue;
   try {
