@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 import { AnalysisLimitError } from "@/core/errors";
 import type { Database } from "@/infrastructure/db/client";
-import { analysis } from "@/infrastructure/db/schema";
+import { analysisRun } from "@/infrastructure/db/schema";
 import type { Env } from "@/infrastructure/env";
 import { first } from "@/lib/first";
 
@@ -23,7 +23,7 @@ const MINUTE_MS = 60 * 1000;
 // A day is UTC: the limit protects the deployment's AI budget, not a person's local evening.
 const startOfDay = (now: Date) => new Date(Math.floor(now.getTime() / DAY_MS) * DAY_MS);
 
-// Counted from the `analysis` rows every run writes, so a restart, a retry and a fresh request all count once.
+// Counted from `analysis_run`, which every run writes: a first run, a refinement and a retry each count once.
 export async function assertRunAllowed(
   db: Database,
   userId: string,
@@ -32,12 +32,12 @@ export async function assertRunAllowed(
 ): Promise<void> {
   const runsSince = async (userId: string | undefined, since: Date) => {
     const where = userId
-      ? and(eq(analysis.createdByUserId, userId), gte(analysis.createdAt, since))
-      : gte(analysis.createdAt, since);
+      ? and(eq(analysisRun.userId, userId), gte(analysisRun.startedAt, since))
+      : gte(analysisRun.startedAt, since);
     const row = first(
       await db
         .select({ total: sql<number>`count(*)::int` })
-        .from(analysis)
+        .from(analysisRun)
         .where(where),
     );
     return row.total;
@@ -55,4 +55,23 @@ export async function assertRunAllowed(
     throw new AnalysisLimitError("The daily analysis limit is reached. Try again tomorrow.");
   if (byUserMinute >= limits.perUserPerMinute)
     throw new AnalysisLimitError("You are running analyses too quickly. Wait a minute and try again.");
+}
+
+// Checks the limits, lets the caller claim its analysis row, and records the run, all in one transaction under a lock
+// on the user: parallel requests queue instead of each passing the count, and a claim that throws records no run.
+// The deployment-wide limit is not locked, so requests from different users can pass it by the few in flight.
+export async function claimRun<T>(
+  db: Database,
+  userId: string,
+  limits: RunLimits,
+  claim: (tx: Database) => Promise<T>,
+  now = new Date(),
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+    await assertRunAllowed(tx, userId, limits, now);
+    const claimed = await claim(tx);
+    await tx.insert(analysisRun).values({ userId, startedAt: now });
+    return claimed;
+  });
 }

@@ -25,6 +25,17 @@ const draft = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("parseApprovedDraft", () => {
+  it("refuses an edited draft with an oversized entry or section", () => {
+    const claim = { text: "Fine", status: "inferred", evidenceIds: [] };
+
+    expect(
+      parseApprovedDraft(draft({ description: [{ ...claim, text: "x".repeat(4001) }] }), evidence, "Invalid"),
+    ).toEqual({ error: "Keep each entry under 4,000 characters" });
+    expect(
+      parseApprovedDraft(draft({ description: Array.from({ length: 101 }, () => claim) }), evidence, "Invalid"),
+    ).toEqual({ error: "Keep each section to 100 items" });
+  });
+
   it("rebuilds evidence from the server copy, so a forged excerpt is not published", () => {
     const forged = [{ ...evidence[0], excerpt: "A claim the code does not make", url: "https://evil.test" }];
     const parsed = parseApprovedDraft(draft({ evidence: forged }), evidence, "The draft is invalid");

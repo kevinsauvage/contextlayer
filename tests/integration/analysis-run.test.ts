@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalysisAlreadyRunningError, AnalysisLimitError, ConnectionMissingError } from "@/core/errors";
 import { STALE_ANALYSIS_ERROR } from "@/core/analysis/stale";
-import { assertRunAllowed } from "@/features/analysis/limits";
+import { assertRunAllowed, claimRun } from "@/features/analysis/limits";
 import { restartAnalysis, startAnalysis, UNEXPECTED_RUN_ERROR } from "@/features/analysis/run";
 import { getAnalysis, type Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -56,18 +56,47 @@ async function waitForRow(request: string): Promise<string> {
 describe("usage limits", () => {
   const now = new Date("2030-01-01T12:00:00.000Z");
   const limits = { perUserPerDay: 3, totalPerDay: 100, perUserPerMinute: 100 };
-  const insertRun = (userId: string, createdAt: Date) =>
-    db.insert(schema.analysis).values({
-      projectId: project.id,
-      createdByUserId: userId,
-      kind: "create",
-      input: { request: "limit" },
-      createdAt,
-      startedAt: createdAt,
-    });
+  const insertRun = (userId: string, startedAt: Date) => db.insert(schema.analysisRun).values({ userId, startedAt });
+  const runsOf = async (userId: string) =>
+    (await db.select().from(schema.analysisRun).where(eq(schema.analysisRun.userId, userId))).length;
 
   beforeEach(async () => {
-    await db.delete(schema.analysis).where(eq(schema.analysis.createdByUserId, "u-limits"));
+    await db.delete(schema.analysisRun).where(eq(schema.analysisRun.userId, "u-limits"));
+  });
+
+  it("counts a re-run as a run, so refining one analysis spends the same budget as starting one", async () => {
+    const before = await runsOf("u1");
+    const ok = async () => ({ result: {}, issues: [] as [] });
+    const id = await start("counted", ok);
+    await restart("counted", ok, id);
+
+    expect(await runsOf("u1")).toBe(before + 2);
+  });
+
+  it("refuses a claim at the limit without running it, and records no run for a claim that throws", async () => {
+    await insertRun("u-limits", new Date(now.getTime() - 60 * 60_000));
+    const claim = vi.fn(async () => "claimed");
+
+    await expect(claimRun(db, "u-limits", { ...limits, perUserPerDay: 1 }, claim, now)).rejects.toBeInstanceOf(
+      AnalysisLimitError,
+    );
+    expect(claim).not.toHaveBeenCalled();
+
+    await expect(
+      claimRun(
+        db,
+        "u-limits",
+        limits,
+        async () => {
+          throw new AnalysisAlreadyRunningError();
+        },
+        now,
+      ),
+    ).rejects.toBeInstanceOf(AnalysisAlreadyRunningError);
+    expect(await runsOf("u-limits")).toBe(1);
+
+    await expect(claimRun(db, "u-limits", limits, claim, now)).resolves.toBe("claimed");
+    expect(await runsOf("u-limits")).toBe(2);
   });
 
   it("allows a run under every limit", async () => {
@@ -102,7 +131,7 @@ describe("usage limits", () => {
       assertRunAllowed(db, "u-limits", { ...limits, perUserPerDay: 100, perUserPerMinute: 1 }, now),
     ).rejects.toThrow("You are running analyses too quickly. Wait a minute and try again.");
 
-    await db.delete(schema.analysis).where(eq(schema.analysis.createdByUserId, "u-limits"));
+    await db.delete(schema.analysisRun).where(eq(schema.analysisRun.userId, "u-limits"));
     await insertRun("u-limits", new Date(now.getTime() - 2 * 60_000));
     await expect(
       assertRunAllowed(db, "u-limits", { ...limits, perUserPerDay: 100, perUserPerMinute: 1 }, now),

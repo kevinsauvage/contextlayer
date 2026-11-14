@@ -6,7 +6,7 @@ import { AnalysisLimitError, ReconnectRequiredError } from "@/core/errors";
 import type { IntegrationProvider, SourceProvider, TrackerProvider } from "@/core/integrations/provider";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import { disconnectConnection } from "@/features/integrations/actions";
-import { removeMember } from "@/features/organizations/actions";
+import { removeMember, updateMemberRole } from "@/features/organizations/actions";
 import { createProject, deleteProject } from "@/features/projects/actions";
 import { applyAuditToTracker } from "@/features/ticket-audit/actions";
 import { createTicketAnalysis, publishTicket, refineTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   tracker: undefined as unknown as IssueTracker,
   restarts: [] as { input: unknown }[],
   startError: undefined as Error | undefined,
+  role: undefined as string | undefined,
 }));
 
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -42,7 +43,7 @@ vi.mock("@/infrastructure/auth/session", async () => {
   const context = () => ({
     userId: "u1",
     organizationId: "orgA",
-    role: state.isAdmin ? "owner" : "member",
+    role: state.role ?? (state.isAdmin ? "owner" : "member"),
     isAdmin: state.isAdmin,
     user: { name: "U", email: "u@x.test" },
   });
@@ -326,6 +327,34 @@ describe("admin actions", () => {
       });
     } finally {
       state.isAdmin = true;
+    }
+  });
+
+  it("hold an admin to the member rules the page shows, even on a direct call", async () => {
+    const now = new Date();
+    await state.db.insert(schema.user).values(
+      ["u-owner", "u-admin", "u-foreign"].map((id) => ({
+        id,
+        name: id,
+        email: `${id}@x.test`,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    await state.db.insert(schema.organization).values({ id: "orgM", name: "orgM", slug: "orgM", createdAt: now });
+    await state.db.insert(schema.member).values([
+      { id: "m-owner", organizationId: "orgA", userId: "u-owner", role: "owner", createdAt: now },
+      { id: "m-admin", organizationId: "orgA", userId: "u-admin", role: "admin", createdAt: now },
+      { id: "m-foreign", organizationId: "orgM", userId: "u-foreign", role: "member", createdAt: now },
+    ]);
+    state.role = "admin";
+    try {
+      expect(await updateMemberRole("m-admin", "member")).toEqual({ error: "You cannot change this member's role" });
+      expect(await removeMember("m-owner")).toEqual({ error: "You cannot remove this member" });
+      expect(await removeMember("m-foreign")).toEqual({ error: "Member not found" });
+      expect(await updateMemberRole("m-missing", "admin")).toEqual({ error: "Member not found" });
+    } finally {
+      state.role = undefined;
     }
   });
 

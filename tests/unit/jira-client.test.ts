@@ -142,6 +142,27 @@ describe("JiraClient", () => {
     expect(body.fields.project.key).toBe("SHOP");
   });
 
+  it("refuses a description longer than Jira accepts without sending the write", async () => {
+    const methods: (string | undefined)[] = [];
+    stubFetch(async (_url: string, init: RequestInit) => {
+      methods.push(init.method);
+      return json({ issueTypes: [{ name: "Task", subtask: false }] });
+    });
+    const long = { text: "x".repeat(4000), status: "inferred" as const, evidenceIds: [] };
+
+    await expect(
+      new JiraClient(site, "SHOP", auth()).createIssue({
+        title: "Too long",
+        description: Array.from({ length: 9 }, () => long),
+        acceptanceCriteria: [],
+        assumptions: [],
+        openQuestions: [],
+        evidence: [],
+      }),
+    ).rejects.toThrow("The ticket is longer than Jira allows (32,767 characters)");
+    expect(methods).not.toContain("POST");
+  });
+
   it("marks the connection when a fresh token is rejected", async () => {
     const onUnauthorized = vi.fn(async () => {
       throw new ReconnectRequiredError("Jira site");

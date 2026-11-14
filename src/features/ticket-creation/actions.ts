@@ -7,7 +7,7 @@ import { z } from "zod";
 import { draftTicket } from "@/core/analysis/analyze";
 import type { TokenUsage } from "@/core/analysis/generators";
 import { withCitedEvidence } from "@/core/evidence/validate";
-import { boundRefinements, clarificationSchema, draftBodySchema, type Refinement } from "@/core/requirements/schemas";
+import { boundRefinements, clarificationSchema, editedDraftSchema, type Refinement } from "@/core/requirements/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import { defaultGenerator, defaultSelector, loadAnalysis, loadProject } from "@/features/analysis/context";
 import { answersOf, mergeAnswers, readAnalysisInput, requestOf } from "@/features/analysis/input";
@@ -141,7 +141,7 @@ export async function retryAnalysis(analysisId: string): Promise<ActionState> {
 // `runToken` names the run the browser edited. The update itself requires it, so an autosave that lands after a redraft
 // started (another tab, a queued request) cannot write the old edits over the new draft.
 export async function saveDraftEdits(analysisId: string, runToken: string, draftInput: unknown): Promise<ActionState> {
-  const draft = draftBodySchema.safeParse(draftInput);
+  const draft = editedDraftSchema.safeParse(draftInput);
   if (!draft.success) return { error: firstIssueMessage(draft.error, "The edited draft is invalid") };
 
   const loaded = await loadAnalysis(analysisId, {

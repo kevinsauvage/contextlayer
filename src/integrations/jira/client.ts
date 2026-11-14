@@ -39,6 +39,8 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const TOTAL_TIMEOUT_MS = 60_000;
 // A retry that waits longer than this would land after the publish claim expired; the write is refused instead.
 const MAX_RETRY_AFTER_S = 10;
+// Jira refuses a longer description with a bare 400; checking first names the reason before anything is sent.
+const DESCRIPTION_LIMIT = 32_767;
 const SEARCH_TERMS = 5;
 const SEARCH_POOL = 20;
 
@@ -224,16 +226,25 @@ export class JiraClient implements IssueTracker {
       project: { key: this.projectKey },
       summary: draft.title,
       issuetype: { name: await this.issueTypeName() },
-      description: sectionsToAdf(ticketSections(draft)),
+      description: this.description(draft),
     };
     const { key } = createdSchema.parse(await this.write("/issue", { method: "POST", body: { fields } }));
     return this.published(key);
   }
 
   async updateIssue(key: string, draft: TicketDraft): Promise<PublishedIssue> {
-    const fields = { summary: draft.title, description: sectionsToAdf(ticketSections(draft)) };
+    const fields = { summary: draft.title, description: this.description(draft) };
     await this.write(`/issue/${encodeURIComponent(key)}`, { method: "PUT", body: { fields } });
     return this.published(key);
+  }
+
+  private description(draft: TicketDraft) {
+    const document = sectionsToAdf(ticketSections(draft));
+    if (adfToText(document).length > DESCRIPTION_LIMIT)
+      throw new TrackerRejectedError(
+        "The ticket is longer than Jira allows (32,767 characters). Shorten it in Edit, then approve again.",
+      );
+    return document;
   }
 
   private async issueTypeName(): Promise<string> {

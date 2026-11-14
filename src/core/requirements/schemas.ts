@@ -49,6 +49,24 @@ export const draftBodySchema = z.object({
 });
 export type DraftBody = z.infer<typeof draftBodySchema>;
 
+const MAX_EDITED_ITEMS = 100;
+const MAX_EDITED_TEXT_CHARS = 4000;
+
+// What the browser sends back after editing. The model's own draft is not bounded here: its size is the provider's
+// output limit, while a hand-built request could otherwise store a body as large as the host accepts.
+export const editedDraftSchema = draftBodySchema.superRefine((draft, context) => {
+  const lists = [draft.description, draft.acceptanceCriteria, draft.assumptions, draft.openQuestions];
+  if (lists.some((list) => list.length > MAX_EDITED_ITEMS))
+    context.addIssue({ code: "custom", message: `Keep each section to ${MAX_EDITED_ITEMS} items` });
+  const texts = [
+    ...[...draft.description, ...draft.acceptanceCriteria].map((claim) => claim.text),
+    ...draft.assumptions.flatMap((item) => [item.text, item.rationale]),
+    ...draft.openQuestions.flatMap((item) => [item.question, item.impact]),
+  ];
+  if (texts.some((text) => text.length > MAX_EDITED_TEXT_CHARS))
+    context.addIssue({ code: "custom", message: "Keep each entry under 4,000 characters" });
+});
+
 // The requester's answer to a question from an earlier draft; an empty answer leaves the question open.
 export const clarificationSchema = z.object({
   question: z.string().trim().min(1).max(1000),

@@ -4,15 +4,24 @@ import { APIError } from "better-auth/api";
 import type { Route } from "next";
 import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import pRetry from "p-retry";
 import slugify from "slugify";
 import { z } from "zod";
-import { INVITABLE_ROLES, OWNER_ROLE } from "@/core/organizations/roles";
+import {
+  INVITABLE_ROLES,
+  OWNER_ROLE,
+  canChangeMemberRole,
+  canRemoveMember,
+  type OrgActor,
+  type OrgMember,
+} from "@/core/organizations/roles";
 import { organizationNameSchema } from "@/core/organizations/schemas";
 import { toActionError } from "@/features/errors";
 import { getAuth } from "@/infrastructure/auth/auth";
 import { getSession, requireOrgAdmin, requireOrgContext } from "@/infrastructure/auth/session";
 import { getDb } from "@/infrastructure/db/client";
+import { member } from "@/infrastructure/db/schema";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage } from "@/lib/zod";
 import { listUserOrganizations } from "./queries";
@@ -104,11 +113,28 @@ export async function inviteMember(email: string, role: string): Promise<Organiz
   });
 }
 
+// The page hides what the role rules forbid; a direct call to the action has to meet the same rules, which are
+// stricter than Better Auth's own (an admin there may change another admin).
+async function refusal(
+  memberId: string,
+  allowed: (actor: OrgActor, target: OrgMember) => boolean,
+  message: string,
+): Promise<ActionState | null> {
+  const actor = await requireOrgAdmin();
+  const [target] = await getDb()
+    .select({ userId: member.userId, role: member.role })
+    .from(member)
+    .where(and(eq(member.id, memberId), eq(member.organizationId, actor.organizationId)));
+  if (!target) return { error: "Member not found" };
+  return allowed(actor, target) ? null : { error: message };
+}
+
 export async function removeMember(memberId: string): Promise<ActionState> {
   const id = parseId(memberId);
   if ("error" in id) return id;
   return authAction("Could not remove the member", async () => {
-    await requireOrgAdmin();
+    const refused = await refusal(id.value, canRemoveMember, "You cannot remove this member");
+    if (refused) return refused;
     await getAuth().api.removeMember({ body: { memberIdOrEmail: id.value }, headers: await headers() });
     return {};
   });
@@ -120,7 +146,8 @@ export async function updateMemberRole(memberId: string, role: string): Promise<
   const parsedRole = roleSchema.safeParse(role);
   if (!parsedRole.success) return { error: "Choose a valid role" };
   return authAction("Could not change the member role", async () => {
-    await requireOrgAdmin();
+    const refused = await refusal(id.value, canChangeMemberRole, "You cannot change this member's role");
+    if (refused) return refused;
     await getAuth().api.updateMemberRole({
       body: { memberId: id.value, role: parsedRole.data },
       headers: await headers(),

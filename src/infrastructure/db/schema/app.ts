@@ -103,11 +103,23 @@ export const analysis = pgTable(
     startedAt: timestamp("started_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
+  (t) => [index("analysis_project_created_idx").on(t.projectId, t.createdAt)],
+);
+
+// One row per run, first run or re-run alike: a redraft replaces its analysis row in place, so the run limits count
+// here. A row outlives its analysis, so deleting a project does not hand its runs back.
+export const analysisRun = pgTable(
+  "analysis_run",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+  },
   (t) => [
-    index("analysis_project_created_idx").on(t.projectId, t.createdAt),
-    // The run limits count by creator and by the whole table on every run.
-    index("analysis_creator_created_idx").on(t.createdByUserId, t.createdAt),
-    index("analysis_created_idx").on(t.createdAt),
+    index("analysis_run_user_started_idx").on(t.userId, t.startedAt),
+    index("analysis_run_started_idx").on(t.startedAt),
   ],
 );
 

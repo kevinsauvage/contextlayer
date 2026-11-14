@@ -40,6 +40,43 @@ describe("redactSecrets", () => {
     expect(redacted).toContain("const total = 42;");
   });
 
+  it("leaves code that only names a credential readable", () => {
+    const code = [
+      "const token = getToken();",
+      "const accessToken = session.accessToken;",
+      "export const API_KEY = process.env.API_KEY;",
+      "  passwordField: z.string().min(10),",
+      "  token: string;",
+      "  password: ${DB_PASSWORD}",
+      '  "forgotPassword": "Forgot your password?",',
+    ].join("\n");
+
+    expect(redactSecrets(code)).toBe(code);
+  });
+
+  it("masks a quoted value with spaces, a connection-string password, a bearer token and a JWT", () => {
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV";
+    const redacted = redactSecrets(
+      [
+        'password = "my pass-word 1"',
+        "DATABASE_URL=postgres://user:hunter22@host/db",
+        "Authorization: Bearer abcdefghijklmnop1234",
+        `session=${jwt}`,
+        "API_KEY=sk.live.abc123",
+      ].join("\n"),
+    );
+
+    expect(redacted).toBe(
+      [
+        "password = [redacted]",
+        "DATABASE_URL=postgres://user:[redacted]@host/db",
+        "Authorization: Bearer [redacted]",
+        "session=[redacted]",
+        "API_KEY=[redacted]",
+      ].join("\n"),
+    );
+  });
+
   it("keeps the blank lines after a masked assignment, so later citations keep their line numbers", () => {
     const text = "password=abcdef\n\n  token: 'abcdefgh',\n\n\nnext line";
 

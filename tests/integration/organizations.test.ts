@@ -138,7 +138,11 @@ describe("organization actions", () => {
 
     expect(await updateMemberRole(member.id, "admin")).toEqual({});
     expect((await memberOf(orgId, "member@x.test"))?.role).toBe("admin");
+    // The promoted member is now an admin: only an owner changes an admin, on a direct call as on the page.
+    expect(await updateMemberRole(member.id, "member")).toEqual({ error: "You cannot change this member's role" });
+    actAs("owner@x.test");
     expect(await updateMemberRole(member.id, "member")).toEqual({});
+    actAs("admin@x.test");
     expect(await removeMember(member.id)).toEqual({});
     expect(await memberOf(orgId, "member@x.test")).toBeUndefined();
   });

@@ -17,9 +17,15 @@ export const isReadablePath = (path: string) =>
 const IGNORED_DIRECTORY = /(^|\/)(node_modules|dist|build|\.next|vendor|coverage)(\/|$)/;
 export const isIgnoredPath = (path: string) => IGNORED_DIRECTORY.test(path);
 
+// The model writes the terms and file contents are untrusted: a term carrying a code-host search qualifier
+// (`x repo:owner/other`) would widen the query past the project's repository.
+const SEARCH_QUALIFIER = /(?:^|\s)-?(?:repo|org|user|path|language|filename|extension|in|fork|size|is):/i;
+
 // A bare number or a hex colour names a value, not an identifier a text search can find.
 export const searchableTerms = (terms: string[]) =>
-  terms.filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term)).slice(0, MAX_SEARCH_TERMS);
+  terms
+    .filter((term) => !/^\d+$/.test(term) && !/^(?=.*\d)[0-9a-f]{3,8}$/i.test(term) && !SEARCH_QUALIFIER.test(term))
+    .slice(0, MAX_SEARCH_TERMS);
 
 // What the source will not search: past the cap, or not an identifier. Reported apart so the agent does not read a
 // term it never searched as "no file contains it".

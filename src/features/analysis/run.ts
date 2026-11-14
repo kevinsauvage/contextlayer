@@ -6,7 +6,7 @@ import type { StoredAnalysisInput } from "@/core/analysis/schemas";
 import { AnalysisAlreadyRunningError, errorSummary } from "@/core/errors";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import { RUN_BUDGET_MS, RUN_TIMEOUT_ERROR, STALE_ANALYSIS_MS } from "@/core/analysis/stale";
-import { assertRunAllowed, runLimitsOf } from "@/features/analysis/limits";
+import { claimRun, runLimitsOf } from "@/features/analysis/limits";
 import { toActionError } from "@/features/errors";
 import type { Project } from "@/features/projects/queries";
 import type { Database } from "@/infrastructure/db/client";
@@ -88,19 +88,20 @@ type StartArgs = {
 export async function startAnalysis(args: StartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
   const env = getEnv();
-  await assertRunAllowed(args.db, args.userId, runLimitsOf(env));
-  const row = first(
-    await args.db
-      .insert(analysis)
-      .values({
-        projectId: args.project.id,
-        createdByUserId: args.userId,
-        kind: args.kind,
-        input: args.input,
-        model: env.AI_MODEL,
-        runToken,
-      })
-      .returning({ id: analysis.id }),
+  const row = await claimRun(args.db, args.userId, runLimitsOf(env), async (tx) =>
+    first(
+      await tx
+        .insert(analysis)
+        .values({
+          projectId: args.project.id,
+          createdByUserId: args.userId,
+          kind: args.kind,
+          input: args.input,
+          model: env.AI_MODEL,
+          runToken,
+        })
+        .returning({ id: analysis.id }),
+    ),
   );
   await recordOutcome(args.db, row.id, runToken, args.execute);
   return row.id;
@@ -119,31 +120,33 @@ type RestartArgs = {
 export async function restartAnalysis(args: RestartArgs): Promise<string> {
   const runToken = crypto.randomUUID();
   const env = getEnv();
-  await assertRunAllowed(args.db, args.userId, runLimitsOf(env));
-  const [row] = await args.db
-    .update(analysis)
-    .set({
-      status: "running",
-      input: args.input,
-      model: env.AI_MODEL,
-      runToken,
-      startedAt: new Date(),
-      // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.
-      previousSourceRevision: sql`coalesce(${analysis.sourceRevision}, ${analysis.previousSourceRevision})`,
-      sourceRevision: null,
-      inputTokens: null,
-      outputTokens: null,
-      latencyMs: null,
-      error: null,
-    })
-    .where(
-      and(
-        eq(analysis.id, args.rerunId),
-        or(ne(analysis.status, "running"), lt(analysis.startedAt, new Date(Date.now() - STALE_ANALYSIS_MS))),
-      ),
-    )
-    .returning({ id: analysis.id });
-  if (!row) throw new AnalysisAlreadyRunningError();
+  const row = await claimRun(args.db, args.userId, runLimitsOf(env), async (tx) => {
+    const [claimed] = await tx
+      .update(analysis)
+      .set({
+        status: "running",
+        input: args.input,
+        model: env.AI_MODEL,
+        runToken,
+        startedAt: new Date(),
+        // Kept across a failed re-run too, so the next draft still compares with the last one that read the code.
+        previousSourceRevision: sql`coalesce(${analysis.sourceRevision}, ${analysis.previousSourceRevision})`,
+        sourceRevision: null,
+        inputTokens: null,
+        outputTokens: null,
+        latencyMs: null,
+        error: null,
+      })
+      .where(
+        and(
+          eq(analysis.id, args.rerunId),
+          or(ne(analysis.status, "running"), lt(analysis.startedAt, new Date(Date.now() - STALE_ANALYSIS_MS))),
+        ),
+      )
+      .returning({ id: analysis.id });
+    if (!claimed) throw new AnalysisAlreadyRunningError();
+    return claimed;
+  });
   await recordOutcome(args.db, row.id, runToken, args.execute);
   return row.id;
 }
