@@ -45,16 +45,16 @@
     "*.{json,md,css,yml,yaml}": "prettier --write --ignore-unknown"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "3.0.79",
+    "@ai-sdk/openai-compatible": "3.0.92",
     "@base-ui/react": "^1.9.0",
-    "ai": "^7.0.154",
-    "better-auth": "^1.7.14",
+    "ai": "^7.0.173",
+    "better-auth": "^1.7.24",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.5.0",
+    "cn": "^0.5.2",
     "drizzle-orm": "^0.45.4",
     "ky": "^2.2.0",
-    "lucide-react": "^1.61.0",
-    "next": "16.4.3",
+    "lucide-react": "^1.73.0",
+    "next": "16.4.6",
     "next-themes": "^0.4.6",
     "octokit": "^5.0.5",
     "p-retry": "^8.0.1",
@@ -69,7 +69,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.11",
+    "@electric-sql/pglite": "^0.5.16",
     "@playwright/test": "1.64.1",
     "@tailwindcss/turbopack": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
@@ -83,9 +83,9 @@
     "dependency-cruiser": "^18.7.0",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "jsdom": "^30.1.3",
-    "knip": "^6.43.0",
+    "knip": "^6.45.1",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
@@ -93,7 +93,7 @@
     "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.0",
+    "typescript-eslint": "^8.72.2",
     "vitest": "^5.0.5"
   }
 }

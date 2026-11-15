@@ -4,27 +4,7 @@ Dependency upgrades and security advisories: version changes that may change beh
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Upgrade `next` and `eslint-config-next` to the November security release** `P2`
-  - **Context:** both are pinned exactly to `16.4.3`. 16.4.4 (2026-11-02) backports Turbopack CSS reload, the CSP nonce in the PPR resume bootstrap, and replaces `jsonwebtoken` with `fast-jwt`; its notes announce a security release on 2026-11-03.
-  - **Fix:** wait for the security release, then `pnpm up next@<v> eslint-config-next@<v>` keeping both exact pins equal. Commit the `minimumReleaseAgeExclude` entries pnpm writes (see the 2026-10-27 entry in `DECISIONS.md`). Read the release notes and `node_modules/next/dist/docs/` for deprecations, then `pnpm check` and `pnpm e2e`.
-
-- [ ] **Upgrade `better-auth` 1.7.14 → 1.7.15** `P2`
-  - **Context:** 1.7.15 fixes organization metadata with a `constructor` key failing with a prototype-pollution error (we use the `organization()` plugin), headers and cookies dropped from a `hooks.before` hook that returns nothing, and built-in social providers following HTTP redirects on token exchange and JWKS requests.
-  - **Fix:** `pnpm up better-auth`, drop the stale `@better-auth/*@1.7.14` and `better-auth@1.7.14` entries from `minimumReleaseAgeExclude`, run `pnpm check` and `pnpm e2e` (sign-up, organization, invitations), and re-run `pnpm audit --prod`.
-
 ## P3 · Later: optional features and deeper hardening
-
-- [ ] **Upgrade the AI SDK patches: `ai` and `@ai-sdk/openai-compatible`** `P3`
-  - **Context:** `ai` 7.0.154 → 7.0.159 (7.0.161 once old enough) and `@ai-sdk/openai-compatible` 3.0.79 (exact pin) → 3.0.82 (3.0.83 once old enough), together because they share `@ai-sdk/provider-utils`. 7.0.155 drops runtime `ModelMessage` validation in `generateText` (no external `messages` here); 3.0.81 changes `reasoning` mapping (unused); 3.0.83 keeps tool-call arguments that arrive as strings (relevant to the evidence agent) and fixes `reasoning_effort: null`. No `DECISIONS.md` entry explains the exact pin.
-  - **Fix:** `pnpm up ai @ai-sdk/openai-compatible@<3.0.x>`, keep the exact pin and record why in `DECISIONS.md`, run `pnpm check`. e2e uses the fake model, so exercise the provider manually against `AI_BASE_URL` (or `pnpm eval` when asked).
-
-- [ ] **Patch and minor upgrades of dev tooling** `P3`
-  - **Context:** `@electric-sql/pglite` 0.5.11 → 0.5.14, `typescript-eslint` 8.72.0 → 8.72.1 (TypeScript peer still `<6.1.0`), `knip` 6.43.0 → 6.44.1 (new plugins, stricter optional-peer checks; may report new findings).
-  - **Fix:** `pnpm up @electric-sql/pglite typescript-eslint knip`, then `pnpm check`; fix new knip findings rather than ignoring them.
-
-- [ ] **Patch and minor upgrades of runtime UI packages** `P3`
-  - **Context:** `cn` 0.5.0 → 0.5.1 and `lucide-react` 1.61.0 → 1.66.0 (1.63 renamed `archive-restore`, unused here).
-  - **Fix:** `pnpm up cn lucide-react`, `pnpm check`, then look over the pages in light and dark themes.
 
 - [ ] **Upgrade `postgres` (postgres.js) 3.4.9 → 4.0.0** `P3`
   - **Context:** a major rewrite of pool, protocol and sockets: ESM only; the server decides parameter types (`infer: false`), so a `Date` against a `timestamp` column (the auth schema uses `timestamp()` without time zone) is taken as UTC; `sql.array()` removed; `sql.begin` rejects when COMMIT answers ROLLBACK; queries on a released connection reject. The fix for NUL characters injected into connection parameters ships only in 4.0.0. `drizzle-orm` 0.45.4 accepts `postgres >=3`, but its driver assigns into `client.options.parsers`/`serializers`, which v4 builds with `view(...)`. Only `pnpm db:migrate` and `pnpm e2e` exercise postgres.js (tests use PGlite).

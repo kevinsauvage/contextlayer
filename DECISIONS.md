@@ -374,3 +374,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - A redirect carries its confirmation as `?notice=<key>` (`src/lib/flash.ts`), shown once by `FlashToast` · only listed keys are accepted, so a crafted link cannot write its own message.
 - Connect notices have a title and a next step, and every one that can come from the wrong provider account says how to switch · OAuth reuses the account the browser is signed in to without asking, so "already connected to another organization" alone left no way forward.
 - Error messages say what to do next ("Reload the page", "Ask an admin to check Integrations"), not only what failed.
+
+## Dependency upgrades (2026-11-15)
+
+- `next` and `eslint-config-next` 16.4.3 → 16.4.6 (the November security release and its follow-ups), `better-auth` 1.7.14 → 1.7.24, `ai` 7.0.154 → 7.0.173, plus patch and minor bumps of `@electric-sql/pglite`, `typescript-eslint`, `knip`, `cn` and `lucide-react` · `pnpm check`, `pnpm e2e` and `pnpm audit --prod` (only the deferred `esbuild` advisory left) pass.
+- `@ai-sdk/openai-compatible` stays pinned exactly (now 3.0.92) and moves together with `ai` · both depend on `@ai-sdk/provider-utils`, and a caret range could resolve two copies of it. The provider path was not exercised against a real endpoint (e2e uses the fake model).
