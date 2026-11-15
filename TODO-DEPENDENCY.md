@@ -6,9 +6,7 @@ Dependency upgrades and security advisories: version changes that may change beh
 
 ## P3 · Later: optional features and deeper hardening
 
-- [ ] **Upgrade `postgres` (postgres.js) 3.4.9 → 4.0.0** `P3`
-  - **Context:** a major rewrite of pool, protocol and sockets: ESM only; the server decides parameter types (`infer: false`), so a `Date` against a `timestamp` column (the auth schema uses `timestamp()` without time zone) is taken as UTC; `sql.array()` removed; `sql.begin` rejects when COMMIT answers ROLLBACK; queries on a released connection reject. The fix for NUL characters injected into connection parameters ships only in 4.0.0. `drizzle-orm` 0.45.4 accepts `postgres >=3`, but its driver assigns into `client.options.parsers`/`serializers`, which v4 builds with `view(...)`. Only `pnpm db:migrate` and `pnpm e2e` exercise postgres.js (tests use PGlite).
-  - **Fix:** read "Upgrading from v3" in the postgres README and run its parameter-type query on the dev database. On a branch: `pnpm up postgres`, `pnpm check`, `pnpm db:migrate`, `pnpm e2e`; confirm timestamps round-trip (session `expiresAt`, history keyset paging) and JSON/date columns come back as Drizzle expects. If Drizzle's parsers stop applying, revert and wait for Drizzle support. Record the decision in `DECISIONS.md`.
+No open items.
 
 ## Deferred · blocked upstream or tied to another decision
 
