@@ -21,7 +21,7 @@ Dependency upgrades and security advisories: version changes that may change beh
   - **Fix:** once those plugins accept 10, `pnpm up eslint`, follow the ESLint 10 migration guide, run `pnpm lint` with zero warnings and check `lint-staged`.
 
 - [ ] **Move to Node 26 and `@types/node` 26** `Deferred`
-  - **Context:** `@types/node` is pinned to 24 to match the runtime (`.node-version` 24, read by CI; `engines` `>=24`). Node 26 is LTS since October 2026.
+  - **Context:** `@types/node` is pinned to 24 to match the runtime (`.node-version` 24, read by CI; `engines` `>=24 <25`, which also keeps Vercel on 24.x; Dependabot ignores the `@types/node`, `eslint` and `typescript` majors until then). Node 26 is LTS since October 2026.
   - **Fix:** decide the runtime with the host ("Hosting and deploy" in [`TODO-NON-CODE.md`](TODO-NON-CODE.md)), then bump `.node-version`, `engines` and `@types/node` together, run `pnpm check` and `pnpm e2e`, and update the pin in `DECISIONS.md`.
 
 - [ ] **Clear the `esbuild` moderate advisory (GHSA-67mh-4wv8-2f99)** `Deferred`

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node 24 (`.node-version`; `engines` in `package.json` enforces `>=24`)
+- Node 24 (`.node-version`; `engines` in `package.json` enforces `>=24 <25`, which is also what Vercel builds on)
 - pnpm 12 (`packageManager`; use Corepack or `npm i -g pnpm`)
 - Docker (local Postgres)
 
