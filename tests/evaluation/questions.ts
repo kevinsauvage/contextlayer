@@ -1,3 +1,6 @@
+import { fra } from "stopword";
+import { foldText } from "@/core/context/terms";
+
 const STOPWORDS = new Set([
   "the",
   "and",
@@ -31,13 +34,16 @@ const STOPWORDS = new Set([
   "only",
 ]);
 
+// Accents are folded, not stripped, so "échéance" stays a word ("echeance") instead of breaking into fragments.
+// French stopwords join the English ones because clarification cases are replayed in both languages.
+const FRENCH_STOPWORDS = new Set(fra.map(foldText));
+
 const keyWords = (text: string) =>
   new Set(
-    text
-      .toLowerCase()
+    foldText(text)
       .replace(/[^a-z0-9]+/g, " ")
       .split(" ")
-      .filter((word) => word.length > 3 && !STOPWORDS.has(word)),
+      .filter((word) => word.length > 3 && !STOPWORDS.has(word) && !FRENCH_STOPWORDS.has(word)),
   );
 
 export function questionOverlap(left: string, right: string): number {

@@ -174,6 +174,28 @@ describe("draftTicket when a helper step fails", () => {
   });
 });
 
+it("does not search the tracker for a request with no usable terms", async () => {
+  let searched = 0;
+  const counting: IssueTracker = {
+    ...tracker,
+    searchRelated: async () => {
+      searched += 1;
+      return [];
+    },
+  };
+
+  const result = await draftTicket({
+    request: "the and of it",
+    source,
+    tracker: counting,
+    generator: drafting(body(["e1"])),
+    selector,
+  });
+
+  expect(searched).toBe(0);
+  expect(result.candidates.map((candidate) => candidate.kind)).toEqual(["code"]);
+});
+
 describe("auditIssue", () => {
   const auditBody = (
     findingEvidence: string[],
@@ -203,6 +225,26 @@ describe("auditIssue", () => {
     const result = await run(auditBody(["e2"]));
     expect(result.report.evidence.map((e) => e.id)).toEqual(["e1", "e2"]);
     expect(result.issues).toEqual([]);
+  });
+
+  it("never offers the audited ticket as a related issue, only as the first source", async () => {
+    const self = { key: "CHK-9", summary: "Checkout button", description: "make it nicer", status: "To Do", url: "u" };
+    const returnsItself: IssueTracker = {
+      ...tracker,
+      searchRelated: async () => [self, ...(await tracker.searchRelated([], 5))],
+    };
+    const result = await auditIssue({
+      issueKey: "CHK-9",
+      source,
+      tracker: returnsItself,
+      generator: { audit: async () => ({ body: auditBody(["e2"]) }) } satisfies AuditGenerator,
+      selector,
+    });
+
+    const references = result.candidates.map((candidate) => candidate.reference);
+    expect(references[0]).toBe("CHK-9");
+    expect(references.filter((reference) => reference === "CHK-9")).toHaveLength(1);
+    expect(references).toContain("CHK-7");
   });
 
   it("validates finding evidence", async () => {

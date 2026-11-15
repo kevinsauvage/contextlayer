@@ -52,7 +52,7 @@ tests/               unit, integration (PGlite), components (jsdom), e2e (Playwr
 docs/                product, engineering, architecture
 ```
 
-Dependencies point inward (`app` → `features` → `core`) and dependency-cruiser enforces it (`pnpm deps:check`). CI also runs `pnpm audit --prod` and test coverage; the full list is in [`docs/engineering/development.md`](docs/engineering/development.md). Details: [`docs/architecture/overview.md`](docs/architecture/overview.md).
+Dependencies point inward (`app` → `features` → `core`) and dependency-cruiser enforces it (`pnpm deps:check`). CI also runs `pnpm audit --prod`, test coverage and the end-to-end smoke test; the full list is in [`docs/engineering/development.md`](docs/engineering/development.md). Details: [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ## Documentation
 

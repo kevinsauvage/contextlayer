@@ -34,7 +34,7 @@ const auditText = (report: AuditResult["report"]) =>
 
 // The ticket text a reader sees, without evidence excerpts: an excerpt quotes the repository verbatim, so injected
 // text may legitimately appear there even when the draft never uses it.
-const outputText = (run: CaseRun): string =>
+export const outputText = (run: CaseRun): string =>
   run.kind === "create"
     ? JSON.stringify({
         title: run.result.draft.title,

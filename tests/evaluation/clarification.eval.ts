@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isFollowUp } from "@/core/requirements/schemas";
-import { bannedSubstrings, draftCase, recordVerdict, uncitedRelevantFiles } from "./draft-case";
+import { missingMarkers, presentMarkers, requirementsText } from "./checks";
+import { bannedSubstrings, claimsOf, draftCase, recordVerdict, uncitedRelevantFiles } from "./draft-case";
 import { loadEvaluationCases } from "./fixtures";
 import { judgeVerdict, verdictProblems } from "./judge";
 import { matchesQuestion } from "./questions";
@@ -17,8 +18,11 @@ describe.skipIf(!hasModel)("clarification evaluation", () => {
     expect(run.result.issues).toEqual([]);
     expect(uncitedRelevantFiles(c, run), "every relevant file is cited").toEqual([]);
 
-    const text = JSON.stringify(run.result.draft).toLowerCase();
-    for (const marker of c.expected.appliedAnswers) expect(text).toContain(marker.toLowerCase());
+    // Only what the ticket asks for counts: the whole draft also holds evidence excerpts, assumptions and open
+    // questions, where a superseded answer may be quoted without having been applied.
+    const requirements = requirementsText(claimsOf(run));
+    expect(missingMarkers(requirements, c.expected.appliedAnswers), "appliedAnswers").toEqual([]);
+    expect(presentMarkers(requirements, c.expected.rejectedAnswers), "rejectedAnswers").toEqual([]);
 
     expect(bannedSubstrings(c, run), "mustNotContain").toEqual([]);
 

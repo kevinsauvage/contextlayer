@@ -47,6 +47,22 @@ describe("validateEvidenceReferences", () => {
       ]),
     ).toEqual([]));
 
+  it("checks a curly-quoted identifier like a straight-quoted one", () => {
+    const excerpt = (body: string): Evidence[] => [{ id: "e1", kind: "code", reference: "src/cart.ts", excerpt: body }];
+    const quoting = claim({ text: "The total is discounted by “applyCoupon”." });
+
+    expect(validate(quoting, excerpt("export const total = () => 0;"))[0]?.message).toBe(
+      'Description paragraph 1 is marked Verified but quotes "applycoupon", which its cited evidence does not contain.',
+    );
+    expect(validate(quoting, excerpt("export const applyCoupon = () => 0;"))).toEqual([]);
+  });
+
+  it("labels a section it has no name for with the section key", () => {
+    const [issue] = validateEvidenceReferences(evidence, { proposedTicket: [claim({ evidenceIds: ["e99"] })] });
+
+    expect(issue?.message.startsWith("proposedTicket 1 ")).toBe(true);
+  });
+
   it("accepts a bare tag whose element carries attributes in the evidence", () =>
     expect(
       validate(claim({ text: "Its header is a `<p>` holding the availability pill." }), [
@@ -133,6 +149,22 @@ describe("validateOpenQuestions", () => {
       draft("Show the “Free shipping” banner.", ["Keep “Free shipping” banner", "Remove it"]),
     );
     expect(issue?.message).toContain('states "Free shipping"');
+  });
+
+  it("flags a claim that states a straight-quoted option", () => {
+    const issues = validateOpenQuestions(
+      draft("Validation runs in strict mode.", ['Use "strict" mode', "Stay lenient"]),
+    );
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: "description[0]", kind: "open_question" });
+  });
+
+  it("ignores a question whose options are undefined", () => {
+    const undecided = draft("Requests are rejected with 429.", []);
+    undecided.openQuestions = [{ question: "What should a caller receive?", impact: "Changes the API contract." }];
+
+    expect(validateOpenQuestions(undecided)).toEqual([]);
   });
 
   it("ignores a question without options and aims its warning at the right claim", () => {

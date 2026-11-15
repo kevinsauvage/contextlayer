@@ -1,0 +1,28 @@
+{
+  "id": "large-pricing-rules",
+  "title": "Lower the free-shipping threshold for loyalty members.",
+  "tags": [
+    "omitted-middle"
+  ],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/pricing/rules.ts",
+      "repo/src/checkout/shipping.ts"
+    ],
+    "verifiedFacts": [
+      "src/checkout/shipping.ts picks LOYALTY_FREE_SHIPPING_THRESHOLD_CENTS for loyalty members and the standard threshold for everyone else",
+      "The loyalty threshold is a constant exported from src/pricing/rules.ts"
+    ],
+    "mustStayUncertain": [
+      "The new threshold value"
+    ],
+    "forbiddenClaims": [
+      "The current loyalty threshold stated as a verified value (5000 cents, 50.00) when the cited excerpt of rules.ts does not show the line that declares it",
+      "A specific new threshold"
+    ],
+    "mustNotContain": [
+      "5000",
+      "50.00"
+    ]
+  }
+}

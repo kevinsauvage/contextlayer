@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Evidence } from "@/core/evidence/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
-import { readAnalysis, revisionChange, storedDraft } from "@/features/analysis/read";
+import { readAnalysis, revisionChange, storedDraft, storedEvidence } from "@/features/analysis/read";
 import type { Analysis } from "@/features/projects/queries";
 
 const evidence: Evidence[] = [
@@ -77,6 +77,68 @@ describe("readAnalysis", () => {
 
     expect(readAnalysis(row).draft?.evidence).toEqual([]);
     expect(parseApprovedDraft(edited, evidence, "invalid")).toMatchObject({ draft: { evidence: [] } });
+  });
+});
+
+describe("readAnalysis on audits and malformed rows", () => {
+  const e2: Evidence = {
+    id: "e2",
+    kind: "code",
+    reference: "src/checkout/total.ts",
+    url: "https://github.test/acme/shop/blob/abc123/src/checkout/total.ts#L1-L2",
+    excerpt: "export const total = (lines) => sum(lines);",
+  };
+  const { evidence: _, ...proposedTicket } = draft();
+  const report = (overrides: Record<string, unknown> = {}) => ({
+    summary: "Gaps found.",
+    findings: [],
+    proposedTicket,
+    evidence: [...evidence, e2],
+    ...overrides,
+  });
+  const audit = (row: Record<string, unknown>) =>
+    ({ kind: "audit", input: { issueKey: "CHK-9" }, editedResult: null, ...row }) as unknown as Analysis;
+
+  it("shows the audit proposal with only the report sources it cites", () => {
+    const read = readAnalysis(audit({ result: report() }));
+
+    expect(read.report?.evidence).toHaveLength(2);
+    expect(read.draft?.evidence).toEqual(evidence);
+    expect(read.input).toEqual({ kind: "audit", issueKey: "CHK-9" });
+    expect(storedEvidence(audit({ result: report() }))).toEqual([...evidence, e2]);
+  });
+
+  it("ignores evidence forged in an edited audit proposal", () => {
+    const forged = [{ ...evidence[0], excerpt: "A claim the code does not make", url: "https://evil.test" }];
+    const read = readAnalysis(audit({ result: report(), editedResult: draft({ evidence: forged }) }));
+
+    expect(read.draft?.evidence).toEqual(evidence);
+  });
+
+  it("shows no report and no draft for an audit result that no longer parses", () => {
+    const { findings: _findings, ...withoutFindings } = report();
+    const row = audit({ result: withoutFindings });
+
+    expect(readAnalysis(row)).toMatchObject({ report: null, draft: null });
+    expect(storedEvidence(row)).toEqual([]);
+  });
+
+  it("shows no draft for a create result that no longer parses", () => {
+    const row = { kind: "create", input: { request: "x" }, result: { title: 1 }, editedResult: null };
+
+    expect(readAnalysis(row as unknown as Analysis)).toMatchObject({ draft: null, report: null });
+  });
+
+  it("reads no input when the stored input does not match the kind", () => {
+    expect(readAnalysis(audit({ input: { request: "x" }, result: report() })).input).toBeNull();
+    expect(
+      readAnalysis({
+        kind: "create",
+        input: { issueKey: "CHK-9" },
+        result: draft(),
+        editedResult: null,
+      } as unknown as Analysis).input,
+    ).toBeNull();
   });
 });
 

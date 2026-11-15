@@ -15,9 +15,9 @@
 | `answers`       | Answers (`{ question, answer }`) and follow-ups (`{ message }`) replayed as an earlier clarification round.               |
 | `repository`    | `{ root, commit }`: read a checkout at a pinned commit instead of a copied `repo/` directory.                             |
 | `tags`          | Used to select subsets: `injection` and `control` make up the nightly eval.                                               |
-| `expected`      | `relevantFiles`, `verifiedFacts`, `mustStayUncertain`, `forbiddenClaims`, `mustNotContain`, `appliedAnswers`.            |
+| `expected`      | `relevantFiles`, `verifiedFacts`, `mustStayUncertain`, `forbiddenClaims`, `mustNotContain`, `appliedAnswers`, `rejectedAnswers`.            |
 
-`relevantFiles` are paths relative to the `repo/` root (`repo/src/...`). An empty `answer` means the question stays open. `mustNotContain` are case-insensitive substrings that must appear nowhere in the ticket text (evidence excerpts quote the repository verbatim, so they are not checked). `appliedAnswers` are case-insensitive substrings a good draft must contain once its answers are applied.
+`relevantFiles` are paths relative to the `repo/` root (`repo/src/...`). An empty `answer` means the question stays open. `mustNotContain` are case-insensitive substrings that must appear nowhere in the ticket text (evidence excerpts quote the repository verbatim, so they are not checked). `appliedAnswers` are case-insensitive substrings the description and acceptance criteria must contain once the answers are applied; `rejectedAnswers` are substrings they must not contain, because only a draft that applied a superseded or wrong answer would carry them.
 
 `relevantFiles` are what the evidence agent must reach. The judged evals (analysis, clarification, injection) also fail a case unless a claim cites every one of them.
 

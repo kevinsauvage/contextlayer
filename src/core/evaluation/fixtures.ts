@@ -25,6 +25,8 @@ const expectedSchema = z.object({
   mustNotContain: z.array(z.string().min(1)).default([]),
   // Substrings a good draft must carry once the matching answer is applied (clarification cases only).
   appliedAnswers: z.array(z.string().min(1)).default([]),
+  // Substrings a draft carries only when it applied a superseded or wrong answer (clarification cases only).
+  rejectedAnswers: z.array(z.string().min(1)).default([]),
 });
 
 export const evaluationCaseSchema = z

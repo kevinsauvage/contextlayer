@@ -17,6 +17,24 @@ describe("matching re-asked questions", () => {
     ).toBe(false);
   });
 
+  it("recognises a French question reworded, accents and all", () => {
+    expect(
+      matchesQuestion(
+        "La copie doit-elle garder la date d'échéance d'origine ?",
+        "Faut-il conserver l'échéance d'origine sur la copie ?",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps two French questions about the same feature apart", () => {
+    expect(
+      matchesQuestion(
+        "La copie doit-elle garder la date d'échéance d'origine ?",
+        "Peut-on dupliquer une facture annulée ?",
+      ),
+    ).toBe(false);
+  });
+
   it("reports no overlap for empty text", () => {
     expect(questionOverlap("", "anything")).toBe(0);
   });

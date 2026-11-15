@@ -43,3 +43,44 @@ jobs:
           BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-1234
           BETTER_AUTH_URL: http://localhost:3000
           ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
+  # The smoke test: sign up, connect the fake providers, create a project, draft and publish, against a production
+  # build and a real Postgres. `playwright.config.ts` builds and starts the app itself.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: contextlayer
+          POSTGRES_PASSWORD: contextlayer
+          POSTGRES_DB: contextlayer
+        ports:
+          # Same port as docker-compose.yml, so the default E2E_DATABASE_URL works unchanged.
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U contextlayer -d contextlayer"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Playwright passes its environment to the server it starts; locally these come from `.env.local`.
+      BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-1234
+      ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 7

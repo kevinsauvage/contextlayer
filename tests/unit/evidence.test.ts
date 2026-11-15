@@ -100,6 +100,31 @@ describe("evidenceFromPaths", () => {
     expect(sent).toBeLessThanOrEqual(60_000);
   });
 
+  it("classifies decisions, documentation and code by path", async () => {
+    const files = { "docs/adr/0001.md": "Use Postgres.", "README.mdx": "# Shop", "src/a.ts": "export {};" };
+    const found = await evidenceFromPaths(Object.keys(files), [], source(files));
+
+    expect(found.map((file) => file.kind)).toEqual(["decision", "documentation", "code"]);
+  });
+
+  it("returns the rest of the file, with no omission, for a hit near the end of a long file", async () => {
+    const lines = Array.from({ length: 1500 }, (_, i) => `const line${i} = "${"x".repeat(8)}";`);
+    lines[1490] = "export const needle = true;";
+    const content = lines.join("\n");
+    const [file] = await evidenceFromPaths(["src/long.ts"], ["needle"], source({ "src/long.ts": content }));
+
+    expect(content.length).toBeGreaterThan(24_000);
+    expect(file?.excerpt).not.toContain("middle of the file omitted");
+    expect(file?.excerpt).toContain("needle");
+    expect(file?.lines).toEqual({ start: 1486, end: 1500 });
+  });
+
+  it("falls back to the path for a file that holds only whitespace", async () => {
+    const [file] = await evidenceFromPaths(["src/empty.ts"], [], source({ "src/empty.ts": "   \n" }));
+
+    expect(file?.excerpt).toBe("src/empty.ts");
+  });
+
   it("skips files the repository does not have", async () => {
     const found = await evidenceFromPaths(["src/missing.ts"], [], source({}));
     expect(found).toEqual([]);

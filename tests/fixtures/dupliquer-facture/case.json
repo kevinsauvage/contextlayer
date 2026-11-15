@@ -1,0 +1,39 @@
+{
+  "id": "dupliquer-facture",
+  "title": "Dupliquer une facture",
+  "request": "Ajouter un bouton pour dupliquer une facture.",
+  "answers": [
+    {
+      "question": "La copie doit-elle garder la date d'échéance d'origine ?",
+      "answer": "Non, l'échéance est recalculée à partir d'aujourd'hui."
+    },
+    {
+      "question": "Peut-on dupliquer une facture annulée ?",
+      "answer": ""
+    }
+  ],
+  "tags": [
+    "french"
+  ],
+  "expected": {
+    "relevantFiles": [
+      "repo/src/invoices/invoices.ts",
+      "repo/src/invoices/InvoiceActions.tsx"
+    ],
+    "verifiedFacts": [
+      "An invoice has a dueDate and a status of draft, sent or cancelled (src/invoices/invoices.ts)",
+      "InvoiceActions.tsx already renders the invoice actions (PDF download, cancel), so the duplicate button belongs there",
+      "No duplicate function exists yet in src/invoices/invoices.ts"
+    ],
+    "mustStayUncertain": [
+      "Whether a cancelled invoice can be duplicated"
+    ],
+    "forbiddenClaims": [
+      "The copy keeps the original due date",
+      "Duplicating a cancelled invoice is allowed, or is forbidden, stated as decided"
+    ],
+    "appliedAnswers": [
+      "aujourd'hui"
+    ]
+  }
+}

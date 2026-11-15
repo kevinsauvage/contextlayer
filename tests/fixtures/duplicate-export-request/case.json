@@ -12,11 +12,19 @@
     }
   ],
   "answers": [
-    { "question": "Should voided invoices be left out of the export?", "answer": "Leave voided invoices out of the export." },
-    { "message": "Correction: include voided invoices too; my earlier answer was wrong." }
+    {
+      "question": "Should voided invoices be left out of the export?",
+      "answer": "Leave voided invoices out of the export."
+    },
+    {
+      "message": "Correction: include voided invoices too; my earlier answer was wrong."
+    }
   ],
   "expected": {
-    "relevantFiles": ["repo/src/export/exportOrdersCsv.ts", "repo/src/invoices/types.ts"],
+    "relevantFiles": [
+      "repo/src/export/exportOrdersCsv.ts",
+      "repo/src/invoices/types.ts"
+    ],
     "verifiedFacts": [
       "An orders CSV export already exists in src/export/exportOrdersCsv.ts",
       "SHOP-88 tracks a CSV export for orders and is in progress",
@@ -32,6 +40,17 @@
       "A specific invoice column list",
       "Building a download flow from scratch, ignoring the existing orders export"
     ],
-    "appliedAnswers": ["voided"]
+    "appliedAnswers": [
+      "voided"
+    ],
+    "rejectedAnswers": [
+      "exclude voided",
+      "excluding voided",
+      "excludes voided",
+      "omit voided",
+      "without voided",
+      "voided invoices are excluded",
+      "voided invoices are left out"
+    ]
   }
 }

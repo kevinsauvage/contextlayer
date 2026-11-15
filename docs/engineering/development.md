@@ -22,7 +22,7 @@ Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env
 
 | Task                       | Command                                                                                                                                                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Run everything CI runs     | `pnpm check`                                                                                                                                                                                            |
+| Run the CI gates           | `pnpm check`                                                                                                                                                                                            |
 | Fix formatting and lint    | `pnpm format` then `pnpm lint:fix`                                                                                                                                                                      |
 | One test file              | `pnpm test tests/unit/evidence.test.ts`                                                                                                                                                                 |
 | Component tests            | `pnpm test tests/components` (`.tsx`, jsdom via a `// @vitest-environment jsdom` comment)                                                                                                               |
@@ -34,7 +34,7 @@ Configuration is validated in `src/infrastructure/env.ts`. Blank values in `.env
 | Browse the database        | `pnpm db:studio`                                                                                                                                                                                        |
 | Reset the database         | `docker compose down -v`, `pnpm db:up`, `pnpm db:migrate` (deletes all local data)                                                                                                                      |
 
-A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged files. `pnpm check` runs the CI gates in order: `format:check`, `typecheck`, `lint`, `knip`, `deps:check`, `test`, `build`. CI (`.github/workflows/ci.yml`) runs `pnpm audit --prod --audit-level high`, then the same gates with `test:coverage` in place of `test`, on every pull request and every push to `main`. The end-to-end smoke test is not in CI yet.
+A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged files. `pnpm check` runs the CI gates in order: `format:check`, `typecheck`, `lint`, `knip`, `deps:check`, `test`, `build`. CI (`.github/workflows/ci.yml`) runs `pnpm audit --prod --audit-level high`, then the same gates with `test:coverage` in place of `test`, on every pull request and every push to `main`. A second job, `e2e`, runs the end-to-end smoke test against a Postgres service; locally that is `pnpm db:up` then `pnpm e2e`, which `pnpm check` does not include.
 
 ## Quality gates
 
