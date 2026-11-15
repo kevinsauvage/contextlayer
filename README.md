@@ -25,12 +25,13 @@ Sign-up works right away. Analyses need an AI provider and the GitHub and Jira c
 | Script                                          | What it does                                                               |
 | ----------------------------------------------- | -------------------------------------------------------------------------- |
 | `pnpm dev` / `build` / `start`                  | Next.js dev server, production build, production server                    |
-| `pnpm check`                                    | Everything CI runs: format, lint, typecheck, knip, tests, build            |
-| `pnpm lint` / `lint:fix`                        | ESLint (type-aware, layer boundaries), zero warnings allowed               |
+| `pnpm check`                                    | The CI gates: format, typecheck, lint, knip, deps:check, tests, build      |
+| `pnpm lint` / `lint:fix`                        | ESLint (type-aware), zero warnings allowed                                 |
 | `pnpm format` / `format:check`                  | Prettier                                                                   |
 | `pnpm typecheck`                                | `next typegen` + `tsc --noEmit`                                            |
 | `pnpm knip`                                     | Unused files, exports and dependencies                                     |
-| `pnpm test` / `test:watch` / `test:coverage`    | Vitest (unit + PGlite integration)                                         |
+| `pnpm deps:check`                               | dependency-cruiser: layer boundaries, package allow-lists, cycles          |
+| `pnpm test` / `test:watch` / `test:coverage`    | Vitest (unit, PGlite integration, jsdom components)                        |
 | `pnpm e2e`                                      | Playwright smoke test on fake providers (needs `pnpm db:up`)               |
 | `pnpm eval`                                     | Real-model evaluation on the fixtures (needs an AI provider, costs tokens) |
 | `pnpm review:export` / `review:report`          | Blind scoring packets from the last eval run; report from filled scores    |
@@ -43,15 +44,15 @@ Sign-up works right away. Analyses need an AI provider and the GitHub and Jira c
 src/app              routes and API route handlers (thin)
 src/components       UI (shadcn/ui in components/ui)
 src/features         use cases: projects, organizations, integrations, ticket-creation, ticket-audit, analysis
-src/core             pure logic: analysis, audit, context, evidence, requirements
-src/integrations     provider registry; github, jira, ai, filesystem (implement interfaces defined in core)
+src/core             pure logic: analysis, audit, context, evidence, evaluation, integrations, organizations, requirements
+src/integrations     provider registry; github, jira, ai, git, fake (implement interfaces defined in core)
 src/infrastructure   env, db (Drizzle), auth (Better Auth), crypto, signed state
 src/lib              small dependency-free helpers
-tests/               unit, integration (PGlite), components (jsdom), evaluation, fixtures
+tests/               unit, integration (PGlite), components (jsdom), e2e (Playwright), evaluation, fixtures
 docs/                product, engineering, architecture
 ```
 
-Dependencies point inward (`app` → `features` → `core`) and ESLint enforces it. Details: [`docs/architecture/overview.md`](docs/architecture/overview.md).
+Dependencies point inward (`app` → `features` → `core`) and dependency-cruiser enforces it (`pnpm deps:check`). CI also runs `pnpm audit --prod` and test coverage; the full list is in [`docs/engineering/development.md`](docs/engineering/development.md). Details: [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ## Documentation
 
@@ -59,6 +60,6 @@ Dependencies point inward (`app` → `features` → `core`) and ESLint enforces 
 
 ## Evaluation
 
-`tests/fixtures/<case>/` holds a `case.json` (title, expected relevant files, verified facts, facts that must stay uncertain, forbidden invented claims) and a miniature `repo/`. `pnpm eval` runs the analysis pipeline and the baseline comparison against a real model and writes results to `tests/evaluation/results/` (gitignored). The judge is `AI_JUDGE_MODEL`; set it to a different model so the generator does not grade itself. Rubric and latest numbers: [`docs/product/evaluation-rubric.md`](docs/product/evaluation-rubric.md).
+`tests/fixtures/<case>/` holds a `case.json` (title, expected relevant files, verified facts, facts that must stay uncertain, forbidden invented claims) and either a miniature `repo/` or a pinned checkout of this repository. `pnpm eval` runs the analysis pipeline and the baseline comparison against a real model and writes results to `tests/evaluation/results/` (gitignored). The judge is `AI_JUDGE_MODEL`; set it to a different model so the generator does not grade itself. Rubric and latest numbers: [`docs/product/evaluation-rubric.md`](docs/product/evaluation-rubric.md).
 
 `pnpm review:export` turns the last baseline run into blind A/B/C packets under `tests/evaluation/review/` (gitignored) plus a `scores.json` template. A developer scores them, then `pnpm review:report` writes `docs/product/e3-blind-review.md` with the human result next to the judge's.

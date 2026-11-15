@@ -33,7 +33,7 @@ Generic AI writes fluent, confident requirements that invent intent and facts, a
 
 - Built: email/password accounts with organizations and invitations; GitHub App and Jira Cloud connections; create-from-request and audit flows; chat refinement with open questions; review and edit UI; approval and Jira publishing; evidence validation.
 - Out of scope for now: writing to GitHub or code; Jira Server/Data Center; GitLab, Bitbucket, Linear; SSO; billing.
-- Analyses run synchronously and take roughly 8 to 20 seconds; the UI must make waiting and running state clear.
+- Analyses run synchronously and take roughly 15 seconds to a minute (evidence agent plus draft); the UI must make waiting and running state clear.
 - Terminology: "project" = repository + Jira project; "analysis" = one create or audit run; claim statuses use the labels in `src/core/evidence/schemas.ts`.
 - Undecided: pricing and packaging.
 

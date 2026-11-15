@@ -11,15 +11,15 @@ app ─▶ features ─▶ core ◀─ integrations
 components ─▶ features (actions), core (types), infrastructure/auth/client
 ```
 
-| Layer            | Contains                                                                                       | May import                                                            |
-| ---------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces                         | `core`, `zod` only                                                    |
-| `features`       | Use cases: server actions, queries, orchestration                                              | `core`, `infrastructure`, `integrations`, `lib`                       |
-| `integrations`   | Provider registry; GitHub, Jira, AI SDK and filesystem adapters implementing `core` interfaces | `core`, `infrastructure`, `lib`                                       |
-| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                                     | `core` (types), `infrastructure`, `lib`                               |
-| `app`            | Routes, layouts, thin API handlers                                                             | `components`, `features`, `core`, `infrastructure`, `lib`             |
-| `components`     | UI; calls feature actions, uses the browser auth client                                        | `components`, `core`, `features`, `lib`, `infrastructure/auth/client` |
-| `lib`            | Framework-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)      | `lib` only (`cn` and a type-only `zod` are the allowed packages)      |
+| Layer            | Contains                                                                                                        | May import                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `core`           | Schemas, retrieval, evidence validation, analysis pipeline, interfaces                                          | `core`, `zod`, `stopword`                                             |
+| `features`       | Use cases: server actions, queries, orchestration                                                               | `core`, `infrastructure`, `integrations`, `lib`                       |
+| `integrations`   | Provider registry; GitHub, Jira and AI SDK adapters, a git checkout source for evals and fake providers for e2e | `core`, `infrastructure`, `lib`                                       |
+| `infrastructure` | Env validation, database, auth, crypto, signed OAuth state                                                      | `core` (types), `infrastructure`, `lib`                               |
+| `app`            | Routes, layouts, thin API handlers                                                                              | `components`, `features`, `core`, `infrastructure`, `lib`             |
+| `components`     | UI; calls feature actions, uses the browser auth client                                                         | `components`, `core`, `features`, `lib`, `infrastructure/auth/client` |
+| `lib`            | Framework-free helpers (`first`, `formString`, `firstIssueMessage`, `safePath`, `isUuid`)                       | `lib` only (`cn` and a type-only `zod` are the allowed packages)      |
 
 `.dependency-cruiser.cjs` enforces these rules on the real import graph (`pnpm deps:check`, run by `pnpm check` and CI): layers, the `core`/`lib` package allow-lists and cycles; ESLint keeps `no-restricted-globals` for the same purity. `core` is kept pure so the whole analysis pipeline runs in tests with fakes for the source, the tracker and the generator. `app` never imports a provider or adapter: server actions and the two OAuth routes resolve one through `providerById` in `src/features/integrations/resolve.ts`, which is also the seam tests replace.
 
@@ -31,13 +31,12 @@ Two use cases share one pipeline (`src/core/analysis/analyze.ts`):
 2. **Audit** (`auditIssue`): Jira issue key → fetch issue → candidates → report with findings and a proposed ticket.
 
 ```
-input ─▶ extractTerms + model expansion ─▶ gatherContext ─▶ generator ─▶ attach evidence ─▶ validate references
-         (≤ 10 terms + synonyms + ≤ 8)     files + imports +   (LLM, Zod-typed)  (cited ids only)  (EvidenceIssue[])
-                                           related issues
+input ─▶ evidence agent ─▶ evidenceFromPaths + related Jira issues ─▶ generator ─▶ attach evidence ─▶ validate references
+         (≤ 8 files)        (excerpts e1…eN; extractTerms)            (LLM, Zod-typed)  (cited ids only)  (EvidenceIssue[])
 ```
 
-- **Terms** (`src/core/context/terms.ts`): quoted text (the requested new value) is ignored, accents are folded, stopwords and edit verbs are dropped, and a small UI synonym map adds terms ("banner" → hero, header). Before searching, the generator also returns 5–10 code-search terms (identifiers and file names); they are appended after the request's own terms and capped at 8.
-- **Retrieval** (`src/core/context/gather.ts`): an evidence agent (`src/integrations/ai/evidence-agent.ts`) lists, searches and reads the repository through tools and names up to eight files; core cuts 60-line excerpts from those files, links them to the commit and assigns `e1…eN`. The loop is capped (8 steps, 10 reads, 6k characters per read, 90 s) and its tokens are added to the analysis usage. A project may be scoped to one folder (`owner/repo#apps/web`), and then the source lists and searches only that folder with paths relative to it. Related Jira issues come from `IssueTracker.searchRelated` with terms extracted from the request. There is no keyword fallback: if the agent fails, the run fails rather than drafting from unrelated files.
+- **Terms** (`src/core/context/terms.ts`): quoted text (the requested new value) is ignored, accents are folded, stopwords and edit verbs are dropped, and a small UI synonym map adds terms ("banner" → hero, header). The terms find related Jira issues and anchor excerpts of long files; nothing expands them with a model.
+- **Retrieval** (`src/core/context/gather.ts`): an evidence agent (`src/integrations/ai/evidence-agent.ts`) lists, searches and reads the repository through tools and names up to eight files; core turns them into evidence (`src/core/context/retrieve.ts`), links each to the commit and assigns `e1…eN`. A file arrives whole when it fits; otherwise core keeps its head and the windows around the request's terms, from a total budget of 60k characters (8k per file by default, up to 24k for one that needs the leftover). The loop is capped (8 steps, 3 searches, 10 reads, 6k characters per read, 90 s) and its tokens are added to the analysis usage. A project may be scoped to one folder (`owner/repo#apps/web`), and then the source lists and searches only that folder with paths relative to it. Related Jira issues come from `IssueTracker.searchRelated` with terms extracted from the request. There is no keyword fallback: if the agent fails, the run fails rather than drafting from unrelated files.
 - **Generation** (`src/integrations/ai`): the model receives the candidates and returns a body that cites candidate ids. It never writes evidence. The pipeline attaches the real excerpts for the ids that were cited, which prevents fabricated sources.
 - **Validation** (`src/core/evidence/validate.ts`): a schema-valid draft can still cite nothing, cite unknown ids, quote a string its evidence lacks, or mark a claim `verified` without evidence; a bare tag (`<p>`) is checked as the element, since the source carries it with attributes. Those become `EvidenceIssue`s, stored with the analysis and shown in the review UI.
 - **Clarification**: open questions are answered on the draft page; a question may offer two to four options with one recommended, plus free text. Answers are stored in `analysis.input.answers`, merged across rounds, and the draft is regenerated in place. Blank answers stay as open questions.
@@ -85,4 +84,6 @@ To add a provider (GitLab, Bitbucket, Linear, Azure Boards…): implement `Sourc
 | ----------- | ------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Unit        | `tests/unit`        | yes                  | Pure logic with fake generator, source and tracker                                                         |
 | Integration | `tests/integration` | yes                  | PGlite with the real Drizzle migrations; tenant isolation, connections and token refresh, analysis re-runs |
+| Components  | `tests/components`  | yes                  | jsdom                                                                                                      |
+| E2E         | `tests/e2e`         | no (`pnpm e2e`)      | Playwright smoke test with `E2E_FAKE_PROVIDERS`                                                            |
 | Evaluation  | `tests/evaluation`  | no (`pnpm eval`)     | Real model on `tests/fixtures`; analysis quality and baseline comparison                                   |

@@ -379,3 +379,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 
 - `next` and `eslint-config-next` 16.4.3 → 16.4.6 (the November security release and its follow-ups), `better-auth` 1.7.14 → 1.7.24, `ai` 7.0.154 → 7.0.173, plus patch and minor bumps of `@electric-sql/pglite`, `typescript-eslint`, `knip`, `cn` and `lucide-react` · `pnpm check`, `pnpm e2e` and `pnpm audit --prod` (only the deferred `esbuild` advisory left) pass.
 - `@ai-sdk/openai-compatible` stays pinned exactly (now 3.0.92) and moves together with `ai` · both depend on `@ai-sdk/provider-utils`, and a caret range could resolve two copies of it. The provider path was not exercised against a real endpoint (e2e uses the fake model).
+
+## Dependency and boundary follow-ups (2026-11-15)
+
+- TypeScript moves to 6.x (b58ea55, 2026-10-26), superseding the 5.x pin of 2026-10-22 · typescript-eslint 8 supports `<6.1`.
+- `core` may also import `stopword`, superseding "`core` and `zod` only" · a pure word list with no I/O for `extractTerms`; dependency-cruiser allows exactly `zod` and `stopword`.

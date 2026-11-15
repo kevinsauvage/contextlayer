@@ -10,12 +10,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # ContextLayer
 
-AI ticket creation and QA: turns a plain-language request into an evidence-backed Jira ticket and audits existing tickets. Plan and principles: `docs/product/`. Backlog: `TODO.md` (index) and `TODO-<KIND>.md` (`BUG`, `FEATURE`, `QUALITY`, `REFACTOR`, `NON-CODE`). Decisions: `DECISIONS.md`.
+AI ticket creation and QA: turns a plain-language request into an evidence-backed Jira ticket and audits existing tickets. Plan and principles: `docs/product/`. Backlog: `TODO.md` (index) and `TODO-<KIND>.md` (`BUG`, `FEATURE`, `QUALITY`, `REFACTOR`, `DEPENDENCY`, `NON-CODE`). Decisions: `DECISIONS.md`.
 
 ## Commands
 
 - `pnpm setup` (create `.env.local`) · `pnpm db:up` · `pnpm db:migrate` · `pnpm dev` / `pnpm build`
-- `pnpm check` runs everything CI runs: `format:check`, `lint`, `typecheck`, `knip`, `test`, `build`. Run it before finishing. `pnpm format` and `pnpm lint:fix` fix most failures.
+- `pnpm check` runs the CI gates: `format:check`, `typecheck`, `lint`, `knip`, `deps:check`, `test`, `build`; CI also runs `pnpm audit --prod` and coverage (details in `docs/engineering/development.md`). Run it before finishing. `pnpm format` and `pnpm lint:fix` fix most failures.
 - Target a single test with `pnpm test tests/unit/<file>`. `pnpm eval` calls a real model and costs tokens; run it only when asked.
 
 ## Rules

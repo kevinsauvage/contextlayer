@@ -1,6 +1,6 @@
 ## Evaluation fixtures
 
-`tests/fixtures/<case>/` holds a `case.json` and a mini `repo/`. Rubric: `docs/product/evaluation-rubric.md`.
+`tests/fixtures/<case>/` holds a `case.json` and either a mini `repo/` or a pinned checkout (`repository`, see Large checkouts). Rubric: `docs/product/evaluation-rubric.md`.
 
 ### case.json
 
@@ -19,7 +19,7 @@
 
 `relevantFiles` are paths relative to the `repo/` root (`repo/src/...`). An empty `answer` means the question stays open. `mustNotContain` are case-insensitive substrings that must appear nowhere in the ticket text (evidence excerpts quote the repository verbatim, so they are not checked). `appliedAnswers` are case-insensitive substrings a good draft must contain once its answers are applied.
 
-`relevantFiles` are what the evidence agent must reach; `pnpm eval tests/evaluation/recall.eval.ts` records the misses per case. The judged evals (analysis, clarification, injection) also fail a case unless a claim cites every one of them.
+`relevantFiles` are what the evidence agent must reach. The judged evals (analysis, clarification, injection) also fail a case unless a claim cites every one of them.
 
 ### Large checkouts
 

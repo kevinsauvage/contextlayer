@@ -10,10 +10,11 @@
 |              | [`product/evaluation-rubric.md`](product/evaluation-rubric.md)                       | How drafts are scored; latest results                         |
 |              | [`product/phase-0-decision.md`](product/phase-0-decision.md)                         | Go / pivot / stop criteria and decision log                   |
 | Architecture | [`architecture/overview.md`](architecture/overview.md)                               | Layers, pipeline, integrations, data model, security, testing |
-| Engineering  | [`engineering/development.md`](engineering/development.md)                           | Setup, daily workflow, quality gates, troubleshooting         |
+| Engineering  | [`engineering/development.md`](engineering/development.md)                           | Setup, workflow, quality gates, deployment, troubleshooting   |
 |              | [`engineering/integrations-setup.md`](engineering/integrations-setup.md)             | GitHub App, Atlassian OAuth, AI provider configuration        |
 |              | [`engineering/phase-0-feasibility.md`](engineering/phase-0-feasibility.md)           | Permissions, limits, retrieval, runtime and provider findings |
 |              | [`engineering/project-audit-2026-10-26.md`](engineering/project-audit-2026-10-26.md) | Point-in-time code and scope review: bugs, rethink options    |
+| Prompts      | [`prompts/README.md`](prompts/README.md)                                             | Reusable agent prompts: review, audit, upgrade, backlog work  |
 | Project      | [`../DECISIONS.md`](../DECISIONS.md)                                                 | Decision log                                                  |
 |              | [`../TODO.md`](../TODO.md)                                                           | Backlog index; items in `TODO-<KIND>.md` by kind and priority |
 |              | [`../AGENTS.md`](../AGENTS.md)                                                       | Rules for contributors and coding agents                      |
