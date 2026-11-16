@@ -8,9 +8,13 @@ _No open P1 items._
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Run the judged evals with the default generator and decide what a failing eval means** `P2`
-  - **Context:** the 2026-11-16 run (E7 in [`docs/product/validation-experiments.md`](docs/product/validation-experiments.md)) used `deepseek-flash` and passed 2 of 23 tests. Two over-strict checks were loosened; the other failures are the draft's (Verified claims quoting text outside their evidence, uncertain points settled or not raised). `anthropic/claude-sonnet-5.5`, the default `AI_MODEL`, has never been run on these suites, and a test passes only when every list in the verdict is empty, so one unraised uncertainty fails a case.
-  - **Fix:** run the three suites with the default model and compare by cause. Then decide whether `uncertainNotRaised` should fail a case or be reported as a score, and whether the validator's quote check should retry the draft instead of returning it with issues.
+- [ ] **Run the judged evals with the default generator** `P2`
+  - **Context:** the 2026-11-16 runs (E7 in [`docs/product/validation-experiments.md`](docs/product/validation-experiments.md)) used `deepseek-flash`; with `deepseek-v4-pro` as judge, 5 of 23 tests pass. `anthropic/claude-sonnet-5.5`, the default `AI_MODEL`, has never been run on these suites: the Vercel AI Gateway refuses it on the free tier and no Anthropic key is configured.
+  - **Fix:** with gateway credits or an Anthropic-capable endpoint, run the three suites with the default model and a different judge, and add the result to E7 by cause.
+
+- [ ] **Stop drafts settling what no source establishes** `P2`
+  - **Context:** in the E7 run, 9 of 18 failures are a draft deciding a point the fixture marks as open (CSV columns, per-key limits, a page size), mostly inside an acceptance criterion; 8 more are validator issues the pipeline returns with the draft (a Verified claim quoting text outside its evidence, a claim stating a value an open question asks). `draftTicket` and `auditIssue` report `issues` but never ask the model to repair them.
+  - **Fix:** measure first with the default model (item above). If the pattern holds, give the generator one repair round fed with the validator's issues, and tighten the prompt rule for acceptance criteria that depend on an open question. This changes `src/core/analysis` and adds a model call per flawed draft: plan it before building.
 
 ## P3 · Later: optional features and deeper hardening
 

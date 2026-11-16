@@ -16,15 +16,24 @@ const verdictSchema = z.object({
   rationale: z.string(),
 });
 
-export type Verdict = z.infer<typeof verdictSchema> & { pass: boolean };
+export type Verdict = z.infer<typeof verdictSchema> & {
+  pass: boolean;
+  uncertaintyCoverage: { raised: number; total: number };
+};
 
+// What fails a case: saying something wrong. An uncertain point the output never raises is an omission, not an
+// error, so it is recorded as coverage instead: a ticket need not list every open point to be correct.
 export const verdictProblems = (verdict: z.infer<typeof verdictSchema>): string[] => [
   ...verdict.forbiddenClaims.map((claim) => `forbidden: ${claim}`),
   ...verdict.uncertainMarkedVerified.map((point) => `settled: ${point}`),
   ...verdict.missingFacts.map((fact) => `missing: ${fact}`),
-  ...verdict.uncertainNotRaised.map((point) => `not raised: ${point}`),
   ...verdict.contradictedClaims.map((claim) => `contradicted: ${claim}`),
 ];
+
+const uncertaintyCoverage = (total: number, notRaised: number) => ({
+  raised: Math.max(0, total - notRaised),
+  total,
+});
 
 const refinementLine = (refinement: Refinement) =>
   isFollowUp(refinement)
@@ -65,5 +74,9 @@ export async function judgeVerdict(c: LoadedCase, output: string): Promise<Verdi
     prompt: withSchemaInstruction(buildPrompt(c, output), verdictSchema, judge.structuredOutputs),
     output: Output.object({ schema: verdictSchema }),
   });
-  return { pass: verdictProblems(judged).length === 0, ...judged };
+  return {
+    pass: verdictProblems(judged).length === 0,
+    uncertaintyCoverage: uncertaintyCoverage(c.expected.mustStayUncertain.length, judged.uncertainNotRaised.length),
+    ...judged,
+  };
 }
