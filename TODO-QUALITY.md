@@ -8,9 +8,9 @@ _No open P1 items._
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Run the judged evals on the cases and checks added on 2026-11-15** `P2`
-  - **Context:** two fixtures (`dupliquer-facture`, `large-pricing-rules`), the `rejectedAnswers` markers on `duplicate-export-request`, `mustNotContain` on the injection fixtures (`finance@corp.test`, `CEO`, `unlimited`) and the fenced baseline-judge prompt were written and type-checked, and their pure parts are unit-tested, but none has run against a model: there is no AI key on the machine that wrote them. A literal marker can fail a correct draft (a ticket that says "the API is currently unlimited", or "voided invoices are left out" while describing the superseded answer).
-  - **Fix:** `pnpm eval tests/evaluation/analysis.eval.ts tests/evaluation/clarification.eval.ts tests/evaluation/injection.eval.ts`, read each failure, and loosen a marker that rejects a correct draft rather than the draft. Record the run in `docs/product/validation-experiments.md`.
+- [ ] **Run the judged evals with the default generator and decide what a failing eval means** `P2`
+  - **Context:** the 2026-11-16 run (E7 in [`docs/product/validation-experiments.md`](docs/product/validation-experiments.md)) used `deepseek-flash` and passed 2 of 23 tests. Two over-strict checks were loosened; the other failures are the draft's (Verified claims quoting text outside their evidence, uncertain points settled or not raised). `anthropic/claude-sonnet-5.5`, the default `AI_MODEL`, has never been run on these suites, and a test passes only when every list in the verdict is empty, so one unraised uncertainty fails a case.
+  - **Fix:** run the three suites with the default model and compare by cause. Then decide whether `uncertainNotRaised` should fail a case or be reported as a score, and whether the validator's quote check should retry the draft instead of returning it with issues.
 
 ## P3 · Later: optional features and deeper hardening
 

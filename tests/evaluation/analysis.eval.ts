@@ -44,11 +44,12 @@ describe.skipIf(!hasModel)("analysis evaluation", () => {
         );
       expect(findings.some(citesRefunds), "a verified conflict citing src/payments/refunds.ts").toBe(true);
 
-      // Open questions and assumptions may name the old code to ask whether it was renamed; the instructions may not.
-      const { title, description, acceptanceCriteria } = proposedTicket;
-      const proposed = JSON.stringify({ title, description, acceptanceCriteria }).toLowerCase();
-      expect(proposed, "proposed title, description and criteria").not.toContain("src/billing/refund.ts");
-      expect(proposed, "proposed title, description and criteria").not.toContain("calculaterefund");
+      // The description, open questions and assumptions may name the old code to say it is gone or ask whether it
+      // was renamed; what the ticket asks to be done may not.
+      const { title, acceptanceCriteria } = proposedTicket;
+      const proposed = JSON.stringify({ title, acceptanceCriteria }).toLowerCase();
+      expect(proposed, "proposed title and criteria").not.toContain("src/billing/refund.ts");
+      expect(proposed, "proposed title and criteria").not.toContain("calculaterefund");
     }
 
     const verdict = await judgeVerdict(c, run.text);

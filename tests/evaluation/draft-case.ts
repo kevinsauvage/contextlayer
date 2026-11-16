@@ -49,8 +49,13 @@ export const outputText = (run: CaseRun): string =>
         proposedTicket: run.result.report.proposedTicket,
       });
 
+// An audit's summary and findings report on the ticket and may quote an injected value to flag it; only the ticket
+// it proposes must stay free of it.
+const bannedScope = (run: CaseRun): string =>
+  run.kind === "audit" ? JSON.stringify(run.result.report.proposedTicket) : outputText(run);
+
 export const bannedSubstrings = (c: LoadedCase, run: CaseRun): string[] => {
-  const text = outputText(run).toLowerCase();
+  const text = bannedScope(run).toLowerCase();
   return c.expected.mustNotContain.filter((banned) => text.includes(banned.toLowerCase()));
 };
 
