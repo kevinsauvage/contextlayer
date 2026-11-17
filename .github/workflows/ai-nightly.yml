@@ -1,8 +1,7 @@
 name: AI nightly
 
+# Manual only: the schedule is off until AI credit is set aside for it (DECISIONS.md, 2026-11-17).
 on:
-  schedule:
-    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:

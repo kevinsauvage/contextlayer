@@ -388,3 +388,4 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 ## postgres.js 4 (2026-11-15)
 
 - `postgres` 3.4.9 → 4.1.1 · it carries the fix for NUL characters in connection parameters. Checked against the local database with `drizzle-orm` 0.45.4, prepared and unprepared: Drizzle's parser and serializer overrides still apply, a `Date` written to `timestamp` and `timestamptz` columns reads back equal, keyset comparisons on a timestamp select the right rows, JSONB and transactions work. `pnpm check`, `pnpm db:migrate` and `pnpm e2e` pass. Not exercised against the hosted database before the deploy.
+- The nightly injection eval runs only when triggered by hand (`workflow_dispatch`); its schedule is removed · the owner does not want to spend AI credit on it for now, and a run without secrets failed every night.

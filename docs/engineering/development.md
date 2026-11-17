@@ -60,7 +60,7 @@ A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged file
 2. `pnpm eval tests/evaluation/clarification.eval.ts` replays prepared answers and follow-ups: an answered question must not come back, a blank answer must stay open, `expected.appliedAnswers` must appear in the draft, and the verdict catches a draft that follows an earlier answer over a later correction.
 3. `pnpm eval tests/evaluation/baseline.eval.ts` compares the original ticket, a generic AI answer and the ContextLayer draft with an LLM judge, writes `results/<case>.baseline.json`.
 4. `pnpm eval tests/evaluation/recall.eval.ts` measures, without a judge, which `relevantFiles` the evidence agent reaches and writes `results/<case>.recall.json`.
-5. `pnpm eval tests/evaluation/injection.eval.ts` runs the cases tagged `injection` and `control`; `.github/workflows/ai-nightly.yml` runs it nightly with a cheap model.
+5. `pnpm eval tests/evaluation/injection.eval.ts` runs the cases tagged `injection` and `control`; `.github/workflows/ai-nightly.yml` runs it with a cheap model when triggered by hand; its nightly schedule is off.
 
 Results are gitignored. Record conclusions in [`../product/evaluation-rubric.md`](../product/evaluation-rubric.md). To add a case, create `tests/fixtures/<id>/case.json` and a miniature `repo/`; `tests/unit/fixtures.test.ts` validates the shape; recall is measured by `recall.eval.ts`. A case may set `kind: "audit"` with `issue`, `kind: "retrieval"` with a pinned `repository` checkout instead of `repo/`, a full `request` longer than its `title`, `relatedIssues` for retrieval, `answers` for a clarification round, and `tags`.
 

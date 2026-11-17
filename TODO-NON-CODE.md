@@ -22,14 +22,9 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 
 ## P3 · Later: optional features and deeper hardening
 
-- [ ] **Configure the nightly eval** `P3`
-  - **Context:** `.github/workflows/ai-nightly.yml` runs `tests/evaluation/injection.eval.ts` at 03:17 UTC, but the repository has no AI secrets. Its credential check fails on purpose, so the scheduled run has failed every night (`gh run list --workflow ai-nightly.yml`: 2026-10-31, 11-01, 11-02) and the injection eval has never run against a model. The groom proposes P2: ten minutes of config, and a red nightly teaches you to ignore CI.
-  - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets (plus `AI_JUDGE_*` if the judge uses another endpoint). Trigger the workflow by hand, confirm the injection case and its control both pass, and check the next scheduled run is green. If you won't fund nightly runs, disable the `schedule` trigger instead of leaving it red.
-
-- [~] **Blind human scoring** `P3` `E3`
-  - **Context:** E2's latest run (2026-10-27, four-way, Flash generating, Pro judging) scored ContextLayer 68, retrieval-only 49, generic AI 20 and the original 23 of 72. That run predates the evidence agent (80fd978, 2026-10-28), both models are DeepSeek, and E3 (three reviewers, ten blind tickets) has not run. The packets in `tests/evaluation/review/` date from 2026-10-23, and `scripts/blind-review.mjs` leaves out the retrieval-only baseline (see "Add the retrieval-only baseline to the blind-review packets" in [`TODO-QUALITY.md`](TODO-QUALITY.md)).
-  - **Fix:** after that Quality item, re-run `pnpm eval tests/evaluation/baseline.eval.ts` on the current pipeline (all create fixtures), update E2's table, then run `pnpm review:export`, score the packets into `scores.json`, run `pnpm review:report` and update E2/E3 in `validation-experiments.md`. Optionally add one cross-vendor judge or generator to remove same-vendor bias.
-
+- [ ] **Turn the nightly eval back on when AI credit is set aside for it** `P3`
+  - **Context:** the `schedule` trigger of `.github/workflows/ai-nightly.yml` was removed on 2026-11-17 so no AI credit is spent; the workflow can still be run by hand. It has never run against a model in CI: the repository has no AI secrets.
+  - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets, restore the `schedule` block (`cron: "17 3 * * *"`), trigger it by hand once and confirm the injection case and its control pass.
 - [ ] **Portfolio presentation** `P3`
   - **Context:** a portfolio visitor decides in a minute. The repository has detailed engineering documents but no short story: what it does, a screenshot or recording, and how it was evaluated.
   - **Fix:** write a short `README.md` top section with the problem, a screenshot or GIF of a draft with its evidence, the live link (to the demo clone once it exists), and the evaluation numbers with their limits (judge and baseline, once the fair baseline exists). Link the audit and `docs/architecture/overview.md`. Do not include numbers that were not measured.
