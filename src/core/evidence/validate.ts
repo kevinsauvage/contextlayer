@@ -76,20 +76,18 @@ export function validateAuditFindings(findings: Finding[]): EvidenceIssue[] {
   });
 }
 
-const BACKTICKED = /`([^`\n]+)`/g;
-const DOUBLE_QUOTED = /"([^"\n]+)"|“([^”\n]+)”/g;
+// One pass, so quotes inside a backticked snippet stay part of it, and an escaped quote (\") stays inside its string.
+const QUOTED = /`([^`\n]+)`|"((?:[^"\\\n]|\\.)+)"|“([^”\n]+)”/g;
+
+const quotedSpans = (text: string): string[] =>
+  [...text.matchAll(QUOTED)].map(
+    ([, backticked = "", straight = "", curly = ""]) => backticked || straight.replaceAll('\\"', '"') || curly,
+  );
 
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 
 // Identifiers and quoted strings in a claim are literal claims about the code.
-function quotedTokens(text: string): string[] {
-  const quoted = [...text.matchAll(DOUBLE_QUOTED)].map(([, straight = "", curly = ""]) => straight || curly);
-  return [...text.matchAll(BACKTICKED)]
-    .map(([, token = ""]) => token)
-    .concat(quoted)
-    .map(normalize)
-    .filter(Boolean);
-}
+const quotedTokens = (text: string): string[] => quotedSpans(text).map(normalize).filter(Boolean);
 
 // A bare tag (`<p>`) names the element; the source carries it with attributes or children, so the tag has to be
 // there, not a byte-identical opening tag.
@@ -118,7 +116,11 @@ function unsupportedQuotes(claim: Claim, evidence: Map<string, Evidence>): strin
     return item ? [normalize(`${item.reference}\n${item.excerpt}`)] : [];
   });
   if (!sources.length) return [];
-  return quotedTokens(claim.text).filter((token) => !sources.some((source) => contains(source, token)));
+  // A quoted evidence id (`id="e1"`) names the citation, not its content.
+  const citedIds = new Set(claim.evidenceIds.map((id) => id.toLowerCase()));
+  return quotedTokens(claim.text).filter(
+    (token) => !citedIds.has(token) && !sources.some((source) => contains(source, token)),
+  );
 }
 
 type ReferenceOptions = {
@@ -175,15 +177,18 @@ export function validateEvidenceReferences(
 // user. Only decisive tokens are compared — numbers, codes and quoted snippets — so ordinary words shared with the
 // question do not produce a warning.
 const DECISIVE_NUMBER = /\b\d{2,4}\b/g;
-const DECISIVE_QUOTED = /`([^`\n]+)`|"([^"\n]+)"|“([^”\n]+)”/g;
 
 const decisiveTokens = (text: string): string[] => {
   const numbers = [...text.matchAll(DECISIVE_NUMBER)].map(([token]) => token);
-  const quoted = [...text.matchAll(DECISIVE_QUOTED)].map(([, backticked = "", straight = "", curly = ""]) =>
-    (backticked || straight || curly).trim(),
-  );
+  const quoted = quotedSpans(text).map((span) => span.trim());
   return [...new Set([...numbers, ...quoted].filter((token) => token.length > 1))];
 };
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// A whole word or number only: "10" is not stated by "1024", nor "Pay" by "Payment".
+const mentions = (text: string, token: string) =>
+  new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(token)}(?![\\p{L}\\p{N}])`, "iu").test(text);
 
 export function validateOpenQuestions(draft: TicketDraft): EvidenceIssue[] {
   const open = draft.openQuestions
@@ -197,9 +202,8 @@ export function validateOpenQuestions(draft: TicketDraft): EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
   for (const [section, claims] of Object.entries(draftSections(draft))) {
     claims.forEach((claim, i) => {
-      const text = claim.text.toLowerCase();
       for (const question of open) {
-        const hit = question.tokens.find((token) => text.includes(token.toLowerCase()));
+        const hit = question.tokens.find((token) => mentions(claim.text, token));
         if (hit)
           issues.push({
             path: `${section}[${i}]`,

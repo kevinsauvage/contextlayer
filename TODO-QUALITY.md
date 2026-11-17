@@ -14,7 +14,7 @@ _No open P1 items._
 
 - [ ] **Stop drafts settling what no source establishes** `P2`
   - **Context:** in the E7 run, 9 of 18 failures are a draft deciding a point the fixture marks as open (CSV columns, per-key limits, a page size), mostly inside an acceptance criterion; 8 more are validator issues the pipeline returns with the draft (a Verified claim quoting text outside its evidence, a claim stating a value an open question asks). `draftTicket` and `auditIssue` report `issues` but never ask the model to repair them.
-  - **Update 2026-11-16:** `deepseek-v4-pro` as generator passes 3 of 23 with the same failure shapes, so a stronger model alone does not fix it. The validator flagged `"e1"`, `"pagesize"` and a quoted ticket phrase as evidence quotes: check whether its quote rule fires on quotes that are not citations before adding a repair round.
+  - **Update 2026-11-16:** `deepseek-v4-pro` as generator passes 3 of 23 with the same failure shapes, so a stronger model alone does not fix it. Update 2026-11-17: four validator false positives fixed (E7); of the 9 run 3 validator failures, 3 were false and are cleared. A Verified claim that quotes an identifier to say it does not exist still fails the quote check.
   - **Fix:** measure first with the default model (item above). If the pattern holds, give the generator one repair round fed with the validator's issues, and tighten the prompt rule for acceptance criteria that depend on an open question. This changes `src/core/analysis` and adds a model call per flawed draft: plan it before building.
 
 ## P3 · Later: optional features and deeper hardening

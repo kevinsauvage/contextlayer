@@ -106,6 +106,27 @@ describe("validateEvidenceReferences", () => {
       'Description paragraph 1 is marked Verified but quotes "total > 1", which its cited evidence does not contain.',
     ]));
 
+  it("reads a backticked snippet that contains double quotes as one quote", () =>
+    expect(
+      validate(claim({ text: 'Rows are joined with `headers.join(",")`.' }), [
+        { id: "e1", kind: "code", reference: "src/toCsv.ts", excerpt: 'return [headers.join(","), ...lines];' },
+      ]),
+    ).toEqual([]));
+
+  it("keeps an escaped quote inside the quoted string", () =>
+    expect(
+      validate(claim({ text: 'The ticket says "Show an \\"Out of stock\\" badge".' }), [
+        { id: "e1", kind: "jira_issue", reference: "SHOP-1", excerpt: 'Show an "Out of stock" badge on the card.' },
+      ]),
+    ).toEqual([]));
+
+  it("does not read a quoted evidence id as a quote from the evidence", () =>
+    expect(
+      validate(claim({ text: 'The code defines "export const PayButton" (id="e1").' }), [
+        { id: "e1", kind: "code", reference: "src/PayButton.tsx", excerpt: "export const PayButton = () => null;" },
+      ]),
+    ).toEqual([]));
+
   it("does not check quotes in claims that are not verified", () =>
     expect(validate(claim({ status: "inferred", text: "Probably `missingThing`." }))).toEqual([]));
 
@@ -136,6 +157,12 @@ describe("validateOpenQuestions", () => {
     expect(issue?.message).toBe(
       'Description paragraph 1 states "429", which open question 1 asks; leave it undecided until the question is answered.',
     );
+  });
+
+  it("matches whole numbers and words only", () => {
+    expect(validateOpenQuestions(draft("The limit is 2 * 1024 * 1024 bytes.", ["10 MB", "25 MB"]))).toEqual([]);
+    expect(validateOpenQuestions(draft("The Payment step stays as is.", ['Label it "Pay"']))).toEqual([]);
+    expect(validateOpenQuestions(draft("The button reads Pay.", ['Label it "Pay"']))).toHaveLength(1);
   });
 
   it("accepts a claim that leaves the value open", () => {
