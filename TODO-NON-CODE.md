@@ -5,8 +5,8 @@ Research, decisions, manual reviews, configuration and documentation: work that 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
 - [~] **Hosting and deploy** `P2`
-  - **Context:** deployed on Vercel with Neon Postgres at <https://contextlayer-pearl.vercel.app> (`DECISIONS.md`, "Hosting"). Production reuses the development GitHub App (`contextlayer-dev`), Atlassian app and AI key, and their callbacks still point at localhost, so connecting GitHub or Jira fails there.
-  - **Fix:** register `https://contextlayer-pearl.vercel.app/api/integrations/<id>/callback` with GitHub and Atlassian (or create production apps and replace the env vars). Make both apps usable by accounts other than yours (GitHub: "Any account"; Atlassian: distribution "Sharing"). Set a hard monthly spending limit on the AI provider account. Walk the full flow once in production.
+  - **Context:** deployed on Vercel with Neon Postgres at <https://contextlayer-kevinsauvages-projects.vercel.app> (`DECISIONS.md`, "Hosting"). Production reuses the development GitHub App (`contextlayer-dev`), Atlassian app and AI key, and their callbacks still point at localhost, so connecting GitHub or Jira fails there.
+  - **Fix:** register `https://contextlayer-kevinsauvages-projects.vercel.app/api/integrations/<id>/callback` with GitHub and Atlassian (or create production apps and replace the env vars). Make both apps usable by accounts other than yours (GitHub: "Any account"; Atlassian: distribution "Sharing"). Set a hard monthly spending limit on the AI provider account. Walk the full flow once in production.
 
 - [ ] **Customer data-flow page** `P2`
   - **Context:** on a public site, visitors who connect a repository or a Jira site send source code and ticket text to the AI provider, and the app stores excerpts in `analysis.result`. They should be told where it goes and for how long before they connect anything.
