@@ -22,10 +22,6 @@ No open items.
   - **Context:** `@types/node` is pinned to 24 to match the runtime (`.node-version` 24, read by CI; `engines` `>=24 <25`, which also keeps Vercel on 24.x; Dependabot ignores the `@types/node`, `eslint` and `typescript` majors until then). Node 26 is LTS since October 2026.
   - **Fix:** decide the runtime with the host ("Hosting and deploy" in [`TODO-NON-CODE.md`](TODO-NON-CODE.md)), then bump `.node-version`, `engines` and `@types/node` together, run `pnpm check` and `pnpm e2e`, and update the pin in `DECISIONS.md`.
 
-- [ ] **Clear the `picomatch` high advisory (GHSA-fc5q-39xc-vjpf); CI's audit step is red until then** `Deferred`
-  - **Context:** published 2026-11-17, ReDoS in `picomatch` ≤4.0.7, no patched version. All nine paths go through `better-auth` → `vitest` (optional peer, a test tool that does not ship), so `pnpm audit --prod --audit-level high` fails the `check` job. Decided 2026-11-17: no ignore rule; CI stays red on that step until a fix is published.
-  - **Fix:** when `picomatch` ships a patched version, run `pnpm update picomatch` (or wait for `vite`/`tinyglobby` to pick it up), confirm `pnpm audit --prod --audit-level high` passes, and push.
-
 - [ ] **Clear the `esbuild` moderate advisory (GHSA-67mh-4wv8-2f99)** `Deferred`
   - **Context:** dev-only path `better-auth` → `drizzle-kit` 0.31.11 (optional peer) → `@esbuild-kit/esm-loader` → `@esbuild-kit/core-utils` → `esbuild` 0.18.20, fixed in ≥0.25.0. Risk accepted in `DECISIONS.md` (2026-10-27); CI runs `pnpm audit --prod --audit-level high`. Upgrading `better-auth` doesn't fix it; `drizzle-kit` 1.0 (now `1.0.0-rc.5`) drops `@esbuild-kit`.
   - **Fix:** when `drizzle-kit` and `drizzle-orm` 1.0 are `latest`, upgrade both as a major (relational queries v2, migrator changes), check `drizzle/`, run `pnpm db:migrate`, `pnpm test`, `pnpm e2e`, then drop `--audit-level high` from `.github/workflows/ci.yml` as `DECISIONS.md` says.
