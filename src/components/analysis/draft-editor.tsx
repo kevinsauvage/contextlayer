@@ -7,6 +7,7 @@ import { OPEN_QUESTIONS_ANCHOR } from "@/components/analysis/open-questions";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { withEditedText } from "@/core/evidence/edit";
 import { CLAIM_STATUSES, CLAIM_STATUS_LABELS, type Claim, type ClaimStatus } from "@/core/evidence/schemas";
 import { sectionItemLabel } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
@@ -62,24 +63,27 @@ type ClaimFieldsProps = {
   claim: Claim;
   label: string;
   disabled: boolean;
-  onTextChange: (text: string) => void;
-  onStatusChange: (status: ClaimStatus) => void;
+  onEdit: (patch: Partial<Claim>) => void;
   // Acceptance criteria carry a product-decision flag; description paragraphs do not.
   decision?: { checked: boolean; onChange: (checked: boolean) => void };
 };
 
 // A claim's text, status and optional product-decision flag: the two list kinds render the same fields.
-function ClaimFields({ claim, label, disabled, onTextChange, onStatusChange, decision }: ClaimFieldsProps) {
+function ClaimFields({ claim, label, disabled, onEdit, decision }: ClaimFieldsProps) {
+  const editHintId = useId();
+  const showEditHint = claim.status === "verified" && !disabled;
   return (
     <>
       <Textarea
         aria-label={label}
+        aria-describedby={showEditHint ? editHintId : undefined}
         value={claim.text}
-        onChange={(e) => onTextChange(e.target.value)}
+        onChange={(e) => onEdit(withEditedText(claim, e.target.value))}
         disabled={disabled}
       />
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <ClaimStatusField claim={claim} label={label} onChange={onStatusChange} />
+        <ClaimStatusField claim={claim} label={label} onChange={(status) => onEdit({ status })} />
+        {showEditHint && <span id={editHintId}>Editing the text makes this claim Inferred.</span>}
         {decision && (
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={decision.checked} onChange={(e) => decision.onChange(e.target.checked)} />
@@ -128,13 +132,7 @@ export function DraftEditor({
         createItem={() => ({ text: "", status: "needs_clarification" as const, evidenceIds: [] })}
         addLabel="Add paragraph"
         renderItem={(item, update, label) => (
-          <ClaimFields
-            claim={item}
-            label={label}
-            disabled={published}
-            onTextChange={(text) => update({ text })}
-            onStatusChange={(status) => update({ status })}
-          />
+          <ClaimFields claim={item} label={label} disabled={published} onEdit={update} />
         )}
       />
 
@@ -157,8 +155,7 @@ export function DraftEditor({
             claim={item}
             label={label}
             disabled={published}
-            onTextChange={(text) => update({ text })}
-            onStatusChange={(status) => update({ status })}
+            onEdit={update}
             decision={{
               checked: item.requiresProductDecision,
               onChange: (requiresProductDecision) => update({ requiresProductDecision }),

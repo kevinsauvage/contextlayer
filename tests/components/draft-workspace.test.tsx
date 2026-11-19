@@ -76,6 +76,20 @@ describe("DraftWorkspace", () => {
     expect(screen.queryByText(/quotes "math.round"/)).toBeNull();
   });
 
+  it("makes an edited Verified claim Inferred until the reviewer sets Verified again", async () => {
+    const { user } = renderWorkspace(ready, { evidence: ready.evidence });
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    const paragraph = screen.getByRole("textbox", { name: "Description paragraph 1" });
+    const status = screen.getByRole<HTMLSelectElement>("combobox", { name: "Status of description paragraph 1" });
+    expect(paragraph.getAttribute("aria-describedby")).toBeTruthy();
+
+    await user.type(paragraph, " Always.");
+
+    expect(status.value).toBe("inferred");
+    await user.selectOptions(status, "verified");
+    expect(status.value).toBe("verified");
+  });
+
   it("blocks approval while a claim does not match its evidence", async () => {
     const misquoted: TicketDraft = {
       ...ready,

@@ -20,14 +20,15 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** `src/integrations/jira/oauth.ts` requests `read:jira-work` and `write:jira-work`, which grant broad access.
   - **Fix:** switch the Atlassian app to granular scopes (read issues and projects, write issues only), update the scope list in `oauth.ts` to match, and check that search, create and update still work.
 
+- [ ] **Portfolio presentation** `P2`
+  - **Context:** ContextLayer is going on the portfolio as its AI project (decided 2026-11-19). A visitor cannot try it: production sits behind Vercel Authentication, a run needs the visitor's own GitHub and Jira, and each run spends AI credit. So the first version is screenshots, a short recording and the public source (as ComplyLoop is presented); the demo clone (Deferred, below) can replace them later. The P2 items "A Verified claim stays Verified after the reviewer rewrites it", "Audit: the original ticket isn't shown before it's overwritten" and the two analysis-progress items in [`TODO-FEATURE.md`](TODO-FEATURE.md) come first, because they show in the screenshots or contradict the story.
+  - **Fix:** capture screenshots and a short GIF locally against a real repository and Jira site (production callbacks still point at localhost): a request, the draft with its claim statuses and evidence, an open question, the approval step, an audit. Write a short `README.md` top section: the problem, the GIF, what makes it different (claim statuses, evidence validation, human approval, injection handling), and how it was evaluated. Report numbers only with their limits: the 45/48 run (four fixtures, DeepSeek) cannot be quoted without the E7 run (5 of 23); prefer the method, or rerun with the default model first ("Run the judged evals with the default generator" in [`TODO-QUALITY.md`](TODO-QUALITY.md)). Then add the case study to `next-portfolio` (its `TODO.md`).
+
 ## P3 · Later: optional features and deeper hardening
 
 - [ ] **Turn the nightly eval back on when AI credit is set aside for it** `P3`
   - **Context:** the `schedule` trigger of `.github/workflows/ai-nightly.yml` was removed on 2026-11-17 so no AI credit is spent; the workflow can still be run by hand. It has never run against a model in CI: the repository has no AI secrets.
   - **Fix:** add the `AI_API_KEY` and `AI_BASE_URL` secrets, restore the `schedule` block (`cron: "17 3 * * *"`), trigger it by hand once and confirm the injection case and its control pass.
-- [ ] **Portfolio presentation** `P3`
-  - **Context:** a portfolio visitor decides in a minute. The repository has detailed engineering documents but no short story: what it does, a screenshot or recording, and how it was evaluated.
-  - **Fix:** write a short `README.md` top section with the problem, a screenshot or GIF of a draft with its evidence, the live link (to the demo clone once it exists), and the evaluation numbers with their limits (judge and baseline, once the fair baseline exists). Link the audit and `docs/architecture/overview.md`. Do not include numbers that were not measured.
 
 - [ ] **Run a repo-aware agent as the baseline** `P3` `C2` `E2`
   - **Context:** E2 now has a retrieval-only baseline (ContextLayer's own candidates plus a plain prompt), which isolates claim statuses and citations. No baseline yet explores the repository itself, and that is the realistic alternative: an AI agent that reads the repository and Jira. C2 ("clearly better than generic AI") is unproven until that comparison is made.

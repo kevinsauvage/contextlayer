@@ -389,3 +389,8 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 
 - `postgres` 3.4.9 → 4.1.1 · it carries the fix for NUL characters in connection parameters. Checked against the local database with `drizzle-orm` 0.45.4, prepared and unprepared: Drizzle's parser and serializer overrides still apply, a `Date` written to `timestamp` and `timestamptz` columns reads back equal, keyset comparisons on a timestamp select the right rows, JSONB and transactions work. `pnpm check`, `pnpm db:migrate` and `pnpm e2e` pass. Not exercised against the hosted database before the deploy.
 - The nightly injection eval runs only when triggered by hand (`workflow_dispatch`); its schedule is removed · the owner does not want to spend AI credit on it for now, and a run without secrets failed every night.
+
+## Edited claims and the portfolio (2026-11-19)
+
+- Editing the text of a Verified claim makes it Inferred and keeps its citations (`withEditedText` in `src/core/evidence/edit.ts`); the reviewer can set Verified again · the evidence supported the generated wording, and the approval check only compares quoted tokens, so an unquoted rewording (a number, a version, a behaviour) was published as Verified. Verified is not restored automatically when the text is typed back: list items are keyed by position, so remembering the generated text per item would follow the wrong item after a removal, and one click on the status is enough.
+- ContextLayer is presented on the portfolio with screenshots, a recording and the public source, not a live demo · production stays behind Vercel Authentication, a run needs the visitor's own GitHub and Jira, and each run spends AI credit. The demo clone stays Deferred.
