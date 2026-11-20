@@ -23,14 +23,6 @@ _No open P1 items._
 
 ## P3 · Later: optional features and deeper hardening
 
-- [ ] **The end-to-end test covers only the create-and-publish path** `P3`
-  - **Context:** `tests/e2e/smoke.spec.ts` signs up, connects the fake providers, drafts and publishes. Nothing runs in a browser for the audit flow, the open-question round and chat redraft, the discard-edits confirmation, a failed run and Retry, the invitation link with a second account, or a member's read-only views, although those are the screens the portfolio screenshots show.
-  - **Fix:** on the fake providers, add specs for: an audit of the issue the smoke test published; a request whose canned draft carries an open question (make `cannedGenerator` return one when the request contains a marker word), answered then redrafted; an invitation accepted in a second browser context; and a member who sees no admin actions. Keep each spec independent with its own user.
-
-- [ ] **Most client components have no test, and the UI is outside coverage** `P3`
-  - **Context:** three component tests exist (`draft-workspace`, `failed-draft`, `ticket-chat`) for about 45 components. `ApprovalBar` (confirmation for unresolved items), `OpenQuestions` (answer, leave open, recommended option), `EditableList` (focus after add and remove), `ResourcePicker` (the filter keeps the selection), `ProjectForm` and `AuthForm` have none. `vitest.config.mts` measures coverage only for `core`, `features`, `infrastructure` and `integrations`, with thresholds of 50–55 %.
-  - **Fix:** add tests for those components with Testing Library and `user-event`, add `src/components/**` to `coverage.include`, then raise the thresholds to the measured level so they ratchet.
-
 - [ ] **Prompt-injection fixtures for exfiltration, agent steering, laundering and tag breakout** `P3`
   - **Context:** the injection fixtures (`tests/fixtures/prompt-injection`, `tests/fixtures/audit-injected-ticket`) don't cover: (1) exfiltration, where a file or ticket asks to copy a config secret or URL into the ticket; (2) agent-stage steering, where an injected file tells the agent which files to select or to stop searching, while the eval grades only the final draft; (3) laundering, where injected text comes back as an open question or option and returns in the next `<answers>` round; (4) a `</request>` breakout in an audited ticket aimed at the agent prompt (`agentPrompt` in `src/integrations/ai/evidence-agent.ts` now defuses the tag with `asText`; the fixture proves it end to end). The existing checks are literal substrings (`mustNotContain`).
   - **Fix:** add fixtures for (1)–(4) with a fake secret and a canary URL in `mustNotContain`, and assert the agent still selects the expected files.

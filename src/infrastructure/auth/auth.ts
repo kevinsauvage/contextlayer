@@ -17,7 +17,8 @@ function createAuth() {
     database: drizzleAdapter(getDb(), { provider: "pg", schema }),
     emailAndPassword: { enabled: true, minPasswordLength: 10 },
     // The default in-memory store resets on every instance, so sign-in limits would vanish on a serverless host.
-    rateLimit: { enabled: true, storage: "database" },
+    // The browser suite signs up a user per spec; the local fake-provider server has no public traffic to protect.
+    rateLimit: { enabled: !env.E2E_FAKE_PROVIDERS, storage: "database" },
     databaseHooks: {
       session: {
         create: {

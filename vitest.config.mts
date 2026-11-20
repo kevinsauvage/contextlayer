@@ -16,11 +16,19 @@ export default defineConfig({
     },
     // Component tests are `.tsx` and opt into jsdom with a `@vitest-environment` comment.
     include: ["tests/**/*.test.{ts,tsx}"],
+    setupFiles: ["tests/setup/jsdom.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/core/**", "src/features/**", "src/infrastructure/**", "src/integrations/**"],
+      include: [
+        "src/core/**",
+        "src/features/**",
+        "src/infrastructure/**",
+        "src/integrations/**",
+        "src/lib/**",
+        "src/components/**",
+      ],
       reporter: ["text-summary", "html"],
-      thresholds: { statements: 55, branches: 50, functions: 52, lines: 55 },
+      thresholds: { statements: 88, branches: 84, functions: 86, lines: 89 },
     },
     alias: { "server-only": new URL("./tests/stubs/server-only.ts", import.meta.url).pathname },
   },

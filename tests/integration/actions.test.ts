@@ -8,7 +8,7 @@ import type { TicketDraft } from "@/core/requirements/schemas";
 import { disconnectConnection } from "@/features/integrations/actions";
 import { removeMember, updateMemberRole } from "@/features/organizations/actions";
 import { createProject, deleteProject } from "@/features/projects/actions";
-import { applyAuditToTracker } from "@/features/ticket-audit/actions";
+import { applyAuditToTracker, createAuditAnalysis } from "@/features/ticket-audit/actions";
 import { createTicketAnalysis, publishTicket, refineTicket, saveDraftEdits } from "@/features/ticket-creation/actions";
 import type { Database } from "@/infrastructure/db/client";
 import * as schema from "@/infrastructure/db/schema";
@@ -116,7 +116,7 @@ const trackerProvider: TrackerProvider = {
   listResources: async () => [],
   getResource: async (_ctx, id) => (id === "SHOP" ? { id, label: "SHOP · Shop" } : null),
   openTracker: () => state.tracker,
-  parseIssueKey: () => null,
+  parseIssueKey: (_resourceId, input) => (/^SHOP-\d+$/i.test(input.trim()) ? input.trim().toUpperCase() : null),
   issueKeyExample: () => "SHOP-1",
 };
 
@@ -503,6 +503,36 @@ describe("refineTicket", () => {
     });
     expect(await refineTicket(running, { answers: [], message: "Change the title" })).toEqual({
       error: "This analysis is still running",
+    });
+  });
+});
+
+describe("createAuditAnalysis", () => {
+  const withKey = (issueKey: string) => {
+    const data = new FormData();
+    data.set("issueKey", issueKey);
+    return data;
+  };
+
+  it("asks for a key in the tracker's own format", async () => {
+    const { id } = await seedProject(state.db, "orgA", connections);
+
+    expect(await createAuditAnalysis(id, {}, withKey("not a key"))).toEqual({
+      error: "Enter an issue key like SHOP-1",
+    });
+  });
+
+  it("starts the audit and redirects to it", async () => {
+    const { id } = await seedProject(state.db, "orgA", connections);
+
+    await expect(createAuditAnalysis(id, {}, withKey("shop-12"))).rejects.toThrow(
+      `NEXT_REDIRECT:/projects/${id}/analyses/started`,
+    );
+  });
+
+  it("reports a project that no longer exists before reaching the tracker", async () => {
+    expect(await createAuditAnalysis(randomUUID(), {}, withKey("SHOP-12"))).toEqual({
+      error: "That project no longer exists. Go back to Projects.",
     });
   });
 });
