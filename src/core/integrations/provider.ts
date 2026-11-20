@@ -10,6 +10,7 @@ const PROVIDER_DESCRIPTOR_KEYS = [
   "description",
   "accountNoun",
   "resourceNoun",
+  "resourceNounPlural",
   "canAddAccount",
   "exclusive",
   "supportsSubdirectory",
@@ -56,6 +57,7 @@ type BaseProvider = {
   description: string;
   accountNoun: string;
   resourceNoun: string;
+  resourceNounPlural: string;
   // GitHub-style apps are installed per account, so "add another account" is a separate step from sign-in.
   canAddAccount: boolean;
   // An exclusive account (a GitHub App installation) may belong to one organization only.

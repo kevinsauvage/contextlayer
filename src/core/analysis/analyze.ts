@@ -63,7 +63,11 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
   const { body, usage } = await input.generator.audit({ issue, candidates });
 
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };
-  const report: AuditReport = { ...body, evidence: citedEvidence(candidates, sections) };
+  const report: AuditReport = {
+    ...body,
+    auditedIssue: { summary: issue.summary, description: issue.description },
+    evidence: citedEvidence(candidates, sections),
+  };
   const issues = [
     ...validateEvidenceReferences(report.evidence, sections, { evidenceFree: isTicketIntrinsic }),
     ...validateAuditFindings(report.findings),

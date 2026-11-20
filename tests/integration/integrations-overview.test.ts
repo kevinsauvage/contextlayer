@@ -25,6 +25,7 @@ const source: SourceProvider = {
   description: "Code",
   accountNoun: "account",
   resourceNoun: "repository",
+  resourceNounPlural: "repositories",
   canAddAccount: true,
   exclusive: true,
   supportsSubdirectory: true,
@@ -45,6 +46,7 @@ const tracker: TrackerProvider = {
   description: "Tickets",
   accountNoun: "site",
   resourceNoun: "project",
+  resourceNounPlural: "projects",
   canAddAccount: false,
   exclusive: false,
   isConfigured: () => false,
@@ -102,6 +104,7 @@ describe("resourceListsFor", () => {
       id: "throwing",
       name: "Broken tracker",
       resourceNoun: "project",
+      resourceNounPlural: "projects",
       listResources: async () => {
         throw new Error("network down");
       },

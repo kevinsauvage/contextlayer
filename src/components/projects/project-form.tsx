@@ -116,6 +116,7 @@ function ConnectionStep({ step, kind, title, description, providers, resourceLis
             list={resourceLists[current.id] ?? { error: "This connection was not loaded. Reload the page." }}
             name={`${field}ResourceId`}
             noun={current.provider.resourceNoun}
+            plural={current.provider.resourceNounPlural}
             emptyHint={`No ${current.provider.resourceNoun} is visible to this ${current.provider.name} ${current.provider.accountNoun}. Grant access in ${current.provider.name}, then reload.`}
             onSelect={onResource}
           />

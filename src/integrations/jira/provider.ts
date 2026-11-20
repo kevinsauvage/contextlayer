@@ -41,6 +41,7 @@ export const jiraProvider: TrackerProvider = {
   description: "Reads related issues, and creates or updates issues only after you approve.",
   accountNoun: "site",
   resourceNoun: "project",
+  resourceNounPlural: "projects",
   canAddAccount: false,
   exclusive: false,
 

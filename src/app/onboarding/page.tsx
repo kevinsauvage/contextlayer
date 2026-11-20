@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CenteredShell } from "@/components/layout/centered-shell";
+import { SwitchAccountButton } from "@/components/auth/switch-account-button";
 import { OnboardingForm } from "@/components/auth/onboarding-form";
 import { buttonVariants } from "@/components/ui/button";
 import { listInvitationsForUser } from "@/features/organizations/queries";
@@ -41,6 +42,10 @@ export default async function Page() {
         </div>
       )}
       <OnboardingForm />
+      <div className="flex flex-col gap-2 border-t pt-4 text-sm text-muted-foreground">
+        <span>Signed in as {session.user.email}</span>
+        <SwitchAccountButton next="/onboarding" />
+      </div>
     </CenteredShell>
   );
 }

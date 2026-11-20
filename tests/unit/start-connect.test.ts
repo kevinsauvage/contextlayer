@@ -23,6 +23,7 @@ function provider(configured = true) {
     description: "Tracker",
     accountNoun: "site",
     resourceNoun: "project",
+    resourceNounPlural: "projects",
     canAddAccount: false,
     exclusive: false,
     isConfigured: () => configured,

@@ -30,6 +30,7 @@ const provider = (complete: () => Promise<CompleteResult>): SourceProvider => ({
   description: "Source",
   accountNoun: "account",
   resourceNoun: "repository",
+  resourceNounPlural: "repositories",
   canAddAccount: true,
   exclusive: true,
   isConfigured: () => true,

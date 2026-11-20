@@ -75,6 +75,27 @@ describe("ApprovalBar", () => {
     expect(approve.title).toBe("Fix the claims that do not match their evidence first");
   });
 
+  it("asks once before overwriting an existing ticket, even when the draft is settled", async () => {
+    const onApprove = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ApprovalBar
+        {...props}
+        onApprove={onApprove}
+        publishLabel="Approve & update the Jira ticket"
+        overwrite="Replaces the title and description of SHOP-12."
+      />,
+    );
+
+    expect(screen.getByText("Nothing left to decide")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Approve & update the Jira ticket" }));
+    expect(onApprove).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain("Replaces the title and description of SHOP-12.");
+
+    await user.click(screen.getByRole("button", { name: "Replace the ticket" }));
+    expect(onApprove).toHaveBeenCalledOnce();
+  });
+
   it("waits for a redraft or a publish in flight", () => {
     const { rerender } = render(<ApprovalBar {...props} updating pending />);
     expect(screen.getByRole("button", { name: "Publishing…" })).toHaveProperty("disabled", true);

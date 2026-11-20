@@ -417,3 +417,11 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - Prompt-injection fixtures now cover exfiltration, agent steering, laundering and a `</request>` breakout; steering is measured by the files the agent still cites, laundering by a seeded answer the draft must reject, and both use canaries in `mustNotContain` · literal checks are cheap and catch the copy, while the seeded answer tests the path that could launder an injected question back in.
 - `tests/e2e/global-setup.ts` refuses any database whose name does not end in `_e2e` before dropping it · the old setup would force-drop whatever `E2E_DATABASE_URL` named, including the development database.
 - The draft prompt now states that an acceptance criterion depending on an open question names the condition, not the value, and sets `requiresProductDecision` · the repair-round half of that item still waits for the default-model run, which needs gateway credits.
+
+## Backlog polish (2026-11-20)
+
+- An audit stores the ticket it read (`auditedIssue`) inside the report and shows it above the proposal; applying it now always asks once, naming the ticket it replaces · the report is stored JSONB, so no migration is needed, and an optional field keeps old audits readable (they simply cannot show the original).
+- The analysis header keeps duration and short commit; model, tokens and the derived cost moved into a collapsed "Run details" · a tech lead reads the ticket state first, and the operator figures are one click away next to the future "How this was found" block.
+- The provider descriptor carries `resourceNounPlural`, and project counts use `countLabel` · the picker placeholder and the per-connection counts no longer pluralize provider nouns by hand; a future provider with an irregular noun only has to declare its own words.
+- Onboarding shows the signed-in address and the existing `SwitchAccountButton` · an invitee who signed up with the wrong address can switch without clearing cookies.
+- The scaffold's unused `public/*.svg` files are deleted · they read as an unfinished setup and nothing referenced them.

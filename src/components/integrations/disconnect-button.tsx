@@ -2,15 +2,14 @@
 
 import { ConfirmButton } from "@/components/confirm-button";
 import { disconnectConnection } from "@/features/integrations/actions";
+import { countLabel } from "@/lib/count";
 
 type Props = { connectionId: string; label: string; providerName: string; projectCount: number };
 
 export function DisconnectButton({ connectionId, label, providerName, projectCount }: Props) {
   if (projectCount > 0) {
     return (
-      <span className="text-xs text-muted-foreground">
-        Used by {projectCount} project{projectCount > 1 ? "s" : ""}
-      </span>
+      <span className="text-xs text-muted-foreground">Used by {countLabel(projectCount, "project", "projects")}</span>
     );
   }
 

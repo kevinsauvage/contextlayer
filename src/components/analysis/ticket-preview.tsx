@@ -7,6 +7,7 @@ import {
   type Evidence,
 } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
+import { evidenceAnchor } from "@/components/analysis/evidence-list";
 import { InlineText } from "@/components/analysis/inline-text";
 import { OPEN_QUESTIONS_ANCHOR } from "@/components/analysis/open-questions";
 import { ticketSections, type Bullet } from "@/core/requirements/render";
@@ -25,8 +26,6 @@ const MARKER: Record<ClaimStatus, string> = {
   needs_clarification: "bg-warning",
 };
 
-const evidenceAnchor = (id: string) => `evidence-${id}`;
-
 type EvidenceById = Map<string, Evidence>;
 
 function StatusMark({ status }: { status?: ClaimStatus }) {
@@ -34,7 +33,9 @@ function StatusMark({ status }: { status?: ClaimStatus }) {
   if (status === "verified")
     return (
       <>
-        <CircleCheck aria-hidden className="mr-1 inline size-3.5 -translate-y-px text-success" />
+        <span className="mr-1 inline-block -translate-y-px" title="Verified">
+          <CircleCheck aria-hidden className="inline size-3.5 text-success" />
+        </span>
         <span className="sr-only">Verified: </span>
       </>
     );
@@ -149,18 +150,27 @@ function ClaimSummary({ draft }: { draft: TicketDraft }) {
     count: claims.filter((claim) => claim.status === status).length,
   })).filter(({ count }) => count > 0);
   return (
-    <ul className="flex flex-col gap-2">
-      {counts.map(({ status, count }) => (
-        <li key={status} className="flex flex-col">
-          <span className="flex items-center gap-2">
-            <span aria-hidden className={cn("size-2 rounded-full", MARKER[status])} />
-            <span className="font-medium">{CLAIM_STATUS_LABELS[status]}</span>
-            <span className="ml-auto text-muted-foreground tabular-nums">{count}</span>
-          </span>
-          <span className="pl-4 text-xs text-muted-foreground">{CLAIM_STATUS_DESCRIPTIONS[status]}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="flex flex-col gap-2">
+        {counts.map(({ status, count }) => (
+          <li key={status} className="flex flex-col">
+            <span className="flex items-center gap-2">
+              {status === "verified" ? (
+                <CircleCheck aria-hidden className="size-3.5 text-success" />
+              ) : (
+                <span aria-hidden className={cn("size-2 rounded-full", MARKER[status])} />
+              )}
+              <span className="font-medium">{CLAIM_STATUS_LABELS[status]}</span>
+              <span className="ml-auto text-muted-foreground tabular-nums">{count}</span>
+            </span>
+            <span className="pl-4 text-xs text-muted-foreground">{CLAIM_STATUS_DESCRIPTIONS[status]}</span>
+          </li>
+        ))}
+      </ul>
+      {counts.some(({ status }) => status === "verified") && (
+        <p className="text-xs text-muted-foreground">✓ = Verified, with citations</p>
+      )}
+    </>
   );
 }
 

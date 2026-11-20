@@ -22,10 +22,6 @@
   - **Context:** while a run is `running`, the user sees only a pending label ("Refresh in a moment": `action-form.tsx:93-96`, `ticket-chat.tsx:84`, `analyses/[analysisId]/page.tsx:101`), although the run passes through distinct stages (reading code, related issues, drafting, validating). Depends on "Run analyses in the background with `after()`". The groom proposes P3 for this one.
   - **Fix:** add a nullable `step` column on `analysis`. Have `draftTicket`/`auditIssue` report stages through an optional `onStep` callback that `run.ts` writes to the row, and render the steps as a checklist on the polling analysis page.
 
-- [ ] **Audit: the original ticket isn't shown before it's overwritten** `P2`
-  - **Context:** `AuditView` shows the summary, findings and proposed ticket but never the current ticket text (`src/components/analysis/audit-view.tsx:21-58`); the audited ticket (`e1`) survives only if a finding cites it, as a collapsed excerpt (`src/core/analysis/analyze.ts:58-63`). "Approve & update the Jira ticket" replaces `summary` and `description` (`src/integrations/jira/client.ts:191-192`) in one click when nothing is unresolved (`draft-workspace.tsx:233`).
-  - **Fix:** store the fetched issue's title and description with the audit result, next to `issueUpdatedAt`; show a "Current ticket" / "Proposed" comparison above the approval bar; always confirm before overwriting ("Replaces the title and description of SHOP-12").
-
 - [ ] **Account settings: profile, password and account deletion** `P2`
   - **Context:** found in the 2026-11-20 portfolio review. The user menu offers only the theme and sign-out (`src/components/layout/user-menu.tsx`); there is no page to change one's name or password, and no way to delete an account, which a public sign-up needs (GDPR erasure). Deleting a user would also fail today: `analysis.created_by_user_id` and `integration_connection.connected_by_user_id` reference `user` without an `onDelete` rule (`src/infrastructure/db/schema/app.ts:31`, `:81`), while `analysis_run` cascades.
   - **Fix:** add `/settings/account` with Better Auth's `updateUser` and `changePassword` (revoking other sessions), and enable `user.deleteUser` in `src/infrastructure/auth/auth.ts` behind a typed confirmation like `DeleteOrganization`. Decide what an analysis or connection keeps when its author leaves (make the columns nullable with `onDelete: "set null"`, plus a migration), refuse deletion while the user is the last owner of an organization, record the choice in `DECISIONS.md`, and link the page from the user menu.
@@ -64,29 +60,9 @@
   - **Context:** create analyses have `TicketChat` and structured answers through one action, `refineTicket` (`src/features/ticket-creation/actions.ts:109`, via `redraft`, which loads only `kind: "create"`). `AuditView` (`src/components/analysis/audit-view.tsx`) shows the proposed ticket's questions read-only and cannot re-run in place, although the outdated-result copy (`outdated-result.tsx`, `audit-view.tsx:19,56`) and the stale-issue error (`src/features/ticket-audit/actions.ts:73`) tell the user to re-run.
   - **Fix:** first slice: a "Run again" button that re-audits the same issue key. Then let `redraft` accept the audit kind and re-run `auditIssue` with the merged answers and messages (add an `answers` input to `auditIssue` and the audit prompt), store them in the audit's `StoredAnalysisInput`, and render `TicketChat` in `AuditView`.
 
-- [ ] **The Verified mark has no visible label, and the legend matches it by colour only** `P3`
-  - **Context:** other statuses show text pills, but Verified is a green check with screen-reader-only text (`src/components/analysis/ticket-preview.tsx:32-40`), and the "Claims" legend marks it with a green dot, not the check (`:21-26,156`). Product accessibility rule: status is never shown by colour alone.
-  - **Fix:** show the check icon in the legend, add `title="Verified"` to the inline check, and add a one-line key under the legend: "✓ = Verified, with citations".
-
-- [ ] **Integrations page gives no next step after connecting** `P3`
-  - **Context:** the setup checklist links to `/settings/integrations` with no `returnTo` (`src/app/(app)/projects/page.tsx:55,62`), so after the OAuth round trip the user sees "X connected." with no way forward. A connected provider's button says "Refresh access", which is unclear (`src/components/integrations/provider-card.tsx:82`).
-  - **Fix:** use `connectHref(provider, { returnTo: "/projects" })` in the checklist; show "Next: create a project →" when a code source and a tracker are connected; rename the button "Reconnect or change access".
-
-- [ ] **Onboarding has no sign-out or account switch** `P3`
-  - **Context:** `/onboarding` renders only the organization form (`src/app/onboarding/page.tsx:20-39`). Invitations are listed only for the signed-in address, so an invitee who signed up with the wrong email can't switch accounts without clearing cookies. `SwitchAccountButton` exists but only the invitation page uses it.
-  - **Fix:** add "Signed in as {email} · Use another account" (`SwitchAccountButton`) under the onboarding form.
-
-- [ ] **The analysis header leads with model ID, token counts and cost** `P3`
-  - **Context:** the header shows `model · 12.3s · 4567 in / 890 out tokens · $0.0123 · commit abc123` to every member (`src/app/(app)/projects/[projectId]/analyses/[analysisId]/page.tsx:80-89`), operator detail where the tech lead looks for the ticket's state.
-  - **Fix:** keep commit and duration in the header; move model, tokens and cost into a collapsed "Run details" block, which can later hold "How this was found".
-
 - [ ] **Clicking an evidence warning doesn't move focus to the claim** `P3`
   - **Context:** `showClaim` switches to Edit, scrolls and rings the whole section for 2.5 s, but focus stays on the warning button and the claim isn't marked (`src/components/analysis/draft-workspace.tsx:100-109`).
   - **Fix:** focus the textarea of the named claim (`description[i]` or `acceptanceCriteria[i]`) and set `aria-invalid` on it until the issue clears.
-
-- [ ] **Audit findings show raw evidence IDs and unrendered inline code** `P3`
-  - **Context:** findings show "Evidence: e1, e3" as plain text (`src/components/analysis/audit-view.tsx:32-34`), and `finding.text` and `suggestion` skip `InlineText`, so backticks show raw (`:36-37`).
-  - **Fix:** render the IDs as anchors to `EvidenceList` items (add an `id` per item), as `Citations` does in the preview, and wrap the text in `InlineText`.
 
 ## Deferred · business validation, not needed for the portfolio
 

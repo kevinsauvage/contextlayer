@@ -196,6 +196,7 @@ export function DraftWorkspace({
           pending={pending}
           updating={updating}
           onApprove={approve}
+          overwrite={existingKey ? `Replaces the title and description of ${existingKey}.` : undefined}
         />
       )}
     </div>

@@ -18,8 +18,8 @@ import { plainInline } from "@/core/requirements/render";
 import { draftReadiness } from "@/core/requirements/readiness";
 import { isFollowUp, type Clarification } from "@/core/requirements/schemas";
 import { answersOf, firstLine, requestOf } from "@/features/analysis/input";
-import { canRefineAnalysis, readAnalysis, revisionChange, runSummary } from "@/features/analysis/read";
-import { getAnalysis } from "@/features/projects/queries";
+import { canRefineAnalysis, readAnalysis, revisionChange, runDetails, runSummary } from "@/features/analysis/read";
+import { getAnalysis, type Analysis } from "@/features/projects/queries";
 import { refineTicket, retryAnalysis } from "@/features/ticket-creation/actions";
 import { projectIntegrations } from "@/features/projects/view";
 import { requireOrgContext } from "@/infrastructure/auth/session";
@@ -82,6 +82,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
     return (
       <div className="flex flex-col gap-6">
         {header}
+        <RunDetails analysis={analysis} />
         {analysis.status === "failed" && <FailedAlert error={analysis.error} />}
         {analysis.status === "running" && (
           <p className="text-muted-foreground" role="status">
@@ -113,6 +114,7 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
   return (
     <div className="flex flex-col gap-6">
       {header}
+      <RunDetails analysis={analysis} />
       <RefinementProvider
         key={runKey}
         questions={questions}
@@ -166,6 +168,17 @@ export default async function Page({ params }: PageProps<"/projects/[projectId]/
         </div>
       </RefinementProvider>
     </div>
+  );
+}
+
+function RunDetails({ analysis }: { analysis: Analysis }) {
+  const details = runDetails(analysis);
+  if (!details) return null;
+  return (
+    <details className="w-fit text-sm text-muted-foreground">
+      <summary className="cursor-pointer hover:text-foreground">Run details</summary>
+      <p className="mt-1">{details}</p>
+    </details>
   );
 }
 

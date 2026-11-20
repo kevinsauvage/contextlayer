@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { connectHref } from "@/features/integrations/notices";
+import { countLabel } from "@/lib/count";
 import type { ProviderOverview } from "@/features/integrations/overview";
 
 type Props = { provider: ProviderOverview; isAdmin: boolean; returnTo?: string };
@@ -58,7 +59,7 @@ export function ProviderCard({ provider, isAdmin, returnTo }: Props) {
                 ) : (
                   connection.projectCount > 0 && (
                     <span className="text-xs text-muted-foreground">
-                      {connection.projectCount} project{connection.projectCount > 1 ? "s" : ""}
+                      {countLabel(connection.projectCount, "project", "projects")}
                     </span>
                   )
                 )}
@@ -79,7 +80,11 @@ export function ProviderCard({ provider, isAdmin, returnTo }: Props) {
               href={connectHref(provider.id, { returnTo })}
               className={buttonVariants({ variant: connections.length && !needsReconnect ? "outline" : "default" })}
             >
-              {needsReconnect ? "Reconnect" : connections.length ? "Refresh access" : `Connect ${provider.name}`}
+              {needsReconnect
+                ? "Reconnect"
+                : connections.length
+                  ? "Reconnect or change access"
+                  : `Connect ${provider.name}`}
             </a>
             {provider.canAddAccount && connections.length > 0 && (
               <a href={connectHref(provider.id, { add: true })} className={buttonVariants({ variant: "ghost" })}>

@@ -22,6 +22,7 @@ describe("ResourcePicker", () => {
       <ResourcePicker
         name="sourceResourceId"
         noun="repository"
+        plural="repositories"
         emptyHint="Nothing"
         list={{ error: "The grant expired" }}
         onSelect={vi.fn()}
@@ -38,6 +39,7 @@ describe("ResourcePicker", () => {
       <ResourcePicker
         name="sourceResourceId"
         noun="repository"
+        plural="repositories"
         emptyHint="No repository"
         list={{ resources: [] }}
         onSelect={vi.fn()}
@@ -52,6 +54,7 @@ describe("ResourcePicker", () => {
       <ResourcePicker
         name="sourceResourceId"
         noun="repository"
+        plural="repositories"
         emptyHint="Nothing"
         list={{ resources: resources(3) }}
         onSelect={vi.fn()}
@@ -69,6 +72,7 @@ describe("ResourcePicker", () => {
       <ResourcePicker
         name="sourceResourceId"
         noun="repository"
+        plural="repositories"
         emptyHint="Nothing"
         list={{ resources: resources(8) }}
         onSelect={onSelect}
@@ -98,6 +102,7 @@ describe("ResourcePicker", () => {
       <ResourcePicker
         name="trackerResourceId"
         noun="project"
+        plural="projects"
         emptyHint="Nothing"
         list={{ resources: resources(1) }}
         onSelect={vi.fn()}

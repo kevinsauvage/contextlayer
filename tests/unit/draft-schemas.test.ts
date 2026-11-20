@@ -55,3 +55,31 @@ describe("boundRefinements", () => {
     expect(older.message.length + newest.message.length).toBeGreaterThan(MAX_REFINEMENT_CHARS);
   });
 });
+
+describe("auditReportSchema", () => {
+  const report = {
+    summary: "Gaps found.",
+    findings: [],
+    proposedTicket: {
+      title: "Round totals",
+      description: [{ text: "Totals round down.", status: "inferred" }],
+      acceptanceCriteria: [],
+      assumptions: [],
+      openQuestions: [],
+    },
+    evidence: [],
+  };
+
+  it("keeps the audit valid without the stored original, for reports written before it existed", async () => {
+    const { auditReportSchema } = await import("@/core/audit/schemas");
+    expect(auditReportSchema.parse(report).auditedIssue).toBeUndefined();
+  });
+
+  it("stores the ticket as it read when the audit ran", async () => {
+    const { auditReportSchema } = await import("@/core/audit/schemas");
+    expect(
+      auditReportSchema.parse({ ...report, auditedIssue: { summary: "Cart", description: "Rounds oddly" } })
+        .auditedIssue,
+    ).toEqual({ summary: "Cart", description: "Rounds oddly" });
+  });
+});

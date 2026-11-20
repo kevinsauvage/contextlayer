@@ -75,6 +75,7 @@ export const githubProvider: SourceProvider = {
   description: "Read-only access to the repositories you choose, through the ContextLayer GitHub App.",
   accountNoun: "account",
   resourceNoun: "repository",
+  resourceNounPlural: "repositories",
   canAddAccount: true,
   exclusive: true,
   supportsSubdirectory: true,

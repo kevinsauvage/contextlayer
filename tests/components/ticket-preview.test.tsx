@@ -53,6 +53,8 @@ describe("TicketPreview", () => {
     expect(screen.getByText("New issue")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Round cart totals" })).toBeTruthy();
     expect(screen.getByText("Verified:")).toBeTruthy();
+    expect(document.querySelector('[title="Verified"]')).toBeTruthy();
+    expect(screen.getByText("✓ = Verified, with citations")).toBeTruthy();
     expect(screen.getAllByText("Needs clarification").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Inferred").length).toBeGreaterThan(0);
     expect(screen.getByText(/Totals round half up/)).toBeTruthy();

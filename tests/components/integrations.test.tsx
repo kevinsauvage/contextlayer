@@ -37,6 +37,7 @@ const provider = (overrides: Partial<ProviderOverview> = {}): ProviderOverview =
   description: "Read-only repositories",
   accountNoun: "account",
   resourceNoun: "repository",
+  resourceNounPlural: "repositories",
   canAddAccount: true,
   exclusive: true,
   supportsSubdirectory: true,
@@ -90,7 +91,7 @@ describe("ProviderCard", () => {
   it("offers refresh access, another account and disconnect to an admin", () => {
     render(<ProviderCard provider={provider({ connections: [connection()] })} isAdmin />);
 
-    expect(screen.getByRole("link", { name: "Refresh access" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Reconnect or change access" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Add another account" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Disconnect" })).toBeTruthy();
   });

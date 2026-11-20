@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./a11y";
 import { approveAndPublish, createProject, draftTicket, openProjectSection, signUp } from "./helpers";
 
 // Audit the issue a create run just published, then apply the proposal to it.
@@ -18,8 +19,13 @@ test("a user audits a published ticket and applies the proposal", async ({ page 
   await expect(page.getByText("Sample audit.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Proposed ticket" })).toBeVisible();
   await expect(page.getByText("No findings.")).toBeVisible();
+  await expectNoA11yViolations(page, "audit");
 
   await page.getByRole("button", { name: "Approve & update the Sample tracker ticket" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: `Replaces the title and description of ${key}` }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Replace the ticket" }).click();
   await expect(page.getByRole("status").filter({ hasText: `Updated ${key} in Sample tracker` })).toBeVisible();
   await expect(page.getByRole("link", { name: new RegExp(`Open ${key}`) })).toHaveAttribute(
     "href",

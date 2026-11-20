@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Evidence } from "@/core/evidence/schemas";
 import { parseApprovedDraft } from "@/features/analysis/approved-draft";
 import {
+  canRefineAnalysis,
   readAnalysis,
   revisionChange,
+  runDetails,
   runSummary,
-  canRefineAnalysis,
   storedDraft,
   storedEvidence,
 } from "@/features/analysis/read";
@@ -188,28 +189,47 @@ describe("runSummary", () => {
     ...overrides,
   });
 
-  it("lists the model, latency, tokens, derived cost and short commit of a completed run", () => {
-    expect(runSummary(run())).toBe("deepseek-flash · 12.3s · 1000 in / 500 out tokens · $0.0004 · commit abcdef1");
+  it("keeps the duration and short commit in the header", () => {
+    expect(runSummary(run())).toBe("12.3s · commit abcdef1");
   });
 
-  it("adds the derived cost when the model is priced", () => {
-    // deepseek-flash is $0.15 / $0.60 per million tokens.
-    expect(runSummary(run())).toContain("$0.0004");
-  });
-
-  it("omits the cost for an unlisted model", () => {
-    expect(runSummary(run({ model: "unknown/model" }))).not.toContain("$");
-  });
-
-  it("shows zero tokens when a run did not report any, and no commit when none is stored", () => {
-    expect(runSummary(run({ inputTokens: null, outputTokens: null, sourceRevision: null }))).toBe(
-      "deepseek-flash · 12.3s · 0 in / 0 out tokens",
-    );
+  it("shows only the duration when no commit is stored", () => {
+    expect(runSummary(run({ sourceRevision: null }))).toBe("12.3s");
   });
 
   it("prints nothing for a run that is not completed", () => {
     expect(runSummary(run({ status: "running" }))).toBeNull();
     expect(runSummary(run({ status: "failed" }))).toBeNull();
+  });
+});
+
+describe("runDetails", () => {
+  type Run = Parameters<typeof runDetails>[0];
+  const run = (overrides: Partial<Run> = {}): Run => ({
+    status: "completed",
+    model: "deepseek-flash",
+    latencyMs: 12_345,
+    inputTokens: 1_000,
+    outputTokens: 500,
+    sourceRevision: "abcdef1234567890",
+    ...overrides,
+  });
+
+  it("lists the model, tokens and derived cost behind the details toggle", () => {
+    // deepseek-flash is $0.15 / $0.60 per million tokens.
+    expect(runDetails(run())).toBe("deepseek-flash · 1000 in / 500 out tokens · $0.0004");
+  });
+
+  it("omits the cost for an unlisted model", () => {
+    expect(runDetails(run({ model: "unknown/model" }))).toBe("unknown/model · 1000 in / 500 out tokens");
+  });
+
+  it("shows zero tokens when a run did not report any", () => {
+    expect(runDetails(run({ inputTokens: null, outputTokens: null }))).toBe("deepseek-flash · 0 in / 0 out tokens");
+  });
+
+  it("prints nothing for a run that is not completed", () => {
+    expect(runDetails(run({ status: "running" }))).toBeNull();
   });
 });
 

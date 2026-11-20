@@ -1,5 +1,3 @@
-"use client";
-
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +17,8 @@ type Props = {
   pending: boolean;
   updating: boolean;
   onApprove: () => void;
+  // An existing ticket is overwritten, so even a settled draft asks once before replacing it.
+  overwrite?: string;
 };
 
 // The approval bar: the state of the draft, the Approve button, and the confirmation for unresolved but publishable items.
@@ -33,8 +33,10 @@ export function ApprovalBar({
   pending,
   updating,
   onApprove,
+  overwrite,
 }: Props) {
   const [confirming, setConfirming] = useState(false);
+  const asksFirst = unresolved.length > 0 || Boolean(overwrite);
 
   const approve = () => {
     setConfirming(false);
@@ -76,7 +78,7 @@ export function ApprovalBar({
                   ? "The draft is being redrafted"
                   : undefined
             }
-            onClick={() => (unresolved.length ? setConfirming(true) : approve())}
+            onClick={() => (asksFirst ? setConfirming(true) : approve())}
           >
             {pending ? "Publishing…" : updating ? "Waiting for the draft…" : publishLabel}
           </Button>
@@ -84,14 +86,22 @@ export function ApprovalBar({
       </div>
       {confirming && (
         <div role="alert" className="flex flex-col gap-2 rounded-lg bg-warning/10 p-3 text-sm">
-          <p>
-            <span className="font-medium">Still unresolved: {unresolved.join(" · ")}.</span> Open questions and claims
-            that need clarification are published labelled in {trackerName}.
-            {unappliedAnswers > 0 && " Answers you have not applied are not included."}
-          </p>
+          {unresolved.length > 0 && (
+            <p>
+              <span className="font-medium">Still unresolved: {unresolved.join(" · ")}.</span> Open questions and claims
+              that need clarification are published labelled in {trackerName}.
+            </p>
+          )}
+          {overwrite && (
+            <p>
+              <span className="font-medium">{overwrite}</span> Compare it with the current ticket above before replacing
+              it.
+            </p>
+          )}
+          {unappliedAnswers > 0 && <p>Answers you have not applied are not included.</p>}
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" onClick={approve}>
-              Publish anyway
+              {overwrite ? "Replace the ticket" : "Publish anyway"}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(false)}>
               Keep editing

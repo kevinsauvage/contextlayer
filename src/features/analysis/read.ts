@@ -58,21 +58,29 @@ export function revisionChange(
 }
 
 // The header line for a completed run; the page shows it under the title.
-export function runSummary(
-  analysis: Pick<Analysis, "status" | "model" | "latencyMs" | "inputTokens" | "outputTokens" | "sourceRevision">,
-): string | null {
+type RunFields = Pick<Analysis, "status" | "model" | "latencyMs" | "inputTokens" | "outputTokens" | "sourceRevision">;
+
+// The header keeps what a reader needs to trust the draft: how long it took and which commit it read.
+export function runSummary(analysis: RunFields): string | null {
   if (analysis.status !== "completed") return null;
-  // Cost is derived when the page renders, not stored: the price table may change without touching a row.
+  return [
+    `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
+    ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
+  ].join(" · ");
+}
+
+// Model, tokens and the derived price are operator detail, so they sit behind "Run details".
+// Cost is derived when the page renders, not stored: the price table may change without touching a row.
+export function runDetails(analysis: RunFields): string | null {
+  if (analysis.status !== "completed") return null;
   const costUsd =
     analysis.inputTokens === null || analysis.outputTokens === null
       ? null
       : estimateCostUsd(analysis.model, { inputTokens: analysis.inputTokens, outputTokens: analysis.outputTokens });
   return [
     analysis.model ?? "Unknown model",
-    `${((analysis.latencyMs ?? 0) / 1000).toFixed(1)}s`,
     `${analysis.inputTokens ?? 0} in / ${analysis.outputTokens ?? 0} out tokens`,
     ...(costUsd === null ? [] : [`$${costUsd.toFixed(4)}`]),
-    ...(analysis.sourceRevision ? [`commit ${shortRevision(analysis.sourceRevision)}`] : []),
   ].join(" · ");
 }
 

@@ -10,13 +10,15 @@ import type { Resource, ResourceList } from "@/core/integrations/provider";
 type Props = {
   name: string;
   noun: string;
+  // The plural is the provider's own word ("repositories", not "repositorys").
+  plural: string;
   emptyHint: string;
   list: ResourceList;
   onSelect: (resource: Resource) => void;
 };
 
 // Only filters and selects: the list itself is loaded by the Server Component that renders it.
-export function ResourcePicker({ name, noun, emptyHint, list, onSelect }: Props) {
+export function ResourcePicker({ name, noun, plural, emptyHint, list, onSelect }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string>();
@@ -56,7 +58,7 @@ export function ResourcePicker({ name, noun, emptyHint, list, onSelect }: Props)
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${resources.length} ${noun === "repository" ? "repositories" : `${noun}s`}`}
+            placeholder={`Search ${resources.length} ${plural}`}
             aria-label={`Search ${noun}`}
             className="pl-8"
           />

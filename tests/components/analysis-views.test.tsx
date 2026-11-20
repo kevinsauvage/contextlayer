@@ -59,6 +59,10 @@ const proposal: TicketDraft = {
 };
 
 const report: AuditReport = {
+  auditedIssue: {
+    summary: "Cart total",
+    description: "Rounds oddly.\nUses `Math.floor` today.",
+  },
   summary: "The ticket leaves rounding ambiguous.",
   findings: [
     {
@@ -113,7 +117,10 @@ describe("AuditView", () => {
     expect(screen.getByText(/Say half up/)).toBeTruthy();
     expect(screen.getByText("The code rounds down.")).toBeTruthy();
     expect(screen.getByText("ambiguity")).toBeTruthy();
-    expect(screen.getByText("Evidence: e1")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Evidence e1" }).getAttribute("href")).toBe("#evidence-e1");
+    expect(screen.getByText("Current ticket")).toBeTruthy();
+    expect(screen.getByText("Cart total")).toBeTruthy();
+    expect(screen.getByText(/Uses/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Proposed ticket" })).toBeTruthy();
     expect(screen.getByText("SHOP-12")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve & update the Jira ticket" })).toBeTruthy();
@@ -134,6 +141,8 @@ describe("AuditView", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Approve & update the Jira ticket" }));
+    expect(screen.getByRole("alert").textContent).toContain("Replaces the title and description of SHOP-12.");
+    await user.click(screen.getByRole("button", { name: "Replace the ticket" }));
 
     await waitFor(() => expect(actions.applyAuditToTracker).toHaveBeenCalledWith("a1", proposal));
     expect(await screen.findByText(/Updated SHOP-12 in Jira/)).toBeTruthy();

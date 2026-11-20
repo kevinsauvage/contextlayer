@@ -1,12 +1,18 @@
 import type { Evidence } from "@/core/evidence/schemas";
 import { Badge } from "@/components/ui/badge";
 
+export const evidenceAnchor = (id: string) => `evidence-${id}`;
+
 export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
   if (!evidence.length) return <p className="text-sm text-muted-foreground">No evidence was cited.</p>;
   return (
     <ul className="flex flex-col gap-2">
       {evidence.map((item) => (
-        <li key={item.id} className="rounded-lg border p-3 text-sm">
+        <li
+          key={item.id}
+          id={evidenceAnchor(item.id)}
+          className="scroll-mt-24 rounded-lg border p-3 text-sm target:ring-2 target:ring-brand/30"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{item.id}</Badge>
             <span className="text-muted-foreground">{item.kind.replace("_", " ")}</span>
