@@ -11,6 +11,7 @@ import { createOrganization } from "@/features/organizations/actions";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
 import { firstIssueMessage } from "@/lib/zod";
+import { textOr } from "@/lib/text";
 
 export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: string }) {
   const router = useRouter();
@@ -27,7 +28,14 @@ export function OnboardingForm({ submitLabel = "Continue" }: { submitLabel?: str
       const created = await createOrganization(name);
       if (created.error) return created;
       if (!created.organizationId) return { error: "Could not create the organization. Try again." };
-      await authClient.organization.setActive({ organizationId: created.organizationId });
+      const activation = await authClient.organization.setActive({ organizationId: created.organizationId });
+      if (activation.error)
+        return {
+          error: textOr(
+            activation.error.message,
+            "The organization was created but could not be opened. Reload the page.",
+          ),
+        };
       router.push("/projects");
       router.refresh();
       return {};

@@ -2,7 +2,6 @@
 
 import { Check, ChevronsUpDown, Plus, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,7 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { notifyError } from "@/components/ui/toast";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
+import { textOr } from "@/lib/text";
 
 type Organization = { id: string; name: string; role: string };
 
@@ -27,14 +29,17 @@ export function OrgSwitcher({
   className?: string;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useMutation({
+    onSuccess: () => router.push("/projects"),
+    onError: notifyError,
+    refresh: true,
+  });
   const active = organizations.find((org) => org.id === activeId);
 
   const switchTo = (organizationId: string) =>
-    startTransition(async () => {
-      await authClient.organization.setActive({ organizationId });
-      router.push("/projects");
-      router.refresh();
+    run(async () => {
+      const { error } = await authClient.organization.setActive({ organizationId });
+      return error ? { error: textOr(error.message, "Could not switch organization. Try again.") } : {};
     });
 
   return (
@@ -44,7 +49,7 @@ export function OrgSwitcher({
           <Button
             variant="ghost"
             className={`max-w-56 justify-start gap-2 px-2 ${className ?? ""}`}
-            aria-label="Switch organization"
+            aria-label={`${active?.name ?? "Organization"}, switch organization`}
           />
         }
         disabled={pending}

@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import pRetry from "p-retry";
 import slugify from "slugify";
 import { z } from "zod";
+import { errorSummary } from "@/core/errors";
 import {
   INVITABLE_ROLES,
   OWNER_ROLE,
@@ -43,7 +44,7 @@ function failure(error: unknown, fallback: string): ActionState {
   if (error instanceof APIError) return { error: error.message || retry(fallback) };
   const known = toActionError(error);
   if (known) return known;
-  console.error("[organizations]", error);
+  console.error("[organizations]", errorSummary(error));
   return { error: retry(fallback) };
 }
 
@@ -170,7 +171,7 @@ async function nextOrganizationPath(userId: string): Promise<Route> {
     });
     return "/projects";
   } catch (error) {
-    console.error("[organizations] could not activate the next organization", error);
+    console.error("[organizations] could not activate the next organization", errorSummary(error));
     return "/onboarding";
   }
 }

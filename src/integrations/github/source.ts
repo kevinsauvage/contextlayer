@@ -1,7 +1,7 @@
 import "server-only";
 import type { Octokit } from "octokit";
 import type { ContextSource, LineRange, SearchResult } from "@/core/context/source";
-import { ConnectionMissingError, ReconnectRequiredError, httpStatusOf } from "@/core/errors";
+import { ConnectionMissingError, ReconnectRequiredError, errorSummary, httpStatusOf } from "@/core/errors";
 import { getGithubApp, type RepoRef } from "./app";
 import {
   isIgnoredPath,
@@ -185,7 +185,7 @@ export class GithubSource implements ContextSource {
       } catch (error) {
         // Rate limits (10 code searches a minute) and unparsable terms must not fail retrieval, but the caller has to
         // know the term went unsearched rather than unmatched.
-        console.warn(`[github] code search failed for "${term}"`, error instanceof Error ? error.message : error);
+        console.warn(`[github] code search failed for "${term}"`, errorSummary(error));
         failedTerms.push(term);
       }
     }

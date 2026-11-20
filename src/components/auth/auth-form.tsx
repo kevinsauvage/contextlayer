@@ -11,6 +11,7 @@ import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
 import { formString } from "@/lib/form";
 import { safePath } from "@/lib/safe-path";
+import { textOr } from "@/lib/text";
 
 export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: string }) {
   const router = useRouter();
@@ -28,9 +29,10 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next?: s
         : await authClient.signIn.email({ email, password });
       if (error)
         return {
-          error:
-            error.message ??
-            (signingUp ? "Could not create your account. Try again." : "Could not sign you in. Try again."),
+          error: textOr(
+            error.message,
+            signingUp ? "Could not create your account. Try again." : "Could not sign you in. Try again.",
+          ),
         };
       router.push(destination);
       router.refresh();

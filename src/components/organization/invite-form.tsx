@@ -52,7 +52,7 @@ export function InviteForm() {
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3 text-sm"
         >
           <span>Invitation for {invitation.email} created. Send them the link; it expires in 48 hours.</span>
-          <CopyLinkButton path={`/invitations/${invitation.id}`} />
+          <CopyLinkButton path={`/invitations/${invitation.id}`} fieldLabel="Invitation link" />
         </div>
       )}
     </div>

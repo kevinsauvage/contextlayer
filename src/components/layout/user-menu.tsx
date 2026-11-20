@@ -15,7 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { notifyError } from "@/components/ui/toast";
+import { useMutation } from "@/components/use-mutation";
 import { authClient } from "@/infrastructure/auth/client";
+import { textOr } from "@/lib/text";
 
 const THEMES = [
   { value: "system", label: "System", Icon: Monitor },
@@ -43,6 +46,7 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const { theme = "system", setTheme } = useTheme();
+  const { run, pending } = useMutation({ onError: notifyError });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -51,7 +55,7 @@ export function UserMenu({
             variant="ghost"
             className={variant === "full" ? "h-auto w-full justify-start gap-2.5 px-2 py-2" : "rounded-full"}
             size={variant === "full" ? "default" : "icon"}
-            aria-label="Account"
+            aria-label={`${name}, account`}
           />
         }
       >
@@ -85,11 +89,16 @@ export function UserMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={async () => {
-            await authClient.signOut();
-            router.push("/sign-in");
-            router.refresh();
-          }}
+          disabled={pending}
+          onClick={() =>
+            run(async () => {
+              const { error } = await authClient.signOut();
+              if (error) return { error: textOr(error.message, "Could not sign you out. Try again.") };
+              router.push("/sign-in");
+              router.refresh();
+              return {};
+            })
+          }
         >
           <LogOut /> Sign out
         </DropdownMenuItem>

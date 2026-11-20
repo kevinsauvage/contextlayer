@@ -3,7 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Reserved space for the project form while its connection lists load on the server.
 export function ProjectFormSkeleton() {
   return (
-    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading connections">
+    <div className="flex flex-col gap-4" role="status">
+      <span className="sr-only">Loading connections</span>
       {[1, 2].map((step) => (
         <div key={step} className="flex flex-col gap-3 rounded-xl border p-4">
           <Skeleton className="h-5 w-24" />

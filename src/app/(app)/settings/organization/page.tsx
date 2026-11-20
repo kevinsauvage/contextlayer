@@ -90,7 +90,7 @@ export default async function Page() {
                       <Badge variant="outline" className="capitalize">
                         {invitation.role ?? MEMBER_ROLE}
                       </Badge>
-                      <CopyLinkButton path={`/invitations/${invitation.id}`} />
+                      <CopyLinkButton path={`/invitations/${invitation.id}`} fieldLabel="Invitation link" />
                       <CancelInvitationButton invitationId={invitation.id} />
                     </li>
                   ))}
