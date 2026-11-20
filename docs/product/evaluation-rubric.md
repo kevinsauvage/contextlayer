@@ -1,6 +1,6 @@
 # Evaluation rubric
 
-Score each draft 0–2 per criterion (0 = fails, 1 = partial, 2 = good). Compare: original ticket, generic-AI baseline, ContextLayer. A developer or tech lead reviews; record failures too.
+Score each draft 0–2 per criterion (0 = fails, 1 = partial, 2 = good). Compare: original ticket, generic-AI baseline, retrieval-only baseline, ContextLayer. A developer or tech lead reviews; record failures too.
 
 | Criterion             | Question                                                |
 | --------------------- | ------------------------------------------------------- |

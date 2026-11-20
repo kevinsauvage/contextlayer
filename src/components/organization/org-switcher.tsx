@@ -45,20 +45,18 @@ export function OrgSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            className={`max-w-56 justify-start gap-2 px-2 ${className ?? ""}`}
-            aria-label={`${active?.name ?? "Organization"}, switch organization`}
-          />
-        }
+        render={<Button variant="ghost" className={`max-w-56 justify-start gap-2 px-2 ${className ?? ""}`} />}
         disabled={pending}
       >
-        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary text-[0.65rem] font-semibold text-primary-foreground">
+        <span
+          aria-hidden
+          className="flex size-5 shrink-0 items-center justify-center rounded bg-primary text-[0.65rem] font-semibold text-primary-foreground"
+        >
           {active?.name.slice(0, 1).toUpperCase()}
         </span>
         <span className="truncate">{active?.name ?? "Organization"}</span>
-        <ChevronsUpDown className="text-muted-foreground" />
+        <span className="sr-only">, switch organization</span>
+        <ChevronsUpDown aria-hidden className="text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">
         <DropdownMenuGroup>

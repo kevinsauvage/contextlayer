@@ -1,10 +1,8 @@
 # TODO · Features
 
-New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items from the 2026-10-26 review cite [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md). Items from the 2026-11-02 UX review (`docs/prompts/ux-review.md`) were found by reading the code, not reproduced in a running app.
-
 ## P2 · Production-grade: security, limits, deploy, reliability
 
-- [ ] **Store the evidence agent's trace with each analysis** `P2` `E6` `B9`
+- [ ] **Store the evidence agent's trace with each analysis** `P2` `E6`
   - **Context:** `draftTicket` and `auditIssue` return `candidates` (`src/core/analysis/analyze.ts:44`, `:75`), but `draftFromRequest` keeps only draft, issues, usage and revision (`src/features/ticket-creation/actions.ts:39`) and `src/features/ticket-audit/actions.ts:36` does the same. The agent's tool calls (searches, failed terms, reads, whether it called `selectFiles` or fell back to the files it read: `pathsFromCalls` in `src/integrations/ai/evidence-agent.ts`) are dropped inside `AiEvidenceAgent.select`. When a run misses a file there is no way to see what the agent looked at.
   - **Fix:** define a Zod `retrievalTrace` schema in `src/core/context/` (searches with their terms and `failedTerms`, `listFiles` filters, read paths, selected paths, `concluded: boolean`, and per candidate its kind, reference and line range, no excerpt). Return it from `EvidenceSelector.select` (`src/core/analysis/generators.ts:33`) and thread it through `GatheredContext`, `CreationResult` and `AuditResult`. Add a nullable `retrieval` jsonb column on `analysis` (`src/infrastructure/db/schema/app.ts`, plus a migration), write it in `recordOutcome` (`src/features/analysis/run.ts`) and clear it in `restartAnalysis`. Show it in a collapsed "How this was found" block on the analysis page.
 

@@ -15,7 +15,7 @@ The backlog is split by kind of work, one `TODO-<KIND>.md` file each. Add a new 
 
 Each item has a **Context** (why it matters) and a **Fix** (how to close it), and carries its priority tag.
 
-**Markers** `[ ]` open · `[~]` partly done · **Tags** `P#` priority (`Deferred`: kept for later, not scheduled) · `C#` [Phase 0 criterion](docs/product/phase-0-decision.md) · `E#` [experiment](docs/product/validation-experiments.md) · `H#` [hypothesis](docs/product/business-hypotheses.md) · `B#` [finding in the 2026-10-26 audit](docs/engineering/project-audit-2026-10-26.md)
+**Markers** `[ ]` open · `[~]` partly done · **Tags** `P#` priority (`Deferred`: kept for later, not scheduled) · `C#` [Phase 0 criterion](docs/product/phase-0-decision.md) · `E#` [experiment](docs/product/validation-experiments.md) · `H#` [hypothesis](docs/product/business-hypotheses.md)
 
 ## At a glance
 
@@ -23,8 +23,8 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | -------- | -------------------------------------------------------------------------------------------------- | --: | ------: | ------: | -------: | ---------: | -------: |
 | P0       | Core promise: the draft must be correct and the run must not fail                                  |   0 |       0 |       0 |        0 |          0 |        0 |
 | P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes                          |   0 |       0 |       0 |        0 |          0 |        0 |
-| P2       | Production-grade: security, limits, deploy, reliability                                            |   0 |       7 |       3 |        0 |          0 |        6 |
-| P3       | Polish and later                                                                                   |   0 |      14 |       3 |        4 |          1 |        3 |
+| P2       | Production-grade: security, limits, deploy, reliability                                            |   0 |       7 |       2 |        0 |          0 |        6 |
+| P3       | Polish and later                                                                                   |   0 |      14 |       0 |        4 |          1 |        3 |
 | Deferred | Business validation and the demo clone, not needed to build the product properly; blocked upgrades |   0 |       1 |       0 |        0 |          4 |        5 |
 
-**Order of work:** P0 first (the core promise), then P1 (prove it), then P2 (production-grade, before the first production database exists). Rationale in [`docs/engineering/project-audit-2026-10-26.md`](docs/engineering/project-audit-2026-10-26.md), section 6.
+**Order of work:** P0 first (the core promise), then P1 (prove it), then P2 (production-grade, before the first production database exists).

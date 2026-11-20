@@ -1,11 +1,5 @@
 # TODO · Dependencies
 
-Dependency upgrades and security advisories: version changes that may change behaviour, so they don't fit Refactor. Index and conventions: [`TODO.md`](TODO.md). Read the "Dependency pins" entries in [`DECISIONS.md`](DECISIONS.md) before upgrading, and run [`docs/prompts/dependency-upgrade.md`](docs/prompts/dependency-upgrade.md) to work through them. Items from the 2026-11-02 review (`pnpm outdated`, `pnpm audit --prod`, `npm view`); `pnpm outdated` hides releases younger than pnpm's minimum release age, so check `npm view` too.
-
-## P2 · Production-grade: security, limits, deploy, reliability
-
-No open items.
-
 ## P3 · Later: optional features and deeper hardening
 
 - [ ] **Apply the pending minor and patch releases** `P3`

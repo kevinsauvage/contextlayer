@@ -6,6 +6,7 @@ import { DraftWorkspace } from "@/components/analysis/draft-workspace";
 import type { Evidence } from "@/core/evidence/schemas";
 import type { EvidenceIssue } from "@/core/evidence/validate";
 import type { TicketDraft } from "@/core/requirements/schemas";
+import { expectNoA11yViolations } from "../helpers/axe";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
@@ -33,7 +34,7 @@ type RenderOptions = {
 
 function renderWorkspace(initial: TicketDraft, options: RenderOptions = {}) {
   const publish = vi.fn(async () => ({ issueKey: "SHOP-1", issueUrl: "https://jira.test/browse/SHOP-1" }));
-  render(
+  const view = render(
     <DraftWorkspace
       initial={initial}
       publish={publish}
@@ -46,7 +47,7 @@ function renderWorkspace(initial: TicketDraft, options: RenderOptions = {}) {
       published={{ key: null, url: null }}
     />,
   );
-  return { publish, user: userEvent.setup() };
+  return { publish, user: userEvent.setup(), container: view.container };
 }
 
 async function editTitle(user: ReturnType<typeof userEvent.setup>, title: string) {
@@ -57,6 +58,14 @@ async function editTitle(user: ReturnType<typeof userEvent.setup>, title: string
 }
 
 describe("DraftWorkspace", () => {
+  it("has no automatically detectable accessibility violations in preview or edit", async () => {
+    const { container, user } = renderWorkspace(ready, { evidence: ready.evidence });
+    await expectNoA11yViolations(container);
+
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    await expectNoA11yViolations(container);
+  });
+
   it("checks the draft against its evidence as it is edited", async () => {
     const misquoted: TicketDraft = {
       ...ready,

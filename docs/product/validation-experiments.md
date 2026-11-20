@@ -66,7 +66,7 @@ ContextLayer wins 5 of 6 and ties `banner-title`. Per criterion (of 12 each): fa
 ## E3: Blind reviewer comparison (planned)
 
 - **Tests:** H2, H3.
-- **Method:** 3 developers or tech leads each receive 10 anonymised tickets (original, generic AI, ContextLayer) for repositories they know, rank them, mark any claim they believe is wrong, and say which they would start work from. `pnpm review:export` builds the packets from the last `pnpm eval` run with A/B/C labels and keeps the mapping in `tests/evaluation/results/blind-key.json`; `pnpm review:report` writes the scoring table to `e3-blind-review.md`.
+- **Method:** 3 developers or tech leads each receive 10 anonymised tickets (original, generic AI, retrieval-only, ContextLayer) for repositories they know, rank them, mark any claim they believe is wrong, and say which they would start work from. `pnpm review:export` builds the packets from the last `pnpm eval` run with A/B/C/D labels and keeps the mapping in `tests/evaluation/results/blind-key.json`; `pnpm review:report` writes the scoring table to `e3-blind-review.md`. The retrieval-only draft saw the same repository excerpts as ContextLayer, so human scoring isolates its claim statuses and citations instead of rewarding retrieval alone.
 - **Success:** ContextLayer ranked first in at least 7 of 10 cases and at most one wrong claim per 10 drafts.
 - **Kill:** generic AI ranked first or tied in more than 3 of 10.
 

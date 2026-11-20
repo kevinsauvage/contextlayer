@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FailedDraft } from "@/components/analysis/failed-draft";
 import type { TicketDraft } from "@/core/requirements/schemas";
+import { expectNoA11yViolations } from "../helpers/axe";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
@@ -19,6 +20,13 @@ const draft: TicketDraft = {
 };
 
 describe("FailedDraft", () => {
+  it("has no automatically detectable accessibility violations", async () => {
+    const { container } = render(
+      <FailedDraft draft={draft} trackerName="Jira" projectLabel="SHOP" error="The analysis failed." retry={vi.fn()} />,
+    );
+    await expectNoA11yViolations(container);
+  });
+
   it("shows the previous draft and retries the stored input", async () => {
     const retry = vi.fn(async () => ({}));
     render(

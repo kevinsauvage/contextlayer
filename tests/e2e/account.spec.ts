@@ -11,24 +11,24 @@ test("renames the organization, switches between organizations, and signs out an
   await expect(page.getByText("Organization renamed.")).toBeVisible();
   await expect(name).toHaveValue("New name");
 
-  await page.getByRole("button", { name: "New name, switch organization" }).click();
+  await page.getByRole("button", { name: /New name/ }).click();
   await page.getByRole("menuitem", { name: /New organization/ }).click();
   await expect(page).toHaveURL(/\/organizations\/new$/);
   await page.getByLabel("Organization name", { exact: true }).fill("Second org");
   await page.getByRole("button", { name: "Create organization" }).click();
   await expect(page).toHaveURL(/\/projects$/);
-  await expect(page.getByRole("button", { name: "Second org, switch organization" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Second org/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "Second org, switch organization" }).click();
+  await page.getByRole("button", { name: /Second org/ }).click();
   await page.getByRole("menuitem", { name: /New name/ }).click();
-  await expect(page.getByRole("button", { name: "New name, switch organization" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /New name/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "Ada Lovelace, account" }).click();
+  await page.getByRole("button", { name: /Ada Lovelace/ }).click();
   await page.getByRole("menuitem", { name: /Sign out/ }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
 
   await signIn(page, email);
-  await expect(page.getByRole("button", { name: "New name, switch organization" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /New name/ })).toBeVisible();
 });
 
 test("creates and deletes a project from its settings", async ({ page }) => {

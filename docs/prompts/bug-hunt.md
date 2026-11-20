@@ -1,6 +1,6 @@
 Hunt for bugs in this codebase. Don't fix them; file them.
 
-Focus area: whatever I name after this prompt; otherwise rotate through `src/core/context`, `src/core/analysis`, `src/features/ticket-creation`, `src/features/ticket-audit` and `src/integrations`, starting with the area with the most commits since the last entry in `TODO-BUG.md` or `docs/engineering/project-audit-2026-10-26.md`.
+Focus area: whatever I name after this prompt; otherwise rotate through `src/core/context`, `src/core/analysis`, `src/features/ticket-creation`, `src/features/ticket-audit` and `src/integrations`, starting with the area with the most commits since the last entry in `TODO-BUG.md`.
 
 Look for:
 

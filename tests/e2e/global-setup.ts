@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
-import { E2E_DATABASE_URL } from "./database";
+import { assertE2eDatabase, E2E_DATABASE_URL } from "./database";
 
 export default async function globalSetup() {
+  assertE2eDatabase(E2E_DATABASE_URL);
   const target = new URL(E2E_DATABASE_URL);
   const name = target.pathname.slice(1);
   const admin = postgres({ ...connectionOf(target), database: "postgres", max: 1, onnotice: () => undefined });

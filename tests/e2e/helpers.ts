@@ -38,8 +38,9 @@ export async function signIn(page: Page, email: string, password = "password-123
   await expect(page).toHaveURL(/\/projects$/);
 }
 
-// The checklist connects both fake providers and brings the user back to the new-project form.
-export async function createProject(page: Page, name = "Storefront") {
+// The checklist connects both fake providers and brings the user back to the new-project form. `beforeSubmit` runs
+// once the form is filled, for checks (such as axe) that need the page before it navigates away.
+export async function createProject(page: Page, name = "Storefront", beforeSubmit?: () => Promise<void>) {
   await expect(page.getByText("Get set up")).toBeVisible();
   await page.getByRole("link", { name: "Connect", exact: true }).click();
   await expect(page.getByText("Sample repository connected", { exact: true })).toBeVisible();
@@ -50,6 +51,7 @@ export async function createProject(page: Page, name = "Storefront") {
   await page.getByRole("radio", { name: "sample/shop" }).check();
   await page.getByRole("radio", { name: "SHOP · Sample shop" }).check();
   await page.getByLabel("Project name", { exact: true }).fill(name);
+  await beforeSubmit?.();
   await page.getByRole("button", { name: "Create project" }).click();
 
   await expect(page.getByText(/^Project created\./)).toBeVisible();

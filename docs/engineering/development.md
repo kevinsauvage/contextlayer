@@ -43,6 +43,7 @@ A pre-commit hook (simple-git-hooks + lint-staged) formats and lints staged file
 - **dependency-cruiser** (`pnpm deps:check`) enforces the layer boundaries described in [`../architecture/overview.md`](../architecture/overview.md), the `core` and `lib` package allow-lists, and import cycles. Fix the import; never disable the rule.
 - **Prettier** (120 columns, Tailwind class sorting). `src/components/ui` is excluded because the shadcn CLI regenerates it.
 - **knip** fails on unused files, exports and dependencies. Delete the code, or remove the `export`, instead of suppressing the finding.
+- **Accessibility:** WCAG 2.2 AA is the target. `axe-core` runs in the three analysis component tests (names, roles, labels) and `@axe-core/playwright` at each step of the smoke test in light and dark; both fail on serious and critical findings. jsdom has no layout, so the browser pass owns colour contrast.
 
 ## Conventions
 

@@ -7,6 +7,7 @@ import { RefinementProvider } from "@/components/analysis/refinement-context";
 import { TicketChat } from "@/components/analysis/ticket-chat";
 import type { TicketDraft } from "@/core/requirements/schemas";
 import type { ChatTurn } from "@/features/ticket-creation/actions";
+import { expectNoA11yViolations } from "../helpers/axe";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
@@ -25,7 +26,7 @@ const draft: TicketDraft = {
 function renderPage() {
   // Never settles, so the chat stays in its "redrafting" state for the assertions.
   const refine = vi.fn((_turn: ChatTurn) => new Promise<{ error?: string }>(() => undefined));
-  render(
+  const view = render(
     <RefinementProvider questions={[]} canRefine refine={refine}>
       <TicketChat
         request="Round the cart total"
@@ -47,10 +48,15 @@ function renderPage() {
       />
     </RefinementProvider>,
   );
-  return { refine, user: userEvent.setup() };
+  return { refine, user: userEvent.setup(), container: view.container };
 }
 
 describe("TicketChat", () => {
+  it("has no automatically detectable accessibility violations", async () => {
+    const { container } = renderPage();
+    await expectNoA11yViolations(container);
+  });
+
   it("sends a message on Enter and shows the redraft in progress", async () => {
     const { refine, user } = renderPage();
 

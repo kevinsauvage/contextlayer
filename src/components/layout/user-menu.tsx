@@ -55,19 +55,20 @@ export function UserMenu({
             variant="ghost"
             className={variant === "full" ? "h-auto w-full justify-start gap-2.5 px-2 py-2" : "rounded-full"}
             size={variant === "full" ? "default" : "icon"}
-            aria-label={`${name}, account`}
           />
         }
       >
-        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+        <span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
           {initials(name) || "?"}
         </span>
+        {variant === "icon" && <span className="sr-only">{name}, </span>}
         {variant === "full" && (
           <span className="flex min-w-0 flex-col items-start text-left">
             <span className="w-full truncate text-sm font-medium">{name}</span>
             <span className="w-full truncate text-xs font-normal text-muted-foreground">{email}</span>
           </span>
         )}
+        <span className="sr-only">, account</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
