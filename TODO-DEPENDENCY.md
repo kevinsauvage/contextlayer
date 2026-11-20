@@ -4,9 +4,13 @@ Dependency upgrades and security advisories: version changes that may change beh
 
 ## P2 · Production-grade: security, limits, deploy, reliability
 
+No open items.
+
 ## P3 · Later: optional features and deeper hardening
 
-No open items.
+- [ ] **Apply the pending minor and patch releases** `P3`
+  - **Context:** `pnpm outdated` on 2026-11-20 lists, within the pinned majors: `ai` 7.0.173 → 7.0.177, `@ai-sdk/openai-compatible` 3.0.92 → 3.0.93, `better-auth` 1.7.24 → 1.7.26, `lucide-react` 1.73.0 → 1.76.0, and dev tools (`vitest` and `@vitest/coverage-v8` 5.1.1, `@playwright/test` 1.65.1, `typescript-eslint` 8.73.0, `knip` 6.46.1, `dependency-cruiser` 18.8.0, `lint-staged` 17.6.1, `@electric-sql/pglite` 0.5.17, `@testing-library/user-event` 14.6.13). Dependabot may already have opened some of them.
+  - **Fix:** merge the Dependabot PRs or run `pnpm up` within the current ranges, then `pnpm check` and `pnpm e2e`. Read the `better-auth` changelog first: it owns sessions, rate limits and organizations.
 
 ## Deferred · blocked upstream or tied to another decision
 

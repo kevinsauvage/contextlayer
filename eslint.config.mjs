@@ -36,6 +36,22 @@ const eslintConfig = defineConfig([
       "import/no-duplicates": "error",
       eqeqeq: ["error", "always"],
       "no-console": ["error", { allow: ["warn", "error"] }],
+      "no-restricted-syntax": [
+        "error",
+        // A reminder, not a guarantee: it catches the common shapes of logging a raw error or request.
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="console"] > :not(Literal, TemplateLiteral, CallExpression[callee.name="errorSummary"]).arguments',
+          message:
+            "Log errorSummary(error), not the raw object: it can carry a request with its cookies, headers or bearer token.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="console"] > TemplateLiteral.arguments > CallExpression.expressions:not([callee.name="errorSummary"])',
+          message:
+            "Interpolate errorSummary(error) or plain values, not a serialized object: JSON.stringify of a request carries its headers.",
+        },
+      ],
       "no-var": "error",
       "prefer-const": "error",
     },

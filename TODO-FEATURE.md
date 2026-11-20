@@ -28,6 +28,10 @@ New application behaviour. Index and conventions: [`TODO.md`](TODO.md). Items fr
   - **Context:** `AuditView` shows the summary, findings and proposed ticket but never the current ticket text (`src/components/analysis/audit-view.tsx:21-58`); the audited ticket (`e1`) survives only if a finding cites it, as a collapsed excerpt (`src/core/analysis/analyze.ts:58-63`). "Approve & update the Jira ticket" replaces `summary` and `description` (`src/integrations/jira/client.ts:191-192`) in one click when nothing is unresolved (`draft-workspace.tsx:233`).
   - **Fix:** store the fetched issue's title and description with the audit result, next to `issueUpdatedAt`; show a "Current ticket" / "Proposed" comparison above the approval bar; always confirm before overwriting ("Replaces the title and description of SHOP-12").
 
+- [ ] **Account settings: profile, password and account deletion** `P2`
+  - **Context:** found in the 2026-11-20 portfolio review. The user menu offers only the theme and sign-out (`src/components/layout/user-menu.tsx`); there is no page to change one's name or password, and no way to delete an account, which a public sign-up needs (GDPR erasure). Deleting a user would also fail today: `analysis.created_by_user_id` and `integration_connection.connected_by_user_id` reference `user` without an `onDelete` rule (`src/infrastructure/db/schema/app.ts:31`, `:81`), while `analysis_run` cascades.
+  - **Fix:** add `/settings/account` with Better Auth's `updateUser` and `changePassword` (revoking other sessions), and enable `user.deleteUser` in `src/infrastructure/auth/auth.ts` behind a typed confirmation like `DeleteOrganization`. Decide what an analysis or connection keeps when its author leaves (make the columns nullable with `onDelete: "set null"`, plus a migration), refuse deletion while the user is the last owner of an organization, record the choice in `DECISIONS.md`, and link the page from the user menu.
+
 ## P3 · Later: optional features and deeper hardening
 
 - [ ] **Bring-your-own AI key per organization** `P3`
