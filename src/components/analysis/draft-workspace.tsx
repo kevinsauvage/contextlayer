@@ -38,6 +38,8 @@ type Props = {
   projectLabel: string;
   // The audited issue, when the draft updates an existing ticket.
   existingKey?: string;
+  // What approving overwrites; when set, approval always asks once.
+  overwrite?: string;
   // Offers "Draft another ticket" in this project once published.
   projectId?: string;
   // Persists manual edits; omitted for audits, which do not autosave.
@@ -58,6 +60,7 @@ export function DraftWorkspace({
   trackerName,
   projectLabel,
   existingKey,
+  overwrite,
   projectId,
   save,
   published: initialPublished,
@@ -196,7 +199,7 @@ export function DraftWorkspace({
           pending={pending}
           updating={updating}
           onApprove={approve}
-          overwrite={existingKey ? `Replaces the title and description of ${existingKey}.` : undefined}
+          overwrite={overwrite}
         />
       )}
     </div>

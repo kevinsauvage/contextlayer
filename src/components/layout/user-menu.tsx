@@ -61,14 +61,14 @@ export function UserMenu({
         <span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
           {initials(name) || "?"}
         </span>
-        {variant === "icon" && <span className="sr-only">{name}, </span>}
+        {/* One spoken name: the stacked name and email would otherwise run together ("Ada Lovelaceada@…"). */}
+        <span className="sr-only">{variant === "full" ? `${name}, ${email}, account` : `${name}, account`}</span>
         {variant === "full" && (
-          <span className="flex min-w-0 flex-col items-start text-left">
+          <span aria-hidden className="flex min-w-0 flex-col items-start text-left">
             <span className="w-full truncate text-sm font-medium">{name}</span>
             <span className="w-full truncate text-xs font-normal text-muted-foreground">{email}</span>
           </span>
         )}
-        <span className="sr-only">, account</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>

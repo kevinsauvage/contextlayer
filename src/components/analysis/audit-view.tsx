@@ -1,7 +1,7 @@
 import { publishedOf, type AnalysisViewProps } from "@/components/analysis/analysis-view";
 import { ClaimStatusBadge } from "@/components/analysis/claim-status-badge";
 import { DraftWorkspace } from "@/components/analysis/draft-workspace";
-import { EvidenceList, evidenceAnchor } from "@/components/analysis/evidence-list";
+import { EvidenceLink, EvidenceList } from "@/components/analysis/evidence-list";
 import { InlineText } from "@/components/analysis/inline-text";
 import { OutdatedResult } from "@/components/analysis/outdated-result";
 import { Badge } from "@/components/ui/badge";
@@ -18,12 +18,13 @@ type Props = AnalysisViewProps & {
   issues?: EvidenceIssue[];
 };
 
-function CurrentTicket({ report }: { report: AuditReport }) {
+// Once the audit is applied, the tracker holds the proposal, so the snapshot is no longer the current ticket.
+function CurrentTicket({ report, applied }: { report: AuditReport; applied: boolean }) {
   if (!report.auditedIssue) return null;
   return (
     <section aria-labelledby="current-ticket-heading" className="flex flex-col gap-3">
       <h2 id="current-ticket-heading" className="font-medium">
-        Current ticket
+        {applied ? "Ticket before this audit" : "Current ticket"}
       </h2>
       <div className="rounded-xl border bg-muted/30 p-4">
         <h3 className="font-medium text-balance">
@@ -55,14 +56,12 @@ export function AuditView({ analysis, input, report, draft, issues, trackerName,
                   <span className="flex flex-wrap items-center gap-1 text-muted-foreground">
                     Evidence:
                     {finding.evidenceIds.map((id) => (
-                      <a
+                      <EvidenceLink
                         key={id}
-                        href={`#${evidenceAnchor(id)}`}
-                        aria-label={`Evidence ${id}`}
-                        className="rounded bg-brand/8 px-1 font-mono text-[0.7rem] leading-4 text-brand underline-offset-2 hover:underline"
-                      >
-                        {id}
-                      </a>
+                        id={id}
+                        source={report.evidence.find((item) => item.id === id)}
+                        scope="audit"
+                      />
                     ))}
                   </span>
                 )}
@@ -78,9 +77,9 @@ export function AuditView({ analysis, input, report, draft, issues, trackerName,
             </li>
           ))}
         </ul>
-        <EvidenceList evidence={report.evidence} />
+        <EvidenceList evidence={report.evidence} anchorScope="audit" />
       </section>
-      <CurrentTicket report={report} />
+      <CurrentTicket report={report} applied={Boolean(analysis.publishedIssueKey)} />
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">Proposed ticket</h2>
         {draft ? (
@@ -91,6 +90,7 @@ export function AuditView({ analysis, input, report, draft, issues, trackerName,
             trackerName={trackerName}
             projectLabel={trackerKey}
             existingKey={requestOf(input)}
+            overwrite={`Replaces the title and description of ${requestOf(input)}.${report.auditedIssue ? " Compare it with the current ticket before replacing it." : ""}`}
             published={publishedOf(analysis)}
             issues={issues}
             evidence={report.evidence}

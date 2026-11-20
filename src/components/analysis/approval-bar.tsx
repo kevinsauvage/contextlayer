@@ -92,15 +92,10 @@ export function ApprovalBar({
               that need clarification are published labelled in {trackerName}.
             </p>
           )}
-          {overwrite && (
-            <p>
-              <span className="font-medium">{overwrite}</span> Compare it with the current ticket above before replacing
-              it.
-            </p>
-          )}
+          {overwrite && <p>{overwrite}</p>}
           {unappliedAnswers > 0 && <p>Answers you have not applied are not included.</p>}
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" onClick={approve}>
+            <Button type="button" size="sm" disabled={pending || updating || blocking > 0} onClick={approve}>
               {overwrite ? "Replace the ticket" : "Publish anyway"}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(false)}>

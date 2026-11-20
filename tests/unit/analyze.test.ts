@@ -247,6 +247,26 @@ describe("auditIssue", () => {
     expect(references).toContain("CHK-7");
   });
 
+  it("stores the audited ticket with secrets masked", async () => {
+    const leaky = {
+      key: "CHK-9",
+      summary: "Checkout button",
+      description: "Use token ghp_abcdefghijklmnopqrstuvwxyz0123456789 to test",
+      status: "To Do",
+      url: "u",
+    };
+    const result = await auditIssue({
+      issueKey: "CHK-9",
+      source,
+      tracker: { ...tracker, getIssue: async () => leaky },
+      generator: { audit: async () => ({ body: auditBody(["e2"]) }) } satisfies AuditGenerator,
+      selector,
+    });
+
+    expect(result.report.auditedIssue?.summary).toBe("Checkout button");
+    expect(result.report.auditedIssue?.description).not.toContain("ghp_abcdefghijklmnopqrstuvwxyz0123456789");
+  });
+
   it("validates finding evidence", async () => {
     expect((await run(auditBody([]))).issues[0]).toEqual({
       path: "findings[0]",

@@ -96,6 +96,17 @@ describe("ApprovalBar", () => {
     expect(onApprove).toHaveBeenCalledOnce();
   });
 
+  it("keeps the confirmation from publishing once a claim stops matching its evidence", async () => {
+    const user = userEvent.setup();
+    const overwrite = "Replaces the title and description of SHOP-12.";
+    const { rerender } = render(<ApprovalBar {...props} overwrite={overwrite} />);
+
+    await user.click(screen.getByRole("button", { name: "Approve & create in Jira" }));
+    rerender(<ApprovalBar {...props} overwrite={overwrite} blocking={1} />);
+
+    expect(screen.getByRole("button", { name: "Replace the ticket" })).toHaveProperty("disabled", true);
+  });
+
   it("waits for a redraft or a publish in flight", () => {
     const { rerender } = render(<ApprovalBar {...props} updating pending />);
     expect(screen.getByRole("button", { name: "Publishing…" })).toHaveProperty("disabled", true);

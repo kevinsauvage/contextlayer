@@ -7,7 +7,7 @@ import {
   type Evidence,
 } from "@/core/evidence/schemas";
 import type { TicketDraft } from "@/core/requirements/schemas";
-import { evidenceAnchor } from "@/components/analysis/evidence-list";
+import { EvidenceLink, evidenceAnchor } from "@/components/analysis/evidence-list";
 import { InlineText } from "@/components/analysis/inline-text";
 import { OPEN_QUESTIONS_ANCHOR } from "@/components/analysis/open-questions";
 import { ticketSections, type Bullet } from "@/core/requirements/render";
@@ -51,20 +51,9 @@ function Citations({ ids, evidence }: { ids?: string[]; evidence: EvidenceById }
   if (!ids?.length) return null;
   return (
     <span className="ml-1 inline-flex gap-1 align-[0.08em]">
-      {ids.map((id) => {
-        const source = evidence.get(id);
-        return (
-          <a
-            key={id}
-            href={`#${evidenceAnchor(id)}`}
-            title={source?.reference}
-            aria-label={`Evidence ${id}${source ? `: ${source.reference}` : ""}`}
-            className="rounded bg-brand/8 px-1 font-mono text-[0.7rem] leading-4 text-brand no-underline transition-colors hover:bg-brand/15"
-          >
-            {id}
-          </a>
-        );
-      })}
+      {ids.map((id) => (
+        <EvidenceLink key={id} id={id} source={evidence.get(id)} />
+      ))}
     </span>
   );
 }

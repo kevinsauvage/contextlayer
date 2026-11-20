@@ -57,14 +57,12 @@ const loadCase = (id) => readJson(path.join(FIXTURES_DIR, id, "case.json"));
 function reviewableCaseIds() {
   return caseIds().filter((id) => {
     const fixture = loadCase(id);
-    return (
-      (fixture.kind ?? "create") === "create" &&
-      !(fixture.answers ?? []).length &&
-      existsSync(path.join(RESULTS_DIR, `${id}.json`)) &&
-      existsSync(path.join(RESULTS_DIR, `${id}.baseline.json`))
-    );
+    return (fixture.kind ?? "create") === "create" && !(fixture.answers ?? []).length;
   });
 }
+
+const hasResults = (id) =>
+  existsSync(path.join(RESULTS_DIR, `${id}.json`)) && existsSync(path.join(RESULTS_DIR, `${id}.baseline.json`));
 
 // Stable rotation so labels stay put across exports, without relying on Math.random.
 function labelsFor(id) {
@@ -161,11 +159,14 @@ function exportPackets() {
   scores.scores ??= {};
   scores.preferred ??= {};
 
-  for (const id of reviewableCaseIds()) {
+  const ids = reviewableCaseIds();
+  const missing = ids.filter((id) => !hasResults(id));
+  if (missing.length) console.warn(`Skipped, no results from the last \`pnpm eval\` run: ${missing.join(", ")}.`);
+  const exported = ids.filter(hasResults);
+
+  for (const id of exported) {
     const analysisPath = path.join(RESULTS_DIR, `${id}.json`);
     const baselinePath = path.join(RESULTS_DIR, `${id}.baseline.json`);
-    if (!existsSync(analysisPath) || !existsSync(baselinePath))
-      throw new Error(`Missing ${id} results. Run: pnpm eval`);
 
     const analysis = readJson(analysisPath);
     const comparison = readJson(baselinePath);
@@ -207,7 +208,7 @@ function exportPackets() {
     ].join("\n"),
   );
 
-  console.log(`Wrote ${reviewableCaseIds().length} packets to ${REVIEW_DIR} and score template ${SCORES_PATH}.`);
+  console.log(`Wrote ${exported.length} packets to ${REVIEW_DIR} and score template ${SCORES_PATH}.`);
 }
 
 function loadReview() {

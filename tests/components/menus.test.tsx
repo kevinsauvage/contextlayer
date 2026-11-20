@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OrgSwitcher } from "@/components/organization/org-switcher";
@@ -37,7 +37,7 @@ describe("OrgSwitcher", () => {
   it("names its trigger from the visible organization name", () => {
     render(<OrgSwitcher organizations={organizations} activeId="orgA" />);
 
-    const trigger = screen.getByRole("button", { name: /Acme/ });
+    const trigger = screen.getByRole("button", { name: "Acme, switch organization" });
     expect(trigger.textContent).toContain("Acme");
   });
 
@@ -45,7 +45,7 @@ describe("OrgSwitcher", () => {
     const user = userEvent.setup();
     render(<OrgSwitcher organizations={organizations} activeId="orgA" />);
 
-    await user.click(screen.getByRole("button", { name: /Acme/ }));
+    await user.click(screen.getByRole("button", { name: "Acme, switch organization" }));
 
     expect(await screen.findByRole("menuitem", { name: /Acme/ })).toBeTruthy();
     expect(await screen.findByRole("menuitem", { name: /Beta/ })).toBeTruthy();
@@ -57,7 +57,7 @@ describe("OrgSwitcher", () => {
     const user = userEvent.setup();
     render(<OrgSwitcher organizations={organizations} activeId="orgA" />);
 
-    await user.click(screen.getByRole("button", { name: /Acme/ }));
+    await user.click(screen.getByRole("button", { name: "Acme, switch organization" }));
     await user.click(await screen.findByRole("menuitem", { name: /Beta/ }));
 
     await waitFor(() => expect(state.setActive).toHaveBeenCalledWith({ organizationId: "orgB" }));
@@ -68,7 +68,7 @@ describe("OrgSwitcher", () => {
     const user = userEvent.setup();
     render(<OrgSwitcher organizations={organizations} activeId="orgA" />);
 
-    await user.click(screen.getByRole("button", { name: /Acme/ }));
+    await user.click(screen.getByRole("button", { name: "Acme, switch organization" }));
     await user.click(await screen.findByRole("menuitem", { name: /Acme/ }));
 
     expect(state.setActive).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe("OrgSwitcher", () => {
     const user = userEvent.setup();
     render(<OrgSwitcher organizations={organizations} activeId="orgA" />);
 
-    await user.click(screen.getByRole("button", { name: /Acme/ }));
+    await user.click(screen.getByRole("button", { name: "Acme, switch organization" }));
     await user.click(await screen.findByRole("menuitem", { name: /Organization settings/ }));
     expect(state.push).toHaveBeenCalledWith("/settings/organization");
   });
@@ -88,7 +88,7 @@ describe("UserMenu", () => {
   it("names its trigger from the signed-in user", async () => {
     render(<UserMenu name="Ada Lovelace" email="ada@example.test" />);
 
-    const trigger = screen.getByRole("button", { name: /Ada Lovelace/ });
+    const trigger = screen.getByRole("button", { name: "Ada Lovelace, account" });
     expect(trigger.textContent).toContain("AL");
   });
 
@@ -96,9 +96,10 @@ describe("UserMenu", () => {
     const user = userEvent.setup();
     render(<UserMenu name="Ada Lovelace" email="ada@example.test" variant="full" />);
 
-    await user.click(screen.getByRole("button", { name: /Ada Lovelace/ }));
+    await user.click(screen.getByRole("button", { name: "Ada Lovelace, ada@example.test, account" }));
 
-    expect(screen.getByText("ada@example.test")).toBeTruthy();
+    // The trigger shows the email too; this checks the menu's own label.
+    expect(within(await screen.findByRole("menu")).getByText("ada@example.test")).toBeTruthy();
     expect((await screen.findByRole("menuitemradio", { name: /System/ })).getAttribute("aria-checked")).toBe("true");
     await user.click(await screen.findByRole("menuitemradio", { name: /Dark/ }));
     expect(state.setTheme).toHaveBeenCalledWith("dark");
@@ -109,7 +110,7 @@ describe("UserMenu", () => {
     const user = userEvent.setup();
     render(<UserMenu name="Ada Lovelace" email="ada@example.test" />);
 
-    await user.click(screen.getByRole("button", { name: /Ada Lovelace/ }));
+    await user.click(screen.getByRole("button", { name: "Ada Lovelace, account" }));
     await user.click(await screen.findByRole("menuitem", { name: /Sign out/ }));
 
     await waitFor(() => expect(state.signOut).toHaveBeenCalledOnce());
@@ -121,7 +122,7 @@ describe("UserMenu", () => {
     const user = userEvent.setup();
     render(<UserMenu name="Ada Lovelace" email="ada@example.test" />);
 
-    await user.click(screen.getByRole("button", { name: /Ada Lovelace/ }));
+    await user.click(screen.getByRole("button", { name: "Ada Lovelace, account" }));
     await user.click(await screen.findByRole("menuitem", { name: /Sign out/ }));
 
     await waitFor(() => expect(state.signOut).toHaveBeenCalledOnce());

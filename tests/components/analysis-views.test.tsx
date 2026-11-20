@@ -117,13 +117,30 @@ describe("AuditView", () => {
     expect(screen.getByText(/Say half up/)).toBeTruthy();
     expect(screen.getByText("The code rounds down.")).toBeTruthy();
     expect(screen.getByText("ambiguity")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Evidence e1" }).getAttribute("href")).toBe("#evidence-e1");
-    expect(screen.getByText("Current ticket")).toBeTruthy();
+    const evidenceLinks = screen.getAllByRole("link", { name: "Evidence e1: src/cart.ts" });
+    expect(evidenceLinks.map((link) => link.getAttribute("href"))).toEqual(["#audit-evidence-e1", "#evidence-e1"]);
+    expect(screen.getByRole("heading", { name: "Current ticket" })).toBeTruthy();
     expect(screen.getByText("Cart total")).toBeTruthy();
     expect(screen.getByText(/Uses/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Proposed ticket" })).toBeTruthy();
     expect(screen.getByText("SHOP-12")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve & update the Jira ticket" })).toBeTruthy();
+  });
+
+  it("stops calling the snapshot current once the audit is applied", () => {
+    render(
+      <AuditView
+        analysis={{ ...analysis, publishedIssueKey: "SHOP-12" }}
+        input={{ kind: "audit", issueKey: "SHOP-12" }}
+        report={report}
+        draft={proposal}
+        trackerName="Jira"
+        trackerKey="SHOP"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Ticket before this audit" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Current ticket" })).toBeNull();
   });
 
   it("applies the proposal to the audited issue", async () => {

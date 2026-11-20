@@ -23,7 +23,7 @@ test("renames the organization, switches between organizations, and signs out an
   await page.getByRole("menuitem", { name: /New name/ }).click();
   await expect(page.getByRole("button", { name: /New name/ })).toBeVisible();
 
-  await page.getByRole("button", { name: /Ada Lovelace/ }).click();
+  await page.getByRole("button", { name: `Ada Lovelace, ${email}, account`, exact: true }).click();
   await page.getByRole("menuitem", { name: /Sign out/ }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
 

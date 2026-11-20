@@ -1,5 +1,6 @@
 import type { AuditReport } from "@/core/audit/schemas";
 import { gatherContext, issueEvidence } from "@/core/context/gather";
+import { redactSecrets } from "@/core/context/redact";
 import type { ContextSource, Issue, IssueTracker } from "@/core/context/source";
 import type { Evidence } from "@/core/evidence/schemas";
 import {
@@ -65,7 +66,7 @@ export async function auditIssue(input: Deps & { issueKey: string; generator: Au
   const sections = { findings: body.findings, ...draftSections(body.proposedTicket) };
   const report: AuditReport = {
     ...body,
-    auditedIssue: { summary: issue.summary, description: issue.description },
+    auditedIssue: { summary: redactSecrets(issue.summary), description: redactSecrets(issue.description) },
     evidence: citedEvidence(candidates, sections),
   };
   const issues = [
