@@ -5,9 +5,9 @@ import { AnalysisStatusBadge } from "@/components/analysis/analysis-status-badge
 import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
 import { firstLine, readAnalysisInput, requestOf } from "@/features/analysis/input";
-import { getProject, listAnalyses } from "@/features/projects/queries";
+import { projectForRequest } from "@/features/projects/request";
+import { listAnalyses } from "@/features/projects/queries";
 import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb } from "@/infrastructure/db/client";
 
 export const metadata: Metadata = { title: "History" };
 
@@ -16,9 +16,9 @@ export default async function Page({ params, searchParams }: PageProps<"/project
   const { before } = await searchParams;
   const cursor = typeof before === "string" ? before : undefined;
   const { organizationId } = await requireOrgContext();
-  const db = getDb();
-  const project = await getProject(db, organizationId, projectId);
-  if (!project) notFound();
+  const loaded = await projectForRequest(organizationId, projectId);
+  if (!loaded) notFound();
+  const { db, project } = loaded;
   const { analyses, olderThan } = await listAnalyses(db, project.id, cursor);
 
   return (
@@ -51,7 +51,7 @@ export default async function Page({ params, searchParams }: PageProps<"/project
                     {a.kind === "create" ? "Draft" : "Audit"}
                   </Badge>
                   <span className="flex-1 truncate">{firstLine(requestOf(readAnalysisInput(a))) || "Untitled"}</span>
-                  <AnalysisStatusBadge analysis={a} />
+                  <AnalysisStatusBadge analysis={a} readiness={a.readiness} />
                   <span className="hidden text-muted-foreground sm:inline">
                     <LocalTime date={a.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </span>

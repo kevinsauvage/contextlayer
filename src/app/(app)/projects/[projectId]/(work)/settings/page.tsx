@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProject } from "@/features/projects/queries";
+import { projectForRequest } from "@/features/projects/request";
 import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb } from "@/infrastructure/db/client";
 
 export const metadata: Metadata = { title: "Project settings" };
 
 export default async function Page({ params }: PageProps<"/projects/[projectId]/settings">) {
   const { projectId } = await params;
   const { organizationId, isAdmin } = await requireOrgContext();
-  const project = await getProject(getDb(), organizationId, projectId);
-  if (!project) notFound();
+  const loaded = await projectForRequest(organizationId, projectId);
+  if (!loaded) notFound();
+  const { project } = loaded;
 
   return (
     <Card>

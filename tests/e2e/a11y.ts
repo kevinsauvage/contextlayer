@@ -11,6 +11,9 @@ const theme = async (page: Page, scheme: "light" | "dark") => {
 // Both themes, because the tokens carry separate values and contrast fails differently in each. axe cannot check
 // everything, so this is a floor, not a certificate.
 export async function expectNoA11yViolations(page: Page, where: string) {
+  // A client navigation updates the title after the page body; scanning mid-transition would report it missing.
+  await expect.poll(() => page.title()).toContain("ContextLayer");
+
   for (const scheme of ["light", "dark"] as const) {
     await theme(page, scheme);
     const { violations } = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();

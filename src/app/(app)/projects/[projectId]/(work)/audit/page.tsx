@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { getProject } from "@/features/projects/queries";
-import { projectIntegrations } from "@/features/projects/view";
+import { projectForRequest } from "@/features/projects/request";
 import { createAuditAnalysis } from "@/features/ticket-audit/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb } from "@/infrastructure/db/client";
 
 export const maxDuration = 300;
 
@@ -14,10 +12,9 @@ export const metadata: Metadata = { title: "Audit a ticket" };
 export default async function Page({ params }: PageProps<"/projects/[projectId]/audit">) {
   const { projectId } = await params;
   const { organizationId } = await requireOrgContext();
-  const db = getDb();
-  const project = await getProject(db, organizationId, projectId);
-  if (!project) notFound();
-  const integrations = await projectIntegrations(db, project);
+  const loaded = await projectForRequest(organizationId, projectId);
+  if (!loaded) notFound();
+  const { project, integrations } = loaded;
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

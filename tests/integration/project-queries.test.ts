@@ -174,3 +174,80 @@ describe("displayed rows", () => {
     expect(stored?.status).toBe("running");
   });
 });
+
+describe("listAnalyses readiness", () => {
+  it("returns a compact verdict instead of the stored draft and its evidence", async () => {
+    const id = await addAnalysis({
+      result: {
+        title: "Round totals",
+        description: [{ text: "Undecided.", status: "needs_clarification", evidenceIds: [] }],
+        acceptanceCriteria: [],
+        assumptions: [],
+        openQuestions: [{ question: "Which mode?", impact: "Changes totals" }],
+        evidence: [{ id: "e1", kind: "code", reference: "src/cart.ts", excerpt: "Math.floor(total)" }],
+      },
+    });
+
+    const page = await listAnalyses(db, projectId);
+    const row = page.analyses.find((analysis) => analysis.id === id);
+
+    expect(row).not.toHaveProperty("result");
+    expect(row).not.toHaveProperty("editedResult");
+    expect(row?.readiness).toEqual({ openQuestions: 1, needsClarification: 1, blocking: false });
+  });
+
+  it("reads an edited create draft, and an audit's proposed ticket, as the badge would", async () => {
+    const edited = await addAnalysis({
+      result: { title: "Old" },
+      editedResult: {
+        title: "Edited",
+        description: [],
+        acceptanceCriteria: [{ text: "Settled.", status: "inferred", evidenceIds: [], requiresProductDecision: false }],
+        assumptions: [],
+        openQuestions: [],
+        evidence: [],
+      },
+    });
+    const audit = await addAnalysis({
+      kind: "audit",
+      input: { issueKey: "SHOP-1" },
+      result: {
+        summary: "Gaps.",
+        findings: [],
+        proposedTicket: {
+          title: "Proposed",
+          description: [],
+          acceptanceCriteria: [],
+          assumptions: [],
+          openQuestions: [{ question: "Which columns?", impact: "Changes the export" }],
+        },
+        evidence: [],
+      },
+    });
+
+    const page = await listAnalyses(db, projectId);
+    expect(page.analyses.find((analysis) => analysis.id === edited)?.readiness).toEqual({
+      openQuestions: 0,
+      needsClarification: 0,
+      blocking: false,
+    });
+    expect(page.analyses.find((analysis) => analysis.id === audit)?.readiness).toEqual({
+      openQuestions: 1,
+      needsClarification: 0,
+      blocking: false,
+    });
+  });
+
+  it("counts a stored blocking issue, but not an open-question warning", async () => {
+    const blocking = await addAnalysis({
+      evidenceIssues: [{ path: "description[0]", message: "Bad quote", kind: "evidence" }],
+    });
+    const warning = await addAnalysis({
+      evidenceIssues: [{ path: "description[0]", message: "Decides a question", kind: "open_question" }],
+    });
+
+    const page = await listAnalyses(db, projectId);
+    expect(page.analyses.find((row) => row.id === blocking)?.readiness.blocking).toBe(true);
+    expect(page.analyses.find((row) => row.id === warning)?.readiness.blocking).toBe(false);
+  });
+});

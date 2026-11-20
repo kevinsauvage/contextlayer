@@ -192,3 +192,43 @@ describe("EvidenceWarnings", () => {
     expect(container.innerHTML).toBe("");
   });
 });
+
+describe("AnalysisStatusBadge with a precomputed readiness", () => {
+  const minimal = { status: "completed" as const, publishedIssueKey: null };
+
+  it("is Ready when the summary says nothing is left to decide", () => {
+    render(
+      <AnalysisStatusBadge
+        analysis={minimal}
+        readiness={{ openQuestions: 0, needsClarification: 0, blocking: false }}
+      />,
+    );
+    expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
+  it("is Provisional for an open question, an undecided claim or a blocking issue", () => {
+    const { rerender } = render(
+      <AnalysisStatusBadge
+        analysis={minimal}
+        readiness={{ openQuestions: 1, needsClarification: 0, blocking: false }}
+      />,
+    );
+    expect(screen.getByText("Provisional")).toBeTruthy();
+
+    rerender(
+      <AnalysisStatusBadge
+        analysis={minimal}
+        readiness={{ openQuestions: 0, needsClarification: 2, blocking: false }}
+      />,
+    );
+    expect(screen.getByText("Provisional")).toBeTruthy();
+
+    rerender(
+      <AnalysisStatusBadge
+        analysis={minimal}
+        readiness={{ openQuestions: 0, needsClarification: 0, blocking: true }}
+      />,
+    );
+    expect(screen.getByText("Provisional")).toBeTruthy();
+  });
+});

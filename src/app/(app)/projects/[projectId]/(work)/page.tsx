@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { getProject } from "@/features/projects/queries";
+import { projectForRequest } from "@/features/projects/request";
 import { createTicketAnalysis } from "@/features/ticket-creation/actions";
 import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb } from "@/infrastructure/db/client";
 
 export const maxDuration = 300;
 
@@ -13,8 +12,9 @@ export const metadata: Metadata = { title: "Draft a ticket" };
 export default async function Page({ params }: PageProps<"/projects/[projectId]">) {
   const { projectId } = await params;
   const { organizationId } = await requireOrgContext();
-  const project = await getProject(getDb(), organizationId, projectId);
-  if (!project) notFound();
+  const loaded = await projectForRequest(organizationId, projectId);
+  if (!loaded) notFound();
+  const { project } = loaded;
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

@@ -4,19 +4,16 @@ import { PageHeader } from "@/components/page-header";
 import { ProjectTabs } from "@/components/projects/project-tabs";
 import { ProviderIcon } from "@/components/integrations/provider-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getProject } from "@/features/projects/queries";
-import { projectIntegrations } from "@/features/projects/view";
+import { projectForRequest } from "@/features/projects/request";
 import { requireOrgContext } from "@/infrastructure/auth/session";
-import { getDb } from "@/infrastructure/db/client";
 
 // Shared shell for the two ways of working on a project: drafting a ticket and auditing one.
 export default async function ProjectLayout({ params, children }: LayoutProps<"/projects/[projectId]">) {
   const { projectId } = await params;
   const { organizationId, isAdmin } = await requireOrgContext();
-  const db = getDb();
-  const project = await getProject(db, organizationId, projectId);
-  if (!project) notFound();
-  const integrations = await projectIntegrations(db, project);
+  const loaded = await projectForRequest(organizationId, projectId);
+  if (!loaded) notFound();
+  const { project, integrations } = loaded;
 
   return (
     <div className="flex flex-col gap-6">

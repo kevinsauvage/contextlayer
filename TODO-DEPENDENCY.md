@@ -1,15 +1,9 @@
 # TODO · Dependencies
 
-## P3 · Later: optional features and deeper hardening
-
-- [ ] **Apply the pending minor and patch releases** `P3`
-  - **Context:** `pnpm outdated` on 2026-11-20 lists, within the pinned majors: `ai` 7.0.173 → 7.0.177, `@ai-sdk/openai-compatible` 3.0.92 → 3.0.93, `better-auth` 1.7.24 → 1.7.26, `lucide-react` 1.73.0 → 1.76.0, and dev tools (`vitest` and `@vitest/coverage-v8` 5.1.1, `@playwright/test` 1.65.1, `typescript-eslint` 8.73.0, `knip` 6.46.1, `dependency-cruiser` 18.8.0, `lint-staged` 17.6.1, `@electric-sql/pglite` 0.5.17, `@testing-library/user-event` 14.6.13). Dependabot may already have opened some of them.
-  - **Fix:** merge the Dependabot PRs or run `pnpm up` within the current ranges, then `pnpm check` and `pnpm e2e`. Read the `better-auth` changelog first: it owns sessions, rate limits and organizations.
-
 ## Deferred · blocked upstream or tied to another decision
 
 - [ ] **Upgrade TypeScript 6.0.3 → 7.x** `Deferred`
-  - **Context:** blocked: `typescript-eslint` 8.72.1 accepts only `typescript >=4.8.4 <6.1.0`. (The stale "stays on 5.x" wording in `DECISIONS.md` is covered by "DECISIONS.md: dated follow-ups for two reversed decisions" in [`TODO-NON-CODE.md`](TODO-NON-CODE.md).)
+  - **Context:** blocked: `typescript-eslint` 8.73.0 accepts only `typescript >=4.8.4 <6.1.0`.
   - **Fix:** when a `typescript-eslint` release accepts 7.x, `pnpm up typescript typescript-eslint`, then `pnpm typecheck`, `pnpm lint`, `pnpm knip`, `pnpm build`, and update the pin.
 
 - [ ] **Upgrade ESLint 9 → 10** `Deferred`

@@ -37,19 +37,21 @@ describe("httpStatusOf", () => {
 });
 
 describe("toActionError", () => {
-  it.each([
-    [new ForbiddenError(), "Only organization owners and admins can do this. Ask one of them."],
-    [new AnalysisAlreadyRunningError(), "This analysis is already running. Wait for it to finish."],
-    [new AnalysisLimitError("Your daily limit is reached."), "Your daily limit is reached."],
-    [
-      new ReconnectRequiredError("Acme Jira"),
-      "The connection to Acme Jira expired. An admin needs to reconnect it in Integrations.",
-    ],
-    [new TrackerRejectedError("Summary is too long"), "Summary is too long"],
-    [new TrackerNotFoundError("Issue SHOP-9 is gone"), "Issue SHOP-9 is gone"],
-    [new ConnectionMissingError("The tracker is disconnected"), "The tracker is disconnected"],
-  ])("maps %s to what the person can act on", (error, message) => {
-    expect(toActionError(error)).toEqual({ error: message });
+  it("maps every known error to what the person can act on", () => {
+    const cases: [Error, string][] = [
+      [new ForbiddenError(), "Only organization owners and admins can do this. Ask one of them."],
+      [new AnalysisAlreadyRunningError(), "This analysis is already running. Wait for it to finish."],
+      [new AnalysisLimitError("Your daily limit is reached."), "Your daily limit is reached."],
+      [
+        new ReconnectRequiredError("Acme Jira"),
+        "The connection to Acme Jira expired. An admin needs to reconnect it in Integrations.",
+      ],
+      [new TrackerRejectedError("Summary is too long"), "Summary is too long"],
+      [new TrackerNotFoundError("Issue SHOP-9 is gone"), "Issue SHOP-9 is gone"],
+      [new ConnectionMissingError("The tracker is disconnected"), "The tracker is disconnected"],
+    ];
+
+    for (const [error, message] of cases) expect(toActionError(error)).toEqual({ error: message });
   });
 
   it("ignores errors it does not own, including grants that need a new consent", () => {

@@ -425,3 +425,9 @@ Format: date · decision · why. Newest group last. Open questions are at the to
 - The provider descriptor carries `resourceNounPlural`, and project counts use `countLabel` · the picker placeholder and the per-connection counts no longer pluralize provider nouns by hand; a future provider with an irregular noun only has to declare its own words.
 - Onboarding shows the signed-in address and the existing `SwitchAccountButton` · an invitee who signed up with the wrong address can switch without clearing cookies.
 - The scaffold's unused `public/*.svg` files are deleted · they read as an unfinished setup and nothing referenced them.
+
+## Request-scoped reads and dependency refresh (2026-11-20)
+
+- The project layout and the page under it now share one `projectForRequest(organizationId, projectId)` wrapped in React `cache()`; it returns the project, the database and both integrations · opening the audit tab cost six queries where three do, and the wrapper is keyed on the ids, not on the `db` object. The analysis detail page stays outside that layout and keeps its single lookup.
+- The history query selects only the draft's description, acceptance criteria and open questions plus its stored issues, and computes the badge verdict in JS; the badge accepts a precomputed readiness · a 50-row page no longer transfers every stored evidence excerpt and Zod-parses each full draft, and no migration or backfill is needed.
+- `ai` 7.0.177, `@ai-sdk/openai-compatible` 3.0.93 (its `provider-utils` 5.0.82 matches `ai`), `better-auth` 1.7.26, `lucide-react` 1.76.0 and the listed dev patch/minor releases; `@playwright/test` 1.65.1 needed the matching browser download · read the Better Auth 1.7.25–1.7.26 notes first: CORS exposed headers, account fields, verification and two-factor fixes, with no change to sessions, rate limits or organizations. `pnpm check`, `pnpm audit --prod --audit-level high` and `pnpm e2e` pass.
