@@ -29,7 +29,16 @@ const draft: TicketDraft = {
 
 function Editor(props: Partial<ComponentProps<typeof DraftEditor>> = {}) {
   const [current, setCurrent] = useState(draft);
-  return <DraftEditor draft={current} onChange={setCurrent} disabled={false} trackerName="Jira" {...props} />;
+  return (
+    <DraftEditor
+      draft={current}
+      onChange={setCurrent}
+      disabled={false}
+      trackerName="Jira"
+      {...props}
+      issuesByPath={props.issuesByPath ?? new Map()}
+    />
+  );
 }
 
 describe("DraftEditor", () => {
