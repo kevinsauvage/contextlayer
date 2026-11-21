@@ -37,3 +37,7 @@ AI ticket creation and QA: turns a plain-language request into an evidence-backe
 - Read form data with `formString()` and Zod error messages with `firstIssueMessage()` (both in `src/lib`).
 - Prefer a maintained npm package over hand-written code whenever one fits (retries, timeouts, parsing, word lists, dates, IDs, validation). Search npm before writing a helper, check its weekly downloads, maintenance and types, and say in the reply why you chose it or why none fit. Hand-write only when no package fits or the code is a few lines.
 - Follow best practices: small single-purpose functions, explicit types at boundaries, descriptive names, early returns, no dead code or speculative abstractions.
+
+## Skills
+
+- Project procedures live in `.claude/skills` (Claude Code and OpenCode both read it); global procedures live in `~/.claude/skills`. Add or update a skill when a workflow here is about to repeat; use the `maintain-skills` skill for its format and validation.
