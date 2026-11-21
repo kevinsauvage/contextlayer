@@ -76,6 +76,9 @@ export function DraftWorkspace({
   const router = useRouter();
   const [tab, setTab] = useState("preview");
   const [highlight, setHighlight] = useState<"description" | "acceptanceCriteria" | null>(null);
+  const [focusClaim, setFocusClaim] = useState<{ section: "description" | "acceptanceCriteria"; index: number } | null>(
+    null,
+  );
   const published = Boolean(result.issueUrl);
   const refinement = useOptionalRefinement();
   const updating = refinement?.updating ?? false;
@@ -97,6 +100,11 @@ export function DraftWorkspace({
         ...draftIssues(draft, evidence).filter((issue) => isClaimPath(issue.path)),
       ]
     : issues;
+  const issuesByPath = new Map<string, string[]>();
+  for (const issue of shownIssues) {
+    if (!isClaimPath(issue.path)) continue;
+    issuesByPath.set(issue.path, [...(issuesByPath.get(issue.path) ?? []), issue.message]);
+  }
   const blocking = shownIssues.filter(isBlockingIssue);
   const warningCount = shownIssues.length - blocking.length;
   const unresolved = [
@@ -109,15 +117,27 @@ export function DraftWorkspace({
       : []),
   ];
 
-  // An evidence warning is a link into the editor: show the section it points at and mark it.
+  // Wait until the Edit tab has mounted before moving focus into its claim field.
+  useEffect(() => {
+    if (tab !== "edit" || !focusClaim || published) return;
+    const section = document.getElementById(`edit-${focusClaim.section}`);
+    const field = document.getElementById(`claim-${focusClaim.section}-${focusClaim.index}`);
+    if (!section || !(field instanceof HTMLTextAreaElement)) return;
+    section.scrollIntoView({ block: "center", behavior: "smooth" });
+    field.focus({ preventScroll: true });
+  }, [tab, focusClaim, published]);
+
+  // An evidence warning is a link into the editor: show and focus the claim it points at.
   const showClaim = (path: string) => {
-    const section = path.startsWith("acceptanceCriteria") ? "acceptanceCriteria" : "description";
+    const match = /^(description|acceptanceCriteria)\[(\d+)\]$/.exec(path);
+    if (!match || published) return;
+    const section = match[1];
+    if (section !== "description" && section !== "acceptanceCriteria") return;
+    const index = Number(match[2]);
+    if (!Number.isSafeInteger(index)) return;
     setTab("edit");
     setHighlight(section);
-    setTimeout(
-      () => document.getElementById(`edit-${section}`)?.scrollIntoView({ block: "center", behavior: "smooth" }),
-      0,
-    );
+    setFocusClaim({ section, index });
     setTimeout(() => setHighlight(null), 2500);
   };
 
@@ -137,7 +157,7 @@ export function DraftWorkspace({
 
   return (
     <div className="flex flex-col gap-4">
-      <EvidenceWarnings issues={shownIssues} onSelect={showClaim} />
+      <EvidenceWarnings issues={shownIssues} onSelect={published ? undefined : showClaim} />
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
         <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -169,6 +189,7 @@ export function DraftWorkspace({
             trackerName={trackerName}
             questionsAnchored={questionsAnchored}
             highlight={highlight}
+            issuesByPath={issuesByPath}
           />
         </TabsContent>
       </Tabs>

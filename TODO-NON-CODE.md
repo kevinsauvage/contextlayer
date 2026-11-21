@@ -12,9 +12,9 @@ Research, decisions, manual reviews, configuration and documentation: work that 
   - **Context:** on a public site, visitors who connect a repository or a Jira site send source code and ticket text to the AI provider, and the app stores excerpts in `analysis.result`. They should be told where it goes and for how long before they connect anything.
   - **Fix:** write a public page covering what is read, sent, stored and for how long, and link each provider's retention terms.
 
-- [ ] **Threat model** `P2`
+- [x] **Threat model** `P2`
   - **Context:** prompt injection through repository and Jira text, tenant isolation and token handling are mitigated piecemeal (see "Security model" in `docs/architecture/overview.md`) but never reviewed as a whole.
-  - **Fix:** write `docs/architecture/threat-model.md` (assets, actors, entry points, mitigations, gaps) and file every gap in the matching `TODO-*.md`.
+  - **Done:** wrote [`docs/architecture/threat-model.md`](docs/architecture/threat-model.md), grounding the model in source and recording operational unknowns. Filed the concurrent deployment-wide run-limit gap in [`TODO-BUG.md`](TODO-BUG.md).
 
 - [ ] **Narrower Jira scopes** `P2`
   - **Context:** `src/integrations/jira/oauth.ts` requests `read:jira-work` and `write:jira-work`, which grant broad access.

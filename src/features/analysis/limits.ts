@@ -57,9 +57,8 @@ export async function assertRunAllowed(
     throw new AnalysisLimitError("You are running analyses too quickly. Wait a minute and try again.");
 }
 
-// Checks the limits, lets the caller claim its analysis row, and records the run, all in one transaction under a lock
-// on the user: parallel requests queue instead of each passing the count, and a claim that throws records no run.
-// The deployment-wide limit is not locked, so requests from different users can pass it by the few in flight.
+// A shared lock keeps both per-user and deployment-wide counts accurate while the short claim transaction runs.
+// A claim that throws records no run.
 export async function claimRun<T>(
   db: Database,
   userId: string,
@@ -68,7 +67,7 @@ export async function claimRun<T>(
   now = new Date(),
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('contextlayer:analysis-run-limit'))`);
     await assertRunAllowed(tx, userId, limits, now);
     const claimed = await claim(tx);
     await tx.insert(analysisRun).values({ userId, startedAt: now });

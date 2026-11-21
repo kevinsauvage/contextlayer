@@ -15,7 +15,7 @@ type Props<T> = {
   createItem: () => T;
   addLabel: string;
   minItems?: number;
-  renderItem: (item: T, update: (patch: Partial<T>) => void, label: string) => ReactNode;
+  renderItem: (item: T, update: (patch: Partial<T>) => void, label: string, index: number) => ReactNode;
 };
 
 const FIELDS = "textarea, input, select";
@@ -71,7 +71,7 @@ export function EditableList<T>({
           return (
             <div key={index} role="group" aria-label={label} className="flex gap-2 rounded-lg border p-3">
               <div className="flex flex-1 flex-col gap-2">
-                {renderItem(item, (patch) => update(index, patch), label)}
+                {renderItem(item, (patch) => update(index, patch), label, index)}
               </div>
               <Button
                 type="button"

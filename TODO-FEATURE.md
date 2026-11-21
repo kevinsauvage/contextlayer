@@ -60,9 +60,9 @@
   - **Context:** create analyses have `TicketChat` and structured answers through one action, `refineTicket` (`src/features/ticket-creation/actions.ts:109`, via `redraft`, which loads only `kind: "create"`). `AuditView` (`src/components/analysis/audit-view.tsx`) shows the proposed ticket's questions read-only and cannot re-run in place, although the outdated-result copy (`outdated-result.tsx`, `audit-view.tsx:19,56`) and the stale-issue error (`src/features/ticket-audit/actions.ts:73`) tell the user to re-run.
   - **Fix:** first slice: a "Run again" button that re-audits the same issue key. Then let `redraft` accept the audit kind and re-run `auditIssue` with the merged answers and messages (add an `answers` input to `auditIssue` and the audit prompt), store them in the audit's `StoredAnalysisInput`, and render `TicketChat` in `AuditView`.
 
-- [ ] **Clicking an evidence warning doesn't move focus to the claim** `P3`
-  - **Context:** `showClaim` switches to Edit, scrolls and rings the whole section for 2.5 s, but focus stays on the warning button and the claim isn't marked (`src/components/analysis/draft-workspace.tsx:100-109`).
-  - **Fix:** focus the textarea of the named claim (`description[i]` or `acceptanceCriteria[i]`) and set `aria-invalid` on it until the issue clears.
+- [x] **Clicking an evidence warning doesn't move focus to the claim** `P3`
+  - **Context:** `DraftWorkspace.showClaim` switched to Edit, scrolled and rang the whole section for 2.5 s, but focus stayed on the warning button and the claim wasn't marked.
+  - **Done:** the warning opens Edit, scrolls to and focuses the named claim after the tab mounts, and associates the live issue text with its `aria-invalid` textarea. Published drafts keep warnings non-interactive because their fields cannot be changed.
 
 ## Deferred · business validation, not needed for the portfolio
 

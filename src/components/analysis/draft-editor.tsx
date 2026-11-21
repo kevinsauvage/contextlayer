@@ -21,6 +21,7 @@ type Props = {
   questionsAnchored?: boolean;
   // Section an evidence warning points at, so a click can show where to fix it.
   highlight?: "description" | "acceptanceCriteria" | null;
+  issuesByPath: Map<string, string[]>;
 };
 
 type ClaimStatusFieldProps = { claim: Claim; label: string; onChange: (status: ClaimStatus) => void };
@@ -63,20 +64,26 @@ type ClaimFieldsProps = {
   claim: Claim;
   label: string;
   disabled: boolean;
+  id: string;
+  issues: string[];
   onEdit: (patch: Partial<Claim>) => void;
   // Acceptance criteria carry a product-decision flag; description paragraphs do not.
   decision?: { checked: boolean; onChange: (checked: boolean) => void };
 };
 
 // A claim's text, status and optional product-decision flag: the two list kinds render the same fields.
-function ClaimFields({ claim, label, disabled, onEdit, decision }: ClaimFieldsProps) {
+function ClaimFields({ claim, label, disabled, id, issues, onEdit, decision }: ClaimFieldsProps) {
   const editHintId = useId();
+  const issueId = useId();
   const showEditHint = claim.status === "verified" && !disabled;
+  const describedBy = [showEditHint ? editHintId : null, issues.length ? issueId : null].filter(Boolean).join(" ");
   return (
     <>
       <Textarea
+        id={id}
         aria-label={label}
-        aria-describedby={showEditHint ? editHintId : undefined}
+        aria-invalid={issues.length > 0 || undefined}
+        aria-describedby={describedBy || undefined}
         value={claim.text}
         onChange={(e) => onEdit(withEditedText(claim, e.target.value))}
         disabled={disabled}
@@ -91,6 +98,11 @@ function ClaimFields({ claim, label, disabled, onEdit, decision }: ClaimFieldsPr
           </label>
         )}
       </div>
+      {issues.length > 0 && (
+        <span id={issueId} className="sr-only">
+          {issues.join(" ")}
+        </span>
+      )}
     </>
   );
 }
@@ -102,6 +114,7 @@ export function DraftEditor({
   trackerName,
   questionsAnchored = false,
   highlight = null,
+  issuesByPath,
 }: Props) {
   const patch = (changes: Partial<TicketDraft>) => onChange({ ...draft, ...changes });
 
@@ -131,9 +144,19 @@ export function DraftEditor({
         onChange={(description) => patch({ description })}
         createItem={() => ({ text: "", status: "needs_clarification" as const, evidenceIds: [] })}
         addLabel="Add paragraph"
-        renderItem={(item, update, label) => (
-          <ClaimFields claim={item} label={label} disabled={published} onEdit={update} />
-        )}
+        renderItem={(item, update, label, index) => {
+          const path = `description[${index}]`;
+          return (
+            <ClaimFields
+              claim={item}
+              label={label}
+              disabled={published}
+              id={`claim-description-${index}`}
+              issues={issuesByPath.get(path) ?? []}
+              onEdit={update}
+            />
+          );
+        }}
       />
 
       <EditableList
@@ -150,18 +173,23 @@ export function DraftEditor({
           requiresProductDecision: true,
         })}
         addLabel="Add criterion"
-        renderItem={(item, update, label) => (
-          <ClaimFields
-            claim={item}
-            label={label}
-            disabled={published}
-            onEdit={update}
-            decision={{
-              checked: item.requiresProductDecision,
-              onChange: (requiresProductDecision) => update({ requiresProductDecision }),
-            }}
-          />
-        )}
+        renderItem={(item, update, label, index) => {
+          const path = `acceptanceCriteria[${index}]`;
+          return (
+            <ClaimFields
+              claim={item}
+              label={label}
+              disabled={published}
+              id={`claim-acceptanceCriteria-${index}`}
+              issues={issuesByPath.get(path) ?? []}
+              onEdit={update}
+              decision={{
+                checked: item.requiresProductDecision,
+                onChange: (requiresProductDecision) => update({ requiresProductDecision }),
+              }}
+            />
+          );
+        }}
       />
 
       <EditableList

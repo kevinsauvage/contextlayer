@@ -1,6 +1,6 @@
 # TODO
 
-Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-11-20 (full review before the portfolio presentation, covering accessibility, performance, logic, code quality, duplication and security: fourteen items filed, stale cross-references fixed; gates, knip, depcruise and `pnpm audit --prod` were clean apart from the known `esbuild` advisory). The four bugs it filed, plus the test-coverage and end-to-end build-out, shipped the same day. Before that, 2026-11-14 (code review: eleven fixes shipped, no open bugs; the P1 quality items and the P2 security slice shipped: analysis limits, secret redaction, bounded refinement history, database rate limiting and CSP).
+Open work only; shipped work lives in `git log` and `DECISIONS.md`. Last reviewed 2026-11-21 (simplicity, architecture, performance and production-readiness pass: concrete follow-ups are already tracked below, so no duplicate items or speculative refactors were added). The 2026-11-20 full review before the portfolio presentation covered accessibility, performance, logic, code quality, duplication and security: fourteen items filed, stale cross-references fixed; gates, knip, depcruise and `pnpm audit --prod` were clean apart from the known `esbuild` advisory. The four bugs it filed, plus the test-coverage and end-to-end build-out, shipped the same day. Before that, 2026-11-14 (code review: eleven fixes shipped, no open bugs; the P1 quality items and the P2 security slice shipped: analysis limits, secret redaction, bounded refinement history, database rate limiting and CSP).
 
 The backlog is split by kind of work, one `TODO-<KIND>.md` file each. Add a new kind only when none fits, following the same pattern.
 
@@ -23,8 +23,8 @@ Each item has a **Context** (why it matters) and a **Fix** (how to close it), an
 | -------- | -------------------------------------------------------------------------------------------------- | --: | ------: | ------: | -------: | ---------: | -------: |
 | P0       | Core promise: the draft must be correct and the run must not fail                                  |   0 |       0 |       0 |        0 |          0 |        0 |
 | P1       | Prove it: fair evaluation, real retrieval measurements, correctness fixes                          |   0 |       0 |       0 |        0 |          0 |        0 |
-| P2       | Production-grade: security, limits, deploy, reliability                                            |   0 |       6 |       2 |        0 |          0 |        6 |
-| P3       | Polish and later                                                                                   |   0 |       9 |       0 |        0 |          0 |        3 |
+| P2       | Production-grade: security, limits, deploy, reliability                                            |   1 |       6 |       2 |        0 |          0 |        5 |
+| P3       | Polish and later                                                                                   |   0 |       8 |       0 |        0 |          0 |        3 |
 | Deferred | Business validation and the demo clone, not needed to build the product properly; blocked upgrades |   0 |       1 |       0 |        0 |          4 |        5 |
 
 **Order of work:** P0 first (the core promise), then P1 (prove it), then P2 (production-grade, before the first production database exists).
